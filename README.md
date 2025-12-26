@@ -13,7 +13,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1cgwNSprGrt5rA9A1c9xpgG
 **Prerequisites:**  Node.js
 
 
-1. Install dependencies:
+1.# InfraCore ERP
+> Sistema de Gestão para Construção Civil e Engenharia.
+
+**Última atualização:** 25/12/2025 - Implementação de Login e Segurança.
+dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:

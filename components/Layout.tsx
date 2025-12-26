@@ -14,24 +14,39 @@ import {
   Search,
   ChevronDown,
   Truck,
-  Settings
+  Settings,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 const Layout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const { currentUser, logout, hasPermission, roles } = useApp();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const currentRoleName = React.useMemo(() => {
+    return roles.find(r => r.id === currentUser?.roleId)?.name || 'Usuário';
+  }, [currentUser, roles]);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={18} /> },
-    { name: 'Cadastros', path: '/clients', icon: <Users size={18} /> },
-    { name: 'Vendas', path: '/sales', icon: <ShoppingCart size={18} /> },
-    { name: 'Compras', path: '/purchases', icon: <ShoppingBag size={18} /> },
-    { name: 'Produção', path: '/production', icon: <Construction size={18} /> },
-    { name: 'Financeiro', path: '/finance', icon: <DollarSign size={18} /> },
-    { name: 'RH', path: '/hr', icon: <Briefcase size={18} /> },
-    { name: 'Frota', path: '/fleet', icon: <Truck size={18} /> },
-    { name: 'Relatórios', path: '/reports', icon: <FileText size={18} /> },
-    { name: 'Configurações', path: '/settings', icon: <Settings size={18} /> },
-  ];
+    { name: 'Cadastros', path: '/clients', icon: <Users size={18} />, permission: 'clients.manage' },
+    { name: 'Vendas', path: '/sales', icon: <ShoppingCart size={18} />, permission: 'sales.view' },
+    { name: 'Compras', path: '/purchases', icon: <ShoppingBag size={18} />, permission: 'purchases.view' },
+    { name: 'Produção', path: '/production', icon: <Construction size={18} />, permission: 'production.view' },
+    { name: 'Financeiro', path: '/finance', icon: <DollarSign size={18} />, permission: 'finance.view' },
+    { name: 'RH', path: '/hr', icon: <Briefcase size={18} />, permission: 'employees.view' },
+    { name: 'Frota', path: '/fleet', icon: <Truck size={18} />, permission: 'fleet.view' },
+    { name: 'Relatórios', path: '/reports', icon: <FileText size={18} />, permission: 'sales.view' },
+    { name: 'Configurações', path: '/settings', icon: <Settings size={18} />, permission: 'settings.view' },
+  ].filter(item => !item.permission || hasPermission(item.permission));
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-900 dark:text-white flex flex-col font-body">
@@ -69,7 +84,21 @@ const Layout = () => {
               ))}
             </nav>
 
-            {/* Right Actions Area Removed for Space */}
+            {/* User Profile */}
+            <div className="flex items-center gap-4 ml-auto">
+              <div className="hidden lg:flex flex-col items-end mr-2">
+                <span className="text-sm font-bold text-slate-800 dark:text-white leading-none">{currentUser?.name || 'Visitante'}</span>
+                <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 mt-1">{currentRoleName}</span>
+              </div>
+              <div className="flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 overflow-hidden shadow-inner ring-2 ring-white dark:ring-slate-800">
+                  {currentUser?.avatar ? <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <UserIcon size={20} />}
+                </div>
+                <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors" title="Sair do Sistema">
+                  <LogOut size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -336,6 +336,7 @@ export interface User {
   lastLogin?: string;
   avatar?: string;
   registeredAt: string;
+  employeeId?: string; // Link to an employee profile
 }
 
 export interface AppSettings {

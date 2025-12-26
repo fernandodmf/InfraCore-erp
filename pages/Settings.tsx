@@ -34,13 +34,14 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User, AppRole, AppSettings, AuditLog } from '../types';
+import { APP_PERMISSIONS } from '../permission_constants';
 
 const Settings = () => {
     const {
-        users, roles, settings, auditLogs,
+        users, roles, settings, auditLogs, employees,
         addUser, updateUser, deleteUser,
         addRole, updateRole, deleteRole,
-        updateSettings, clearAllData
+        updateSettings, clearAllData, hasPermission
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'company' | 'security' | 'system' | 'audit'>('company');
@@ -87,21 +88,7 @@ const Settings = () => {
         }
     };
 
-    const permissionOptions = [
-        { id: 'all', name: 'Administrador Total', category: 'Sistema' },
-        { id: 'inventory.view', name: 'Visualizar Estoque', category: 'Estoque' },
-        { id: 'inventory.edit', name: 'Editar Estoque', category: 'Estoque' },
-        { id: 'sales.view', name: 'Visualizar Vendas', category: 'Comercial' },
-        { id: 'sales.create', name: 'Criar Vendas/Orçamentos', category: 'Comercial' },
-        { id: 'finance.view', name: 'Visualizar Financeiro', category: 'Financeiro' },
-        { id: 'finance.admin', name: 'Gestão Financeira Total', category: 'Financeiro' },
-        { id: 'fleet.view', name: 'Visualizar Frota', category: 'Logística' },
-        { id: 'fleet.admin', name: 'Gestão de Frota/Manutenção', category: 'Logística' },
-        { id: 'production.view', name: 'Visualizar Produção', category: 'Industrial' },
-        { id: 'production.admin', name: 'Gestão de PCP/Laboratório', category: 'Industrial' },
-        { id: 'employees.view', name: 'Visualizar RH', category: 'Recursos Humanos' },
-        { id: 'settings.view', name: 'Acessar Configurações', category: 'Sistema' },
-    ];
+    // Permission logic moved to permission_constants.ts
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
@@ -145,12 +132,14 @@ const Settings = () => {
                 >
                     <Building size={16} /> Empresa
                 </button>
-                <button
-                    onClick={() => setActiveTab('security')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'security' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    <ShieldCheck size={16} /> Segurança
-                </button>
+                {hasPermission('users.manage') && (
+                    <button
+                        onClick={() => setActiveTab('security')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'security' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    >
+                        <ShieldCheck size={16} /> Segurança
+                    </button>
+                )}
                 <button
                     onClick={() => setActiveTab('system')}
                     className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'system' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
@@ -271,7 +260,7 @@ const Settings = () => {
                                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                         <Users size={14} /> Ativos no Sistema ({users.length})
                                     </h3>
-                                    <button onClick={() => { setEditingUser({ id: '', name: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '' }); setIsUserModalOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><UserPlus size={24} /></button>
+                                    <button onClick={() => { setEditingUser({ id: '', name: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '', employeeId: '' }); setIsUserModalOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><UserPlus size={24} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {users.map(user => (
@@ -288,6 +277,12 @@ const Settings = () => {
                                             <div>
                                                 <p className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{user.name}</p>
                                                 <p className="text-xs text-slate-400 font-medium mb-4">{user.email}</p>
+                                                {user.employeeId && (
+                                                    <div className="mb-4 flex items-center gap-1.5 text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg w-fit">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                                        {employees.find(e => e.id === user.employeeId)?.name || 'Vínculo Inválido'}
+                                                    </div>
+                                                )}
                                                 <div className="flex flex-wrap gap-2">
                                                     <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 uppercase">{roles.find(r => r.id === user.roleId)?.name || 'N/A'}</span>
                                                     <span className={`text-[9px] font-black px-2 py-1 rounded-lg uppercase ${user.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{user.status}</span>
@@ -540,7 +535,7 @@ const Settings = () => {
             {/* User Modal */}
             {isUserModalOpen && editingUser && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-md border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden">
                         <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
                             <div>
                                 <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Detalhes do Usuário</h3>
@@ -548,18 +543,35 @@ const Settings = () => {
                             </div>
                             <button onClick={() => setIsUserModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
-                        <form onSubmit={handleSaveUser} className="p-8 space-y-5">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
+                        <form onSubmit={handleSaveUser} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Geral</label>
+                                    <input type="text" placeholder="Nome Completo" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
+                                </div>
+                                <div className="col-span-2 space-y-2">
+                                    <input type="email" placeholder="E-mail de Acesso" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail de Acesso</label>
-                                <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
-                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador Vinculado (RH)</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm"
+                                        value={editingUser.employeeId || ''}
+                                        onChange={e => setEditingUser({ ...editingUser, employeeId: e.target.value })}
+                                    >
+                                        <option value="">-- Sem Vínculo --</option>
+                                        {employees.map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name} - {emp.role}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[10px] text-slate-400 px-2">Vincular a um cadastro do RH permite sincronização de dados.</p>
+                                </div>
+
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargo/Função</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Perfil de Acesso</label>
                                     <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingUser.roleId} onChange={e => setEditingUser({ ...editingUser, roleId: e.target.value })}>
                                         {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
@@ -572,11 +584,12 @@ const Settings = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div className="pt-6">
-                                <button type="submit" className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20">
-                                    Finalizar Acesso
-                                </button>
-                            </div>
+
+                            <hr className="border-slate-100 dark:border-slate-700" />
+
+                            <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all">
+                                Salvar Usuário
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -585,58 +598,91 @@ const Settings = () => {
             {/* Role Modal */}
             {isRoleModalOpen && editingRole && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-2xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden">
-                        <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden h-[90vh]">
+                        <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
                             <div>
-                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Definição de Cargo</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Matriz de permissões por módulo.</p>
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Definição de Cargo: {editingRole.name}</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configure o que cada cargo pode fazer no sistema.</p>
                             </div>
                             <button onClick={() => setIsRoleModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
-                        <form onSubmit={handleSaveRole} className="p-8 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-5">
+                        <form onSubmit={handleSaveRole} className="flex flex-col h-[calc(100%-100px)]">
+                            <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Perfil</label>
                                         <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} placeholder="Ex: Financeiro Sênior" required />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Atribuições</label>
-                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm h-32 resize-none" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} placeholder="Resumo das responsabilidades deste cargo..." required />
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</label>
+                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm h-[54px] resize-none pt-4" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} placeholder="Responsabilidades..." required />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Controle Granular</label>
-                                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {permissionOptions.map(opt => (
-                                            <div key={opt.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-white dark:hover:bg-slate-850 transition-colors group border border-transparent hover:border-indigo-100">
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">{opt.name}</span>
-                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{opt.category}</span>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <ShieldCheck size={14} className="text-indigo-500" /> Permissões Granulares
+                                        </label>
+                                        <span className="text-[10px] font-bold text-slate-400">{editingRole.permissions.length} Selecionadas</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {APP_PERMISSIONS.map(category => (
+                                            <div key={category.category} className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-all">
+                                                <div className="flex justify-between items-center mb-2 px-1">
+                                                    <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">{category.category}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const allIds = category.permissions.map(p => p.id);
+                                                            const hasAll = allIds.every(id => editingRole.permissions.includes(id));
+                                                            if (hasAll) {
+                                                                setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => !allIds.includes(p)) });
+                                                            } else {
+                                                                setEditingRole({ ...editingRole, permissions: [...new Set([...editingRole.permissions, ...allIds])] });
+                                                            }
+                                                        }}
+                                                        className="text-[9px] font-bold text-indigo-500 hover:underline"
+                                                    >
+                                                        Toggle All
+                                                    </button>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const p = editingRole.permissions.includes(opt.id)
-                                                            ? editingRole.permissions.filter(p => p !== opt.id)
-                                                            : [...editingRole.permissions, opt.id];
-                                                        setEditingRole({ ...editingRole, permissions: p });
-                                                    }}
-                                                    className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${editingRole.permissions.includes(opt.id) ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-slate-200 dark:bg-slate-700 text-transparent hover:text-slate-400'}`}
-                                                >
-                                                    <Check size={14} />
-                                                </button>
+                                                <div className="space-y-2">
+                                                    {category.permissions.map(perm => {
+                                                        const isSelected = editingRole.permissions.includes(perm.id);
+                                                        return (
+                                                            <div
+                                                                key={perm.id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => p !== perm.id) });
+                                                                    } else {
+                                                                        setEditingRole({ ...editingRole, permissions: [...editingRole.permissions, perm.id] });
+                                                                    }
+                                                                }}
+                                                                className={`cursor-pointer group flex items-start gap-3 p-3 rounded-2xl transition-all border ${isSelected ? 'bg-white dark:bg-slate-800 border-indigo-100 dark:border-indigo-900 shadow-sm' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
+                                                            >
+                                                                <div className={`mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-transparent'}`}>
+                                                                    <Check size={12} strokeWidth={4} />
+                                                                </div>
+                                                                <div>
+                                                                    <p className={`text-[11px] font-bold leading-none mb-1 transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{perm.name}</p>
+                                                                    <p className="text-[9px] text-slate-400 font-medium leading-tight">{perm.description}</p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex gap-4">
-                                <button type="button" onClick={() => setIsRoleModalOpen(false)} className="flex-1 py-4 bg-slate-50 dark:bg-slate-900 text-slate-400 font-black rounded-2xl uppercase text-[9px] tracking-[0.3em]">Cancelar</button>
-                                <button type="submit" className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-[0.3em] shadow-xl shadow-slate-900/20">
-                                    Ativar Configurações
+                            <div className="p-8 border-t dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
+                                <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:scale-[1.01] active:scale-95 transition-all">
+                                    Salvar Perfil de Acesso
                                 </button>
                             </div>
                         </form>

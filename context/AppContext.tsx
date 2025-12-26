@@ -194,6 +194,11 @@ interface AppContextType {
   accounts: any[]; // Assuming 'any' for now based on INITIAL_ACCOUNTS structure
   planOfAccounts: any[]; // Assuming 'any' for now based on INITIAL_PLAN_OF_ACCOUNTS structure
 
+  currentUser: User | null;
+  login: (email: string) => Promise<boolean>;
+  logout: () => void;
+  hasPermission: (permissionId: string) => boolean;
+
   addClient: (client: Client) => void;
   updateClient: (client: Client) => void;
   deleteClient: (id: string) => void;
@@ -354,6 +359,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [planOfAccounts, setPlanOfAccounts] = useState<any[]>(INITIAL_PLAN_OF_ACCOUNTS); // Added
 
   // Persistence Load
+  // Auth State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Initialize with first user as mock admin session if no user logged
+
+
+  const login = async (email: string) => {
+    const user = users.find(u => u.email === email && u.status === 'Ativo');
+    if (user) {
+      setCurrentUser(user);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+  };
+
+  const hasPermission = useCallback((permissionId: string) => {
+    if (!currentUser) return false;
+
+    // Find User Role
+    const userRole = roles.find(r => r.id === currentUser.roleId);
+    if (!userRole) return false;
+
+    // Check for Admin Superuser
+    if (userRole.permissions.includes('all')) return true;
+
+    return userRole.permissions.includes(permissionId);
+  }, [currentUser, roles]);
+
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -964,6 +1001,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider value={{
       clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires,
       productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts,
+      currentUser, login, logout, hasPermission,
       addClient, updateClient, deleteClient,
       addSupplier, updateSupplier, deleteSupplier,
       addEmployee, updateEmployee, deleteEmployee,

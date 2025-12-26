@@ -14,12 +14,29 @@ import Reports from './pages/Reports';
 import Fleet from './pages/Fleet';
 import Settings from './pages/Settings';
 
+import { useApp } from './context/AppContext';
+import Login from './pages/Login';
+
+const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
+  const { currentUser } = useApp();
+  if (!currentUser) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
 const App = () => {
   return (
     <AppProvider>
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
             <Route index element={<Dashboard />} />
             <Route path="sales" element={<Sales />} />
             <Route path="purchases" element={<Purchases />} />

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import * as api from '../services/api';
 import {
   Client, Transaction, FleetVehicle, Sale, InventoryItem, Budget, Supplier,
   Employee, PurchaseOrder, MaintenanceRecord, FuelLog, PayrollRecord, TimeLog, Tire, TireHistory,
@@ -391,11 +393,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return userRole.permissions.includes(permissionId);
   }, [currentUser, roles]);
 
+
+  const loadSupabaseData = async () => {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const [
+        cl, su, emp, inv, tr, fl, ti, us, ro, set, fy
+      ] = await Promise.all([
+        api.fetchData<Client>('clients'),
+        api.fetchData<Supplier>('suppliers'),
+        api.fetchData<Employee>('employees'),
+        api.fetchData<InventoryItem>('inventory'),
+        api.fetchData<Transaction>('transactions'),
+        api.fetchData<FleetVehicle>('fleet'),
+        api.fetchData<Tire>('tires'),
+        api.fetchData<User>('users'),
+        api.fetchRoles(), // api.fetchRoles uses 'app_roles'
+        api.fetchData<AppSettings>('settings'),
+        // ... Add others as tables are ready
+        // api.fetchData<Sales>('sales'), etc.
+      ]);
+
+      if (cl.length > 0) setClients(cl);
+      if (su.length > 0) setSuppliers(su);
+      if (emp.length > 0) setEmployees(emp);
+      if (inv.length > 0) setInventory(inv);
+      if (tr.length > 0) setTransactions(tr);
+      if (fl.length > 0) setFleet(fl);
+      if (ti.length > 0) setTires(ti);
+      if (us.length > 0) setUsers(us);
+      if (ro.length > 0) setRoles(ro);
+      if (set.length > 0) setSettings(set[0]); // Settings is single row
+
+      // If 'users' table is empty (first load), we might want to keep the initial mock admin in state
+      // or rely on the seed from SQL.
+
+    } catch (e) {
+      console.error("Failed to load Supabase data", e);
+    }
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const data = JSON.parse(saved);
+        // Only load from localStorage if Supabase is NOT configured or offline logic
+        // For now, load local first, then overwrite with Supabase if available
         if (data.clients) setClients(data.clients);
         if (data.suppliers) setSuppliers(data.suppliers);
         if (data.employees) setEmployees(data.employees);
@@ -417,13 +462,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.roles) setRoles(data.roles);
         if (data.settings) setSettings(data.settings);
         if (data.auditLogs) setAuditLogs(data.auditLogs);
-        if (data.accounts) setAccounts(data.accounts);
-        if (data.planOfAccounts) setPlanOfAccounts(data.planOfAccounts);
       } catch (e) {
         console.error("Failed to load persistence", e);
       }
     }
+
+    // Load from Supabase (async)
+    loadSupabaseData();
+
   }, []);
+
 
   // Persistence Save
   useEffect(() => {
@@ -440,22 +488,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // Clients
-  const addClient = (client: Client) => setClients(prev => [client, ...prev]);
-  const updateClient = (updatedClient: Client) => setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-  const deleteClient = (id: string) => setClients(prev => prev.filter(c => c.id !== id));
+  // Wrap setters to also update Supabase (Optimistic UI)
+  const syncAdd = async (table: string, item: any, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
+    // Optimistic update
+    setter(prev => [item, ...prev]);
+    if (isSupabaseConfigured()) {
+      try {
+        await api.createItem(table, item);
+      } catch (e) { console.error(`Sync add error ${table}`, e); }
+    }
+  };
 
-  // Suppliers
-  const addSupplier = (supplier: Supplier) => setSuppliers(prev => [supplier, ...prev]);
-  const updateSupplier = (updatedSupplier: Supplier) => setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-  const deleteSupplier = (id: string) => setSuppliers(prev => prev.filter(s => s.id !== id));
+  const syncUpdate = async (table: string, id: string, item: any, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
+    setter(prev => prev.map(i => i.id === id ? item : i));
+    if (isSupabaseConfigured()) {
+      try {
+        await api.updateItem(table, id, item);
+      } catch (e) { console.error(`Sync update error ${table}`, e); }
+    }
+  };
 
-  // Employees
-  const addEmployee = (employee: Employee) => setEmployees(prev => [employee, ...prev]);
-  const updateEmployee = (updatedEmployee: Employee) => setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
-  const deleteEmployee = (id: string) => setEmployees(prev => prev.filter(e => e.id !== id));
+  const syncDelete = async (table: string, id: string, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
+    setter(prev => prev.filter(i => i.id !== id));
+    if (isSupabaseConfigured()) {
+      try {
+        await api.deleteItem(table, id);
+      } catch (e) { console.error(`Sync delete error ${table}`, e); }
+    }
+  };
 
-  // Payroll
-  const addPayroll = (record: PayrollRecord) => setPayroll(prev => [record, ...prev]);
+  // Specific Implementations using Sync
+  const addClient = (client: Client) => syncAdd('clients', client, setClients);
+  const updateClient = (client: Client) => syncUpdate('clients', client.id, client, setClients);
+  const deleteClient = (id: string) => syncDelete('clients', id, setClients);
+
+  const addSupplier = (supplier: Supplier) => syncAdd('suppliers', supplier, setSuppliers);
+  const updateSupplier = (supplier: Supplier) => syncUpdate('suppliers', supplier.id, supplier, setSuppliers);
+  const deleteSupplier = (id: string) => syncDelete('suppliers', id, setSuppliers);
+
+  const addEmployee = (employee: Employee) => syncAdd('employees', employee, setEmployees);
+  const updateEmployee = (employee: Employee) => syncUpdate('employees', employee.id, employee, setEmployees);
+  const deleteEmployee = (id: string) => syncDelete('employees', id, setEmployees);
+
+  // ... (Manual replacements for others or generic pattern adoption)
+  // For brevity in this large file rework, I will update critical ones: Users, Roles, Inventory
+
+  const addUser = (user: User) => syncAdd('users', user, setUsers);
+  const updateUser = (updated: User) => syncUpdate('users', updated.id, updated, setUsers);
+  const deleteUser = (id: string) => syncDelete('users', id, setUsers);
+
+  const addRole = (role: AppRole) => syncAdd('app_roles', role, setRoles);
+  const updateRole = (updated: AppRole) => syncUpdate('app_roles', updated.id, updated, setRoles);
+  const deleteRole = (id: string) => syncDelete('app_roles', id, setRoles);
+
+  // Settings
+  const updateSettings = (updated: AppSettings) => {
+    setSettings(updated);
+    if (isSupabaseConfigured()) api.updateSettings(updated);
+  };
+
+  // Inventory
+  const addStockItem = (item: InventoryItem) => syncAdd('inventory', item, setInventory);
+  const updateStockItem = (item: InventoryItem) => syncUpdate('inventory', item.id, item, setInventory);
+  const deleteStockItem = (id: string) => syncDelete('inventory', id, setInventory);
+
+  const updateStock = (itemId: string, quantityDelta: number) => {
+    setInventory(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const newItem = { ...item, quantity: item.quantity + quantityDelta };
+        if (isSupabaseConfigured()) api.updateItem('inventory', itemId, { quantity: newItem.quantity }); // Patch
+        return newItem;
+      }
+      return item;
+    }));
+  };
+
+  // Transactions
+  const addTransaction = (t: Transaction) => syncAdd('transactions', t, setTransactions);
+  const deleteTransaction = (id: string) => syncDelete('transactions', id, setTransactions);
+
+
+  // Keep remaining simple setters for now to avoid breaking everything at once, 
+  // or use the original implementations but note they are LocalStorage only until converted.
+
+  // Original implementations below replaced by above for specific entities.
+  // We need to keep the others compatible.
+
+  const addPayroll = (record: PayrollRecord) => setPayroll(prev => [record, ...prev]); // TODO: Sync
   const payPayroll = (id: string) => {
     setPayroll(prev => prev.map(p => {
       if (p.id === id && p.status !== 'Pago') {
@@ -581,33 +700,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteAdvance = (id: string) => setSalaryAdvances(prev => prev.filter(adv => adv.id !== id));
 
   // Transactions
-  const addTransaction = (transaction: Transaction) => setTransactions(prev => [transaction, ...prev]);
-  const updateTransactionStatus = (id: string, status: Transaction['status']) => {
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-  };
-  const deleteTransaction = (id: string) => setTransactions(prev => prev.filter(t => t.id !== id));
-
-  const importTransactions = (file: any) => {
-    // Simulated OFX/CSV import
-    const mockImports: Transaction[] = [
-      { id: `imp-${Date.now()}-1`, date: new Date().toLocaleDateString('pt-BR'), description: 'DOC Recebido: Cliente XPTO', amount: 1500, category: 'Vendas', account: 'Banco do Brasil', status: 'Conciliado', type: 'Receita' },
-      { id: `imp-${Date.now()}-2`, date: new Date().toLocaleDateString('pt-BR'), description: 'TAR BANCARIA', amount: 45.90, category: 'Taxas', account: 'Banco do Brasil', status: 'Conciliado', type: 'Despesa' },
-    ];
-    setTransactions(prev => [...mockImports, ...prev]);
-    alert(`${mockImports.length} transações importadas com sucesso!`);
-  };
-
-  // Stock
-  const updateStock = (itemId: string, quantityDelta: number) => {
-    setInventory(prev => prev.map(item => {
-      if (item.id === itemId) return { ...item, quantity: item.quantity + quantityDelta };
-      return item;
-    }));
-  };
-  const addStockItem = (newItem: InventoryItem) => setInventory(prev => [newItem, ...prev]);
-  const updateStockItem = (updatedItem: InventoryItem) => setInventory(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-  const deleteStockItem = (id: string) => setInventory(prev => prev.filter(item => item.id !== id));
-
+  // Transactions
+  const updateTransactionStatus = (id: string, status: Transaction['status']) => syncUpdate('transactions', id, { status }, setTransactions);
+  // addTransaction, deleteTransaction replaced above
+  const importTransactions = (file: any) => { alert('Importação via arquivo não implementada com Supabase ainda.'); };
+  // Inventory Handlers
+  // addStockItem, updateStockItem, deleteStockItem replaced above
+  // updateStock replaced above
   // Sales
   const addSale = (sale: Sale) => {
     setSales(prev => [sale, ...prev]);
@@ -932,16 +1031,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateProductionUnit = (updated: ProductionUnit) => setProductionUnits(prev => prev.map(u => u.id === updated.id ? updated : u));
   const deleteProductionUnit = (id: string) => setProductionUnits(prev => prev.filter(u => u.id !== id));
 
-  // Settings & User Management
-  const addUser = (user: User) => setUsers(prev => [user, ...prev]);
-  const updateUser = (updated: User) => setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-  const deleteUser = (id: string) => setUsers(prev => prev.filter(u => u.id !== id));
+  // Settings & User Management replaced above
+  // const addUser = ... 
+  // const updateSettings ...
 
-  const addRole = (role: AppRole) => setRoles(prev => [role, ...prev]);
-  const updateRole = (updated: AppRole) => setRoles(prev => prev.map(r => r.id === updated.id ? updated : r));
-  const deleteRole = (id: string) => setRoles(prev => prev.filter(r => r.id !== id));
-
-  const updateSettings = (updated: AppSettings) => setSettings(updated);
+  // Remaining unmodified implementations...
 
   // Financial Accounts and Plan of Accounts
   const addAccount = (acc: any) => setAccounts(prev => [...prev, acc]); // Added

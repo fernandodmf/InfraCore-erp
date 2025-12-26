@@ -425,8 +425,30 @@ CREATE POLICY "Enable all for settings" ON settings FOR ALL USING (true);
 -- ============================================
 
 -- Inserir configuração padrão
-INSERT INTO settings (company_name, trade_name, document, email, phone, address)
 VALUES ('Construsys Engenharia Ltda', 'Construsys ERP', '12.345.678/0001-99', 'contato@construsys.com', '(11) 4002-8922', 'Rua da Tecnologia, 100 - Industrial, SP');
+
+-- 20. PERFIS DE ACESSO
+CREATE TABLE app_roles (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  permissions JSONB DEFAULT '[]',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE app_roles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for app_roles" ON app_roles FOR ALL USING (true);
+
+-- Seed Roles
+INSERT INTO app_roles (id, name, description, permissions) VALUES
+('admin', 'Administrador', 'Acesso total ao sistema', '["all"]'::jsonb),
+('manager', 'Gerente', 'Gestão de módulos operacionais', '["sales.view", "sales.create", "purchases.view", "inventory.view"]'::jsonb),
+('operator', 'Operador', 'Operação de campo e produção', '["production.view", "fleet.view"]'::jsonb);
+
+-- Seed Admin User (Password handling to be defined, simulating 'active' status)
+INSERT INTO users (name, email, role_id, status, registered_at)
+VALUES ('Admin Construsys', 'admin@construsys.com', 'admin', 'Ativo', NOW());
 
 -- ============================================
 -- FIM DO SCHEMA

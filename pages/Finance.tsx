@@ -700,7 +700,10 @@ const Finance = () => {
                                  <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
                               </td>
                               <td className="px-6 py-3 text-right">
-                                 <button onClick={() => { if (confirm('Confirmar recebimento?')) updateTransactionStatus(tx.id, 'Conciliado'); }} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-all font-bold shadow-sm shadow-green-600/20">
+                                 <button onClick={() => {
+                                    const date = prompt("Data do Recebimento:", new Date().toLocaleDateString('pt-BR'));
+                                    if (date) updateTransactionStatus(tx.id, 'Conciliado', date);
+                                 }} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-all font-bold shadow-sm shadow-green-600/20">
                                     RECEBER
                                  </button>
                               </td>
@@ -747,7 +750,10 @@ const Finance = () => {
                                  <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
                               </td>
                               <td className="px-6 py-3 text-right">
-                                 <button onClick={() => { if (confirm('Confirmar pagamento?')) updateTransactionStatus(tx.id, 'Conciliado'); }} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all font-bold shadow-sm shadow-red-600/20">
+                                 <button onClick={() => {
+                                    const date = prompt("Data do Pagamento:", new Date().toLocaleDateString('pt-BR'));
+                                    if (date) updateTransactionStatus(tx.id, 'Conciliado', date);
+                                 }} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all font-bold shadow-sm shadow-red-600/20">
                                     PAGAR
                                  </button>
                               </td>

@@ -128,6 +128,16 @@ export interface Sale extends Transaction {
   installments?: number;
   weightTicket?: string; // ID of scale ticket if used
   measuredWeight?: number; // Weight from scale
+
+  // Dispatch / Logistics
+  dispatchStatus?: 'Aguardando' | 'Em Pesagem' | 'Despachado' | 'Entregue';
+  vehicleId?: string;
+  driverName?: string;
+
+  // Weighing Details
+  tareWeight?: number; // Peso Entrada / Tara
+  grossWeight?: number; // Peso Saída / Bruto
+  netWeight?: number; // Peso Líquido
 }
 
 export interface PurchaseItem {

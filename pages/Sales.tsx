@@ -71,6 +71,13 @@ const Sales = () => {
   const [scaleWeight, setScaleWeight] = useState<number>(0);
   const [weightTicket, setWeightTicket] = useState<string>('');
 
+  // Dispatch / Logistics State
+  const [requiresWeighing, setRequiresWeighing] = useState(false);
+  const [tareWeight, setTareWeight] = useState<number>(0);
+  const [grossWeight, setGrossWeight] = useState<number>(0);
+  const [driverName, setDriverName] = useState('');
+  const [dispatchStatus, setDispatchStatus] = useState<'Aguardando' | 'Em Pesagem' | 'Despachado'>('Aguardando');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -166,6 +173,9 @@ const Sales = () => {
     const client = clients.find(c => c.id === selectedClient);
     const vehicle = fleet.find(v => v.id === selectedVehicle);
 
+    // Dispatch / Weighing Logic
+    const netWeight = requiresWeighing && grossWeight > tareWeight ? grossWeight - tareWeight : undefined;
+
     // Create Transaction/Sale
     addSale({
       id: saleId,
@@ -182,7 +192,13 @@ const Sales = () => {
       items: cart,
       paymentMethod,
       installments,
-      measuredWeight: scaleWeight > 0 ? scaleWeight : undefined,
+      // Dispatch Fields
+      vehicleId: selectedVehicle,
+      driverName: driverName,
+      dispatchStatus: requiresWeighing ? 'Despachado' : 'Entregue',
+      tareWeight: requiresWeighing ? tareWeight : undefined,
+      grossWeight: requiresWeighing ? grossWeight : undefined,
+      netWeight: netWeight,
       weightTicket: weightTicket || undefined,
     });
 
@@ -867,33 +883,99 @@ const Sales = () => {
                         </div>
                       </div>
 
-                      {/* Weight/Scale Mock */}
-                      <div className="bg-slate-50 dark:bg-gray-700/30 p-3 rounded-lg border border-dashed border-slate-300 dark:border-gray-600">
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
-                            <Scale size={12} /> Integração Balança
-                          </label>
-                          <button
-                            onClick={() => {
-                              const w = (Math.random() * 50000) + 1000;
-                              setScaleWeight(Number(w.toFixed(2)));
-                              setWeightTicket(`TKT-${Date.now().toString().slice(-6)}`);
-                            }}
-                            className="text-[9px] bg-slate-200 dark:bg-gray-600 px-2 py-0.5 rounded font-bold hover:bg-cyan-500 hover:text-white transition-colors"
-                          >
-                            LER PESO
-                          </button>
+                      {/* Dispatch and Weighing Section */}
+                      <div className="bg-slate-50 dark:bg-gray-700/30 p-4 rounded-xl border border-slate-200 dark:border-gray-600 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm flex items-center gap-2">
+                            <Truck size={16} /> Logística e Despacho
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500">Requer Pesagem?</span>
+                            <button
+                              onClick={() => setRequiresWeighing(!requiresWeighing)}
+                              className={`w-10 h-6 rounded-full p-1 transition-colors ${requiresWeighing ? 'bg-cyan-600' : 'bg-slate-300'}`}
+                            >
+                              <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${requiresWeighing ? 'translate-x-4' : ''}`} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-end">
+
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-[10px] text-slate-500">Ticket</p>
-                            <p className="text-xs font-mono font-bold">{weightTicket || '---'}</p>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Veículo (Frota)</label>
+                            <select
+                              value={selectedVehicle}
+                              onChange={e => setSelectedVehicle(e.target.value)}
+                              className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
+                            >
+                              <option value="">Veículo Próprio / Terceiro</option>
+                              {fleet.map(v => (
+                                <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                              ))}
+                            </select>
                           </div>
-                          <div className="text-right">
-                            <p className="text-[10px] text-slate-500">Peso Medido</p>
-                            <p className="text-lg font-black text-cyan-600">{scaleWeight > 0 ? `${scaleWeight} kg` : '0.00 kg'}</p>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Motorista</label>
+                            <input
+                              type="text"
+                              value={driverName}
+                              onChange={e => setDriverName(e.target.value)}
+                              className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
+                              placeholder="Nome do Condutor"
+                            />
                           </div>
                         </div>
+
+                        {requiresWeighing && (
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-dashed border-cyan-200 dark:border-cyan-900/50 space-y-3 animate-in fade-in zoom-in duration-300">
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-[10px] font-black text-cyan-600 uppercase flex items-center gap-1">
+                                <Scale size={12} /> Integração Balança Rodoviária
+                              </label>
+                              <span className="text-[9px] bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded font-bold">CONECTADO</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Tara (Entrada)</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    value={tareWeight}
+                                    onChange={e => setTareWeight(Number(e.target.value))}
+                                    className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
+                                  />
+                                  <button
+                                    onClick={() => setTareWeight(Number((Math.random() * 5000 + 2000).toFixed(0)))}
+                                    className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
+                                  >Ler</button>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Bruto (Saída)</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    value={grossWeight}
+                                    onChange={e => setGrossWeight(Number(e.target.value))}
+                                    className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
+                                  />
+                                  <button
+                                    onClick={() => setGrossWeight(Number((tareWeight + Math.random() * 10000).toFixed(0)))}
+                                    className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
+                                  >Ler</button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 dark:border-gray-700 flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-500">Peso Líquido (Carga)</span>
+                              <span className="text-lg font-black text-cyan-600">
+                                {Math.max(0, grossWeight - tareWeight).toLocaleString('pt-BR')} kg
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex justify-between text-slate-400 text-[10px] font-black uppercase mt-4">

@@ -231,7 +231,7 @@ interface AppContextType {
   deleteAdvance: (id: string) => void;
 
   addTransaction: (transaction: Transaction) => void;
-  updateTransactionStatus: (id: string, status: Transaction['status']) => void;
+  updateTransactionStatus: (id: string, status: Transaction['status'], date?: string) => void;
   deleteTransaction: (id: string) => void;
   importTransactions: (file: any) => void;
   addSale: (sale: Sale) => void;
@@ -719,16 +719,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Transactions
   // Transactions
-  const updateTransactionStatus = (id: string, status: Transaction['status']) => syncUpdate('transactions', id, { status }, setTransactions);
-  // addTransaction, deleteTransaction replaced above
+  const updateTransactionStatus = (id: string, status: Transaction['status'], date?: string) => {
+    setTransactions(prev => prev.map(t => {
+      if (t.id === id) {
+        const updateData: Partial<Transaction> = { status };
+        // If becoming Conciliado and date provided, update date
+        if (date && status === 'Conciliado') {
+          updateData.date = date;
+        }
+
+        if (isSupabaseConfigured()) {
+          api.updateItem('transactions', id, updateData);
+        }
+        return { ...t, ...updateData };
+      }
+      return t;
+    }));
+  };
+
   const importTransactions = (file: any) => { alert('Importação via arquivo não implementada com Supabase ainda.'); };
-  // Inventory Handlers
-  // addStockItem, updateStockItem, deleteStockItem replaced above
-  // updateStock replaced above
+
   // Sales
   const addSale = (sale: Sale) => {
     setSales(prev => [sale, ...prev]);
-    addTransaction(sale);
+
+    const numInstallments = sale.installments && sale.installments > 1 ? sale.installments : 1;
+
+    // Helper to parse DD/MM/YYYY
+    const parseDate = (dateStr: string) => {
+      const [day, month, year] = dateStr.split('/').map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    // Helper to add days
+    const addDays = (date: Date, days: number) => {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result.toLocaleDateString('pt-BR');
+    };
+
+    if (numInstallments > 1) {
+      const baseDate = parseDate(sale.date);
+      const installmentValue = sale.amount / numInstallments;
+
+      for (let i = 1; i <= numInstallments; i++) {
+        // Default logic: 30 days gap for each installment
+        const dueDate = addDays(baseDate, i * 30);
+
+        const installmentTx: Transaction = {
+          ...sale,
+          id: `${sale.id}-${i}`,
+          description: `${sale.description} (${i}/${numInstallments})`,
+          amount: installmentValue,
+          status: 'Pendente',
+          dueDate: dueDate,
+          date: dueDate, // Show in future on Cash Flow
+          type: 'Receita'
+        };
+        addTransaction(installmentTx);
+      }
+    } else {
+      // Single Transaction
+      addTransaction(sale);
+    }
+
     sale.items.forEach(item => updateStock(item.id, -item.quantity));
   };
   const addBudget = (budget: Budget) => setBudgets(prev => [budget, ...prev]);

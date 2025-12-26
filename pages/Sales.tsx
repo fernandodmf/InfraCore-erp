@@ -39,7 +39,7 @@ import { printDocument, exportToCSV } from '../utils/exportUtils';
 const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Sales = () => {
-  const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus } = useApp();
+  const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus, addTransaction, accounts } = useApp();
   const [activeTab, setActiveTab] = useState<'new' | 'history' | 'budgets'>('new');
 
   // Modal State
@@ -74,8 +74,8 @@ const Sales = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
 
-  // Available Financial Accounts (Mock for now, should come from context)
-  const financialAccounts = [
+  // Available Financial Accounts
+  const financialAccounts = accounts.length > 0 ? accounts : [
     { id: 'acc-1', name: 'Banco do Brasil', type: 'Banco' },
     { id: 'acc-2', name: 'Caixa Interno', type: 'Caixa' }
   ];
@@ -162,12 +162,13 @@ const Sales = () => {
       return;
     }
 
+    const saleId = `S-${Date.now()}`;
     const client = clients.find(c => c.id === selectedClient);
     const vehicle = fleet.find(v => v.id === selectedVehicle);
 
     // Create Transaction/Sale
     addSale({
-      id: `S-${Date.now()}`,
+      id: saleId,
       date: new Date().toLocaleDateString('pt-BR'),
       description: `Venda Direta${vehicle ? ` - Veículo: ${vehicle.plate}` : ''}`,
       category: 'Vendas',
@@ -183,6 +184,24 @@ const Sales = () => {
       installments,
       measuredWeight: scaleWeight > 0 ? scaleWeight : undefined,
       weightTicket: weightTicket || undefined,
+    });
+
+    // Create Financial Transaction
+    addTransaction({
+      id: `TR-${Date.now()}`,
+      date: new Date().toLocaleDateString('pt-BR'),
+      description: `Venda Direta - ${client?.name || 'Cliente Avulso'}`,
+      category: 'Vendas de Produtos',
+      amount: total,
+      type: 'Receita',
+      status: 'Conciliado',
+      accountId: account,
+      partnerId: selectedClient || undefined,
+      originModule: 'Vendas',
+      originId: saleId,
+      documentNumber: saleId.split('-')[1],
+      ledgerCode: '1.01.01',
+      ledgerName: 'Vendas de Mercadorias'
     });
 
     alert("Venda realizada com sucesso!");

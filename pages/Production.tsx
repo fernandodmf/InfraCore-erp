@@ -420,8 +420,15 @@ const Production = () => {
                                                                                     <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">{ing.name}</span>
                                                                                     <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 rounded-lg">{requiredQty.toFixed(2)} {ing.unit}</span>
                                                                                 </div>
+
+                                                                                {/* Location & Weight Info */}
+                                                                                <div className="flex justify-between text-[9px] text-slate-400 font-medium border-t border-slate-50 dark:border-slate-700 pt-1 mt-1">
+                                                                                    <span>Loc: <strong className="text-slate-600 dark:text-slate-300">{stockItem?.location || 'N/A'}</strong></span>
+                                                                                    <span>Unit: {stockItem?.weight ? `${stockItem.weight} kg` : '-'}</span>
+                                                                                </div>
+
                                                                                 {!o.rawMaterialsDeducted && (
-                                                                                    <div className={`flex items-center gap-1.5 text-[9px] font-bold ${hasEnoughStock ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                                    <div className={`flex items-center gap-1.5 text-[9px] font-bold ${hasEnoughStock ? 'text-emerald-600' : 'text-rose-600'} mt-1`}>
                                                                                         <Archive size={10} />
                                                                                         <span>Estoque: {availableQty.toFixed(2)} {stockItem?.unit || ing.unit}</span>
                                                                                         {!hasEnoughStock && <span className="ml-auto bg-rose-100 dark:bg-rose-900/30 px-1.5 py-0.5 rounded uppercase">Insuficiente</span>}

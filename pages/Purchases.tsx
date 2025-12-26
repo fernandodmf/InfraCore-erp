@@ -68,6 +68,17 @@ const Purchases = () => {
    const [isStockDirect, setIsStockDirect] = useState(true); // If true, auto-marks as Received
    const [tempAttachments, setTempAttachments] = useState<any[]>([]);
 
+   // Financial & Shipping
+   const [paymentTerms, setPaymentTerms] = useState<string>('30 DDL');
+   const [shippingCost, setShippingCost] = useState<number>(0);
+   const [sourceAccount, setSourceAccount] = useState<string>('');
+
+   // Available Financial Accounts (Mock)
+   const financialAccounts = [
+      { id: 'acc-1', name: 'Banco do Brasil', type: 'Banco' },
+      { id: 'acc-2', name: 'Caixa Interno', type: 'Caixa' }
+   ];
+
    // Inventory Management States
    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
    const [isStockModalOpen, setIsStockModalOpen] = useState(false);
@@ -111,11 +122,17 @@ const Purchases = () => {
    };
 
    const orderSubtotal = orderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-   const orderTotal = orderSubtotal; // Simplified no tax
+   const orderTotal = orderSubtotal + shippingCost; // With shipping
 
    const handleCreateOrder = (status: PurchaseOrder['status'] = 'Pendente') => {
       if (!selectedSupplier || orderItems.length === 0) {
          alert("Selecione um fornecedor e adicione itens ao pedido.");
+         return;
+      }
+
+      // If auto-receiving or instant payment, account is required
+      if ((status === 'Recebido' || status === 'Aprovado') && !sourceAccount) {
+         alert("Selecione uma conta financeira para vincular o pagamento/previsão.");
          return;
       }
 
@@ -129,16 +146,41 @@ const Purchases = () => {
          subtotal: orderSubtotal,
          total: orderTotal,
          status: status,
-         attachments: tempAttachments
+         attachments: tempAttachments,
+         paymentTerms,
+         shippingCost,
+         targetAccountId: sourceAccount
       };
 
       addPurchaseOrder(newOrder);
-      alert(status === 'Recebido' ? "Compra registrada e estoque atualizado!" : "Pedido de compra gerado com sucesso!");
+
+      // If Received, we assume it's paid or a Payable is created. 
+      // For now, let's create a Transaction if Paid/Received.
+      if (status === 'Recebido') {
+         addTransaction({
+            id: `TR-${Date.now()}`,
+            date: new Date().toLocaleDateString('pt-BR'),
+            description: `Pagamento Compra #${newOrder.id} - ${supplier?.name}`,
+            category: 'Suprimentos',
+            amount: -Math.abs(orderTotal),
+            type: 'Despesa',
+            status: 'Conciliado',
+            accountId: sourceAccount,
+            partnerId: selectedSupplier,
+            originModule: 'Compras',
+            originId: newOrder.id,
+            documentNumber: newOrder.id
+         });
+      }
+
+      alert(status === 'Recebido' ? "Compra registrada, estoque atualizado e financeiro lançado!" : "Pedido de compra gerado com sucesso!");
 
       // Reset and redirect
       setOrderItems([]);
       setSelectedSupplier('');
       setTempAttachments([]);
+      setShippingCost(0);
+      setSourceAccount('');
       setActiveTab('orders');
    };
 
@@ -635,6 +677,51 @@ const Purchases = () => {
                                        </button>
                                     </div>
                                  ))}
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Financial Settings */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-gray-700 space-y-3">
+                           <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                              <DollarSign size={14} className="text-cyan-600" /> Detalhes Financeiros
+                           </h4>
+                           <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Condição de Pagamento</label>
+                              <select
+                                 className="w-full p-2 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-lg text-xs font-bold"
+                                 value={paymentTerms}
+                                 onChange={e => setPaymentTerms(e.target.value)}
+                              >
+                                 <option value="À Vista">À Vista</option>
+                                 <option value="15 DDL">15 Dias</option>
+                                 <option value="30 DDL">30 Dias</option>
+                                 <option value="30/60 DDL">30/60 Dias</option>
+                                 <option value="30/60/90 DDL">30/60/90 Dias</option>
+                              </select>
+                           </div>
+                           <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                 <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Custo Frete (R$)</label>
+                                 <input
+                                    type="number"
+                                    className="w-full p-2 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-lg text-xs font-bold"
+                                    value={shippingCost}
+                                    onChange={e => setShippingCost(parseFloat(e.target.value) || 0)}
+                                 />
+                              </div>
+                              <div>
+                                 <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Conta de Saída</label>
+                                 <select
+                                    className="w-full p-2 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-lg text-xs font-bold"
+                                    value={sourceAccount}
+                                    onChange={e => setSourceAccount(e.target.value)}
+                                 >
+                                    <option value="">Selecione...</option>
+                                    {financialAccounts.map(acc => (
+                                       <option key={acc.id} value={acc.id}>{acc.name}</option>
+                                    ))}
+                                 </select>
                               </div>
                            </div>
                         </div>

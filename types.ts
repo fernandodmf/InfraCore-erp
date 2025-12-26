@@ -57,7 +57,20 @@ export interface Supplier {
   attachments?: AppAttachment[];
 }
 
-// ... existing Employee ...
+export interface Employee {
+  id: string;
+  name: string;
+  role: string; // Cargo
+  department: string;
+  status: 'Ativo' | 'Férias' | 'Afastado' | 'Desligado';
+  admissionDate: string;
+  salary: number;
+  email?: string;
+  phone?: string;
+  address?: Address;
+  cpf?: string;
+  photo?: string;
+}
 
 export interface InventoryItem {
   id: string;
@@ -79,8 +92,6 @@ export interface InventoryItem {
   color?: string; // For UI
 }
 
-// ... existing interfaces ...
-
 export interface Transaction {
   id: string;
   date: string;
@@ -88,6 +99,7 @@ export interface Transaction {
   description: string;
   category: string; // Plano de Contas Level 2
   accountId: string; // Financial Account ID (Banco, Caixa)
+  account?: string; // Legacy/Display Name
   amount: number;
   status: 'Conciliado' | 'Pendente' | 'Vencido' | 'Cancelado';
   type: 'Receita' | 'Despesa';
@@ -99,6 +111,15 @@ export interface Transaction {
   ledgerName?: string;
 }
 
+export interface SalesItem {
+  id: string;
+  name: string;
+  detail: string;
+  quantity: number;
+  unit: string;
+  price: number;
+}
+
 export interface Sale extends Transaction {
   clientId: string;
   clientName: string;
@@ -107,6 +128,14 @@ export interface Sale extends Transaction {
   installments?: number;
   weightTicket?: string; // ID of scale ticket if used
   measuredWeight?: number; // Weight from scale
+}
+
+export interface PurchaseItem {
+  id: string; // Product Link
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
 }
 
 export interface PurchaseOrder {
@@ -124,6 +153,9 @@ export interface PurchaseOrder {
   paymentTerms?: string; // '30 dias', 'Avista'
   targetAccountId?: string; // Where money will come from (Previsão)
   attachments?: AppAttachment[];
+  ledgerCode?: string;
+  ledgerName?: string;
+  accountId?: string;
 }
 
 export interface FuelLog {
@@ -139,10 +171,55 @@ export interface FuelLog {
   invoiceNumber?: string; // Nota Fiscal
   financialAccountId?: string; // Source of Payment if cash/card
   isPaid: boolean;
+  ledgerCode?: string;
+  ledgerName?: string;
   attachments?: AppAttachment[];
 }
 
-// ... existing ProductionUnit ...
+export interface FleetVehicle {
+  id: string;
+  plate: string;
+  model: string;
+  brand: string;
+  year: number;
+  type: 'Caminhão' | 'Carro' | 'Van' | 'Motocicleta' | 'Máquina';
+  status: 'Operacional' | 'Manutenção' | 'Em Rota' | 'Parado';
+  fuelType: 'Diesel' | 'Gasolina' | 'Etanol' | 'Flex' | 'Elétrico';
+  km: number;
+  nextMaintenanceKm?: number;
+  insuranceExpiry?: string;
+  driverId?: string;
+}
+
+export interface MaintenanceRecord {
+  id: string;
+  vehicleId: string;
+  date: string;
+  type: 'Preventiva' | 'Corretiva' | 'Preditiva';
+  description: string;
+  cost: number;
+  km: number;
+  mechanic?: string;
+  attachments?: AppAttachment[];
+  ledgerCode?: string;
+  ledgerName?: string;
+  productId?: string;
+  productQuantity?: number;
+}
+// Alias for backward compatibility if needed, or prefer MaintenanceRecord
+export type VehicleMaintenance = MaintenanceRecord;
+
+export interface ProductionUnit {
+  id: string;
+  name: string; // Plant 1
+  type: string; // Usina Asfalto, Usina Concreto
+  status: 'Operando' | 'Parado' | 'Manutenção';
+  capacity: string; // 120ton/h
+  location?: string;
+  currentLoad: number; // %
+  temp: number;
+  power: string; // kW consumption
+}
 
 export interface QualityTest {
   id: string;
@@ -186,68 +263,6 @@ export interface ProductionOrder {
   operator?: string;
   qualityTests?: QualityTest[];
   rawMaterialsDeducted?: boolean;
-}
-
-export interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  price: number;
-  minStock: number;
-  color?: string; // For UI display
-  supplierId?: string; // Link to supplier
-}
-
-export interface SalesItem {
-  id: string;
-  name: string;
-  detail: string;
-  quantity: number;
-  unit: string;
-  price: number;
-}
-
-export interface MaintenanceRecord {
-  id: string;
-  vehicleId: string;
-  date: string;
-  type: 'Preventiva' | 'Corretiva' | 'Preditiva';
-  description: string;
-  cost: number;
-  km: number;
-  mechanic?: string;
-  attachments?: AppAttachment[];
-  ledgerCode?: string;
-  ledgerName?: string;
-  productId?: string;
-  productQuantity?: number;
-}
-
-export interface PurchaseItem {
-  id: string; // Product Link
-  name: string;
-  quantity: number;
-  unit: string;
-  price: number;
-}
-
-export interface PurchaseOrder {
-  id: string;
-  supplierId: string;
-  supplierName: string;
-  date: string;
-  items: PurchaseItem[];
-  subtotal: number;
-  tax?: number;
-  total: number;
-  status: 'Pendente' | 'Recebido' | 'Cancelado' | 'Aprovado';
-  receivedAt?: string;
-  accountId?: string; // Financial account used
-  attachments?: AppAttachment[];
-  ledgerCode?: string;
-  ledgerName?: string;
 }
 
 export interface Budget {
@@ -347,4 +362,50 @@ export interface AppSettings {
     frequency: 'daily' | 'weekly' | 'monthly';
     lastBackup?: string;
   };
+}
+
+export interface PayrollRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  month: string; // MM/YYYY
+  baseSalary: number;
+  additions: number;
+  deductions: number;
+  netSalary: number;
+  status: 'Pendente' | 'Pago';
+  paymentDate?: string;
+  paidAt?: string;
+}
+
+export interface TimeLog {
+  id: string;
+  employeeId: string;
+  date: string;
+  checkIn: string;
+  checkOut?: string;
+  lunchStart?: string;
+  lunchEnd?: string;
+  totalHours?: string;
+  status?: 'Regular' | 'Extra' | 'Atraso';
+}
+
+export interface Vacation {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
+  days?: number;
+  status: 'Solicitado' | 'Aprovado' | 'Concluído' | 'Cancelado' | 'Rejeitado';
+}
+
+export interface SalaryAdvance {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  amount: number;
+  reason: string;
+  status: 'Pendente' | 'Aprovado' | 'Pago' | 'Rejeitado';
 }

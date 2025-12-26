@@ -37,7 +37,7 @@ const Finance = () => {
       accounts, addAccount, deleteAccount,
       planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount
    } = useApp();
-   const [activeTab, setActiveTab] = useState<'overview' | 'planOfAccounts' | 'accounts'>('overview');
+   const [activeTab, setActiveTab] = useState<'overview' | 'planOfAccounts' | 'accounts' | 'payables' | 'receivables'>('overview');
 
    const [isModalOpen, setIsModalOpen] = useState(false);
    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -66,8 +66,12 @@ const Finance = () => {
       const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
          tx.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'Todas' || tx.type === categoryFilter;
+      // Overview shows everything or just reconciled? Generally everything history.
       return matchesSearch && matchesCategory;
    });
+
+   const receivables = transactions.filter(tx => tx.type === 'Receita' && tx.status !== 'Conciliado');
+   const payables = transactions.filter(tx => tx.type === 'Despesa' && tx.status !== 'Conciliado');
 
    const uniqueCategories = ['Todas', 'Receita', 'Despesa'];
 
@@ -85,6 +89,7 @@ const Finance = () => {
          amount: Number(formData.amount),
          category: selectedAccount?.name || 'Outros',
          account: formData.account || 'Bradesco PJ',
+         accountId: accounts.find(a => a.name === formData.account)?.id || '',
          status: formData.status || 'Pendente',
          type: formData.type || 'Despesa',
          ledgerCode: selectedAccount?.code || '',
@@ -252,12 +257,24 @@ const Finance = () => {
                <h1 className="text-2xl font-bold text-slate-800 dark:text-white font-display tracking-tight">Financeiro</h1>
                <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de fluxo de caixa, orçamento e plano de contas.</p>
             </div>
-            <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+            <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg overflow-x-auto">
                <button
                   onClick={() => setActiveTab('overview')}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
                >
                   <TrendingUp size={16} /> Visão Geral
+               </button>
+               <button
+                  onClick={() => setActiveTab('receivables')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'receivables' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
+               >
+                  <ArrowDown size={16} className="text-green-500" /> A Receber
+               </button>
+               <button
+                  onClick={() => setActiveTab('payables')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'payables' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
+               >
+                  <ArrowUp size={16} className="text-red-500" /> A Pagar
                </button>
                <button
                   onClick={() => setActiveTab('planOfAccounts')}
@@ -649,6 +666,100 @@ const Finance = () => {
                         </tbody>
                      </table>
                   </div>
+               </div>
+            </div>
+         )}
+
+         {activeTab === 'receivables' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-300">
+               <div className="p-5 border-b border-slate-100 dark:border-gray-700 bg-green-50/50 dark:bg-green-900/10">
+                  <h3 className="text-lg font-bold text-green-700 dark:text-green-400 flex items-center gap-2"><ArrowDown size={20} /> Contas a Receber</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie valores pendentes de clientes e vendas a prazo</p>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                     <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 dark:bg-gray-800 font-black border-b border-slate-100 dark:border-gray-700">
+                        <tr>
+                           <th className="px-6 py-3">Vencimento</th>
+                           <th className="px-6 py-3">Cliente / Descrição</th>
+                           <th className="px-6 py-3 text-right">Valor</th>
+                           <th className="px-6 py-3 text-center">Status</th>
+                           <th className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                        {receivables.map(tx => (
+                           <tr key={tx.id} className="bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
+                              <td className="px-6 py-3 font-mono text-xs text-slate-500 dark:text-slate-300">{tx.dueDate || tx.date}</td>
+                              <td className="px-6 py-3">
+                                 <p className="font-bold text-slate-800 dark:text-white">{tx.description}</p>
+                                 <p className="text-[10px] text-slate-400">{tx.category}</p>
+                              </td>
+                              <td className="px-6 py-3 text-right font-black text-green-600">{formatMoney(tx.amount)}</td>
+                              <td className="px-6 py-3 text-center">
+                                 <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                 <button onClick={() => { if (confirm('Confirmar recebimento?')) updateTransactionStatus(tx.id, 'Conciliado'); }} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-all font-bold shadow-sm shadow-green-600/20">
+                                    RECEBER
+                                 </button>
+                              </td>
+                           </tr>
+                        ))}
+                        {receivables.length === 0 && (
+                           <tr>
+                              <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Nenhuma conta a receber pendente.</td>
+                           </tr>
+                        )}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         )}
+
+         {activeTab === 'payables' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-300">
+               <div className="p-5 border-b border-slate-100 dark:border-gray-700 bg-red-50/50 dark:bg-red-900/10">
+                  <h3 className="text-lg font-bold text-red-700 dark:text-red-400 flex items-center gap-2"><ArrowUp size={20} /> Contas a Pagar</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie boletos, fornecedores e despesas agendadas</p>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                     <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 dark:bg-gray-800 font-black border-b border-slate-100 dark:border-gray-700">
+                        <tr>
+                           <th className="px-6 py-3">Vencimento</th>
+                           <th className="px-6 py-3">Fornecedor / Descrição</th>
+                           <th className="px-6 py-3 text-right">Valor</th>
+                           <th className="px-6 py-3 text-center">Status</th>
+                           <th className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                        {payables.map(tx => (
+                           <tr key={tx.id} className="bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
+                              <td className="px-6 py-3 font-mono text-xs text-slate-500 dark:text-slate-300">{tx.dueDate || tx.date}</td>
+                              <td className="px-6 py-3">
+                                 <p className="font-bold text-slate-800 dark:text-white">{tx.description}</p>
+                                 <p className="text-[10px] text-slate-400">{tx.category}</p>
+                              </td>
+                              <td className="px-6 py-3 text-right font-black text-red-600">{formatMoney(Math.abs(tx.amount))}</td>
+                              <td className="px-6 py-3 text-center">
+                                 <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                 <button onClick={() => { if (confirm('Confirmar pagamento?')) updateTransactionStatus(tx.id, 'Conciliado'); }} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all font-bold shadow-sm shadow-red-600/20">
+                                    PAGAR
+                                 </button>
+                              </td>
+                           </tr>
+                        ))}
+                        {payables.length === 0 && (
+                           <tr>
+                              <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Nenhuma conta a pagar pendente.</td>
+                           </tr>
+                        )}
+                     </tbody>
+                  </table>
                </div>
             </div>
          )}

@@ -133,10 +133,41 @@ const Clients = () => {
 
             <form onSubmit={handleSave} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nome / Identificação</label>
-                  <input type="text" required className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                <div className={activeTab === 'products' ? "md:col-span-1" : "md:col-span-2"}>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    {activeTab === 'products' ? 'Nome do Produto' : 'Nome / Razão Social'}
+                  </label>
+                  <input type="text" required className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3 font-bold" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                 </div>
+
+                {activeTab === 'products' && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marca / Brand</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.brand || ''} onChange={e => setFormData({ ...formData, brand: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Categoria</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">NCM</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.ncm || ''} onChange={e => setFormData({ ...formData, ncm: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Código de Barras (EAN)</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.barcode || ''} onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização (Rua/Box)</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Peso Un. (kg)</label>
+                      <input type="number" step="0.001" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) })} />
+                    </div>
+                  </>
+                )}
 
                 {activeTab === 'vehicles' && (
                   <div>
@@ -146,23 +177,105 @@ const Clients = () => {
                 )}
 
                 {(activeTab === 'clients' || activeTab === 'suppliers') && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Documento (CPF/CNPJ)</label>
-                    <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.document || ''} onChange={e => setFormData({ ...formData, document: e.target.value })} />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Documento (CPF/CNPJ)</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.document || ''} onChange={e => setFormData({ ...formData, document: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</label>
+                      <input type="email" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone / WhatsApp</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pessoa de Contato</label>
+                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.contactPerson || ''} onChange={e => setFormData({ ...formData, contactPerson: e.target.value })} />
+                    </div>
+
+                    {/* Address Fields */}
+                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                      <p className="md:col-span-4 text-[10px] font-black text-cyan-600 uppercase tracking-widest border-b border-gray-200 pb-2 mb-2">Endereço Completo</p>
+                      <div className="col-span-2">
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Logradouro</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.street || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Número</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.number || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, number: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">CEP</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.zipCode || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, zipCode: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Bairro</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.district || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, district: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Cidade</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.city || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">UF</label>
+                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" maxLength={2} value={formData.address?.state || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })} />
+                      </div>
+                    </div>
+
+                    {activeTab === 'clients' && (
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Limite de Crédito</label>
+                        <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3 text-cyan-600 font-bold" value={formData.creditLimit || ''} onChange={e => setFormData({ ...formData, creditLimit: parseFloat(e.target.value) })} />
+                      </div>
+                    )}
+                  </>
                 )}
 
+                {/* Generic Fields */}
                 {activeTab !== 'products' && (
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</label>
                     <select className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.status || 'Ativo'} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                       <option value="Ativo">Ativo</option>
                       <option value="Inativo">Inativo</option>
+                      {activeTab === 'suppliers' && <option value="Bloqueado">Bloqueado</option>}
                       {activeTab === 'employees' && <option value="Férias">Férias</option>}
                       {activeTab === 'vehicles' && <option value="Operacional">Operacional</option>}
                       {activeTab === 'vehicles' && <option value="Manutenção">Em Manutenção</option>}
                     </select>
                   </div>
+                )}
+
+                {activeTab === 'products' && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Preço Venda</label>
+                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Atual</label>
+                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.quantity || ''} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Mínimo</label>
+                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.minStock || ''} onChange={e => setFormData({ ...formData, minStock: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Unidade</label>
+                      <select className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.unit || 'un'} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                        <option value="un">Unidade (un)</option>
+                        <option value="kg">Quilo (kg)</option>
+                        <option value="m">Metro (m)</option>
+                        <option value="m2">Metro Quadrado (m²)</option>
+                        <option value="m3">Metro Cúbico (m³)</option>
+                        <option value="ton">Tonelada (ton)</option>
+                        <option value="l">Litro (l)</option>
+                        <option value="cx">Caixa (cx)</option>
+                      </select>
+                    </div>
+                  </>
                 )}
               </div>
 

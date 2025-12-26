@@ -1,24 +1,78 @@
 -- ============================================
--- CONSTRUSYS ERP - SCHEMA SUPABASE
+-- ATUALIZAÇÃO DE SCHEMA PARA SUPORTE FINANCEIRO E DETALHADO
 -- ============================================
 
--- 1. CLIENTES
-CREATE TABLE clients (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  document TEXT NOT NULL,
-  email TEXT,
-  phone TEXT,
-  address TEXT,
-  status TEXT DEFAULT 'Ativo',
-  type TEXT DEFAULT 'Matriz',
-  registered_at TIMESTAMP DEFAULT NOW(),
-  initials TEXT,
-  color_class TEXT,
-  attachments JSONB DEFAULT '[]',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- Clientes: Endereço estruturado e crédito
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS address_street TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS address_city TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS address_state TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS address_zip TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS credit_limit DECIMAL(10,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person TEXT;
+
+-- Fornecedores: Dados bancários
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS bank_info JSONB DEFAULT '{}';
+
+-- Estoque: Detalhes fiscais e localização
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS ncm TEXT;
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS barcode TEXT;
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS weight DECIMAL(10,3);
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS brand TEXT;
+
+-- Transações: Vencimento e Vínculo
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS due_date DATE;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS account_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS partner_id UUID;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS document_number TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS origin_module TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS origin_id UUID;
+
+-- Vendas: Parcelamento e Peso
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS installments INTEGER DEFAULT 1;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS weight_ticket TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS measured_weight DECIMAL(10,3);
+
+-- Ordens de Compra: Financeiro
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS payment_terms TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS target_account_id TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS shipping_cost DECIMAL(10,2) DEFAULT 0;
+
+-- Frota/Combustível: Financeiro e Posto
+ALTER TABLE fleet ADD COLUMN IF NOT EXISTS financial_account_id TEXT; -- Em logs se necessário, aqui talvez não
+
+-- Atualizar logs de combustível (JSONB dentro de fleet ou tabela separada? O schema original usa JSONB 'fuel_logs')
+-- Se migrarmos para tabela relacional seria melhor, mas manteremos o JSONB atualizado na aplicação por enquanto.
+-- O schema SQL original define 'fuel_logs JSONB'. A aplicação vai gerenciar a estrutura interna desse JSON.
+
+-- Contas Financeiras (Nova Tabela para preencher o select de contas)
+CREATE TABLE IF NOT EXISTS financial_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- Banco, Caixa, Investimento
+    bank_name TEXT,
+    agency TEXT,
+    account_number TEXT,
+    initial_balance DECIMAL(15,2) DEFAULT 0,
+    current_balance DECIMAL(15,2) DEFAULT 0,
+    color TEXT,
+    status TEXT DEFAULT 'Ativa',
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE financial_accounts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for financial_accounts" ON financial_accounts FOR ALL USING (true);
+
+-- Seed Contas
+INSERT INTO financial_accounts (name, type, bank_name, initial_balance, current_balance, color) VALUES
+('Banco do Brasil', 'Conta Corrente', 'Banco do Brasil', 100000, 142000, 'bg-blue-600'),
+('Caixa Interno', 'Caixa', 'Interno', 5000, 12450, 'bg-teal-600')
+ON CONFLICT DO NOTHING;
+
+-- Schema Update Done
+
 
 -- 2. FORNECEDORES
 CREATE TABLE suppliers (

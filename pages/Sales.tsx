@@ -66,9 +66,19 @@ const Sales = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('credit');
   const [discount, setDiscount] = useState<string>('0');
-  const [account, setAccount] = useState<string>('Banco do Brasil');
+  const [account, setAccount] = useState<string>(''); // Financial Account ID
+  const [installments, setInstallments] = useState<number>(1);
+  const [scaleWeight, setScaleWeight] = useState<number>(0);
+  const [weightTicket, setWeightTicket] = useState<string>('');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
+
+  // Available Financial Accounts (Mock for now, should come from context)
+  const financialAccounts = [
+    { id: 'acc-1', name: 'Banco do Brasil', type: 'Banco' },
+    { id: 'acc-2', name: 'Caixa Interno', type: 'Caixa' }
+  ];
 
   // Scale Simulation State
   const [isScaleConnected, setIsScaleConnected] = useState(true);
@@ -135,7 +145,10 @@ const Sales = () => {
     setSelectedVehicle('');
     setDiscount('0');
     setShowCheckout(false);
-    setAccount('Banco do Brasil');
+    setAccount('');
+    setInstallments(1);
+    setScaleWeight(0);
+    setWeightTicket('');
   };
 
   const handleFinalizeOrder = () => {
@@ -144,22 +157,32 @@ const Sales = () => {
       alert("Selecione um cliente para continuar.");
       return;
     }
+    if (!account) {
+      alert("Selecione uma conta financeira para o recebimento.");
+      return;
+    }
+
     const client = clients.find(c => c.id === selectedClient);
     const vehicle = fleet.find(v => v.id === selectedVehicle);
 
+    // Create Transaction/Sale
     addSale({
       id: `S-${Date.now()}`,
       date: new Date().toLocaleDateString('pt-BR'),
       description: `Venda Direta${vehicle ? ` - Veículo: ${vehicle.plate}` : ''}`,
       category: 'Vendas',
-      account: account,
+      accountId: account, // Use ID
+      account: financialAccounts.find(a => a.id === account)?.name || 'Desconhecido', // Legacy Name
       amount: total,
-      status: 'Conciliado',
+      status: 'Conciliado', // Cash/Pix is instant, Credit might be receivable
       type: 'Receita',
       clientId: selectedClient,
       clientName: client?.name || 'Cliente Avulso',
       items: cart,
-      paymentMethod
+      paymentMethod,
+      installments,
+      measuredWeight: scaleWeight > 0 ? scaleWeight : undefined,
+      weightTicket: weightTicket || undefined,
     });
 
     alert("Venda realizada com sucesso!");
@@ -796,8 +819,66 @@ const Sales = () => {
                     </div>
 
                     <div className="pt-4 border-t dark:border-gray-700 space-y-3">
-                      <div className="flex justify-between text-slate-400 text-[10px] font-black uppercase">
-                        <span>Itens</span>
+                      {/* Financial Details */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Conta de Destino</label>
+                          <select
+                            value={account}
+                            onChange={e => setAccount(e.target.value)}
+                            className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
+                          >
+                            <option value="">Selecione...</option>
+                            {financialAccounts.map(acc => (
+                              <option key={acc.id} value={acc.id}>{acc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Parcelas</label>
+                          <select
+                            value={installments}
+                            onChange={e => setInstallments(Number(e.target.value))}
+                            className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
+                              <option key={n} value={n}>{n}x {n > 1 ? 'sem juros' : ''}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Weight/Scale Mock */}
+                      <div className="bg-slate-50 dark:bg-gray-700/30 p-3 rounded-lg border border-dashed border-slate-300 dark:border-gray-600">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
+                            <Scale size={12} /> Integração Balança
+                          </label>
+                          <button
+                            onClick={() => {
+                              const w = (Math.random() * 50000) + 1000;
+                              setScaleWeight(Number(w.toFixed(2)));
+                              setWeightTicket(`TKT-${Date.now().toString().slice(-6)}`);
+                            }}
+                            className="text-[9px] bg-slate-200 dark:bg-gray-600 px-2 py-0.5 rounded font-bold hover:bg-cyan-500 hover:text-white transition-colors"
+                          >
+                            LER PESO
+                          </button>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-[10px] text-slate-500">Ticket</p>
+                            <p className="text-xs font-mono font-bold">{weightTicket || '---'}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-slate-500">Peso Medido</p>
+                            <p className="text-lg font-black text-cyan-600">{scaleWeight > 0 ? `${scaleWeight} kg` : '0.00 kg'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between text-slate-400 text-[10px] font-black uppercase mt-4">
+                        <span>Items Total</span>
                         <span>{formatMoney(subtotal)}</span>
                       </div>
                       <div className="flex justify-between items-center text-slate-900 dark:text-white">

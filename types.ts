@@ -7,13 +7,26 @@ export interface AppAttachment {
   url?: string;
 }
 
+export interface Address {
+  street: string;
+  number: string;
+  complement?: string;
+  district: string;
+  city: string;
+  state: string; // UF
+  zipCode: string; // CEP
+}
+
 export interface Client {
   id: string;
   name: string;
-  document: string;
+  document: string; // CPF/CNPJ
   email: string;
   phone: string;
-  address?: string;
+  address?: Address; // Structured address
+  contactPerson?: string;
+  creditLimit?: number;
+  paymentTerms?: string; // e.g., '30/60/90'
   status: 'Ativo' | 'Inativo';
   type: 'Matriz' | 'Filial' | 'Parceiro';
   registeredAt: string;
@@ -29,89 +42,59 @@ export interface Supplier {
   document: string; // CNPJ
   email: string;
   phone: string;
+  address?: Address;
+  contactPerson?: string;
   category: string; // e.g., 'Materiais', 'Serviços'
+  bankInfo?: {
+    bank: string;
+    agency: string;
+    account: string;
+    pix?: string;
+  };
   status: 'Ativo' | 'Inativo' | 'Bloqueado';
   registeredAt: string;
   initials: string;
   attachments?: AppAttachment[];
 }
 
-export interface Employee {
+// ... existing Employee ...
+
+export interface InventoryItem {
   id: string;
   name: string;
-  role: string;
-  department: string;
-  status: 'Ativo' | 'Férias' | 'Afastado' | 'Desligado';
-  admissionDate: string;
-  salary: number;
-  email: string;
-  phone?: string;
-  birthDate?: string;
-  bankAccount?: string;
-  pixKey?: string;
-  attachments?: AppAttachment[];
-  vacationDaysAvailable?: number; // Dias de férias disponíveis
+  description?: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  price: number; // Selling Price
+  costPrice?: number; // Cost Price for Margin Calc
+  minStock: number;
+  maxStock?: number;
+  location?: string; // Prateleira/Bin
+  barcode?: string; // EAN
+  ncm?: string; // Fiscal
+  weight?: number; // kg per unit (for scale integration)
+  brand?: string;
+  supplierId?: string;
+  color?: string; // For UI
 }
 
-export interface PayrollRecord {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  month: string; // MM/YYYY
-  baseSalary: number;
-  benefits: number; // VA/VR/VT
-  overtime: number;
-  discounts: number; // INSS/IRRF
-  totalNet: number;
-  status: 'Pendente' | 'Pago' | 'Cancelado';
-  paidAt?: string;
-}
-
-export interface TimeLog {
-  id: string;
-  employeeId: string;
-  date: string;
-  checkIn: string;
-  checkOut?: string;
-  status: 'Presente' | 'Atraso' | 'Falta' | 'Extra';
-  notes?: string;
-}
-
-export interface Vacation {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  status: 'Solicitado' | 'Aprovado' | 'Rejeitado' | 'Em Andamento' | 'Concluído';
-  requestedAt: string;
-  approvedBy?: string;
-  notes?: string;
-}
-
-export interface SalaryAdvance {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  amount: number;
-  requestDate: string;
-  status: 'Pendente' | 'Aprovado' | 'Rejeitado' | 'Pago';
-  approvedBy?: string;
-  paidAt?: string;
-  deductFromMonth: string; // MM/YYYY - mês que será descontado
-  notes?: string;
-}
+// ... existing interfaces ...
 
 export interface Transaction {
   id: string;
   date: string;
+  dueDate?: string; // Vencimento for Payables/Receivables
   description: string;
-  category: string;
-  account: string;
+  category: string; // Plano de Contas Level 2
+  accountId: string; // Financial Account ID (Banco, Caixa)
   amount: number;
-  status: 'Conciliado' | 'Pendente';
+  status: 'Conciliado' | 'Pendente' | 'Vencido' | 'Cancelado';
   type: 'Receita' | 'Despesa';
+  documentNumber?: string; // Invoice #
+  partnerId?: string; // ClientID or SupplierID
+  originModule?: 'Vendas' | 'Compras' | 'Frota' | 'RH' | 'Manual';
+  originId?: string; // ID of Sale, PO, etc.
   ledgerCode?: string;
   ledgerName?: string;
 }
@@ -121,47 +104,26 @@ export interface Sale extends Transaction {
   clientName: string;
   items: SalesItem[];
   paymentMethod?: string;
+  installments?: number;
+  weightTicket?: string; // ID of scale ticket if used
+  measuredWeight?: number; // Weight from scale
 }
 
-export interface SalesItem {
+export interface PurchaseOrder {
   id: string;
-  name: string;
-  detail: string;
-  quantity: number;
-  unit: string;
-  price: number;
-}
-
-export interface FleetVehicle {
-  id: string;
-  name: string; // Model
-  brand?: string;
-  year?: number;
-  plate: string;
-  type?: 'Caminhão' | 'Carro' | 'Máquina' | 'Utilitário';
-  status: 'Operacional' | 'Manutenção' | 'Parado';
-  fuelLevel: number;
-  lastMaintenance: string;
-  km: number;
-  maintenanceHistory?: MaintenanceRecord[];
-  fuelLogs?: FuelLog[];
-  attachments?: AppAttachment[];
-}
-
-export interface MaintenanceRecord {
-  id: string;
-  vehicleId: string;
+  supplierId: string;
+  supplierName: string;
   date: string;
-  type: 'Preventiva' | 'Corretiva' | 'Preditiva';
-  description: string;
-  cost: number;
-  km: number;
-  mechanic?: string;
+  items: PurchaseItem[];
+  subtotal: number;
+  tax?: number;
+  shippingCost?: number;
+  total: number;
+  status: 'Pendente' | 'Recebido' | 'Cancelado' | 'Aprovado';
+  receivedAt?: string;
+  paymentTerms?: string; // '30 dias', 'Avista'
+  targetAccountId?: string; // Where money will come from (Previsão)
   attachments?: AppAttachment[];
-  ledgerCode?: string;
-  ledgerName?: string;
-  productId?: string;
-  productQuantity?: number;
 }
 
 export interface FuelLog {
@@ -169,25 +131,18 @@ export interface FuelLog {
   vehicleId: string;
   date: string;
   liters: number;
-  cost: number;
+  cost: number; // Total Cost
+  pricePerLiter: number;
   km: number;
   fuelType: 'Diesel' | 'Gasolina' | 'Etanol' | 'Arla 32';
+  stationName?: string; // Posto
+  invoiceNumber?: string; // Nota Fiscal
+  financialAccountId?: string; // Source of Payment if cash/card
+  isPaid: boolean;
   attachments?: AppAttachment[];
-  ledgerCode?: string;
-  ledgerName?: string;
 }
 
-export interface ProductionUnit {
-  id: string;
-  name: string;
-  type: string;
-  status: 'Operando' | 'Manutenção' | 'Parado';
-  capacity: string;
-  currentLoad: number;
-  temp: number;
-  power: string;
-  allowedCategories?: string[];
-}
+// ... existing ProductionUnit ...
 
 export interface QualityTest {
   id: string;
@@ -243,6 +198,31 @@ export interface InventoryItem {
   minStock: number;
   color?: string; // For UI display
   supplierId?: string; // Link to supplier
+}
+
+export interface SalesItem {
+  id: string;
+  name: string;
+  detail: string;
+  quantity: number;
+  unit: string;
+  price: number;
+}
+
+export interface MaintenanceRecord {
+  id: string;
+  vehicleId: string;
+  date: string;
+  type: 'Preventiva' | 'Corretiva' | 'Preditiva';
+  description: string;
+  cost: number;
+  km: number;
+  mechanic?: string;
+  attachments?: AppAttachment[];
+  ledgerCode?: string;
+  ledgerName?: string;
+  productId?: string;
+  productQuantity?: number;
 }
 
 export interface PurchaseItem {

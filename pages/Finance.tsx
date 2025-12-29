@@ -22,25 +22,28 @@ import {
    MoreVertical,
    Download,
    Landmark,
-   AlertCircle
+   AlertCircle,
+   Search,
+   PieChart,
+   ChevronRight
 } from 'lucide-react';
-import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { CHART_DATA_CASHFLOW } from '../constants';
 import { useApp } from '../context/AppContext';
 import { Transaction } from '../types';
 
-// Plan of accounts and accounts are now managed by AppContext
-
 const Finance = () => {
    const {
-      transactions, financials, addTransaction, deleteTransaction, importTransactions, updateTransactionStatus,
+      transactions, financials, addTransaction, deleteTransaction, importTransactions, updateTransactionStatus, updateTransaction,
       accounts, addAccount, deleteAccount,
-      planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount
+      planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount, hasPermission
    } = useApp();
-   const [activeTab, setActiveTab] = useState<'overview' | 'planOfAccounts' | 'accounts' | 'payables' | 'receivables'>('overview');
 
+   const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'receivables' | 'payables' | 'accounts' | 'planning'>('overview');
    const [isModalOpen, setIsModalOpen] = useState(false);
+   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
    const [formData, setFormData] = useState<Partial<Transaction>>({
       type: 'Despesa',
       date: new Date().toLocaleDateString('pt-BR'),
@@ -52,29 +55,26 @@ const Finance = () => {
       id: '', name: '', type: 'Conta Corrente', balance: 0, color: 'bg-blue-600', code: ''
    });
 
-   // Transaction Filters
+   // Filters
    const [searchTerm, setSearchTerm] = useState('');
    const [categoryFilter, setCategoryFilter] = useState('Todas');
 
-   // Format currency
    const formatMoney = (value: number) => {
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
    };
 
-   // Filter logic
+   // Filtering Logic
    const filteredTransactions = transactions.filter(tx => {
       const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
          tx.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'Todas' || tx.type === categoryFilter;
-      // Overview shows everything or just reconciled? Generally everything history.
       return matchesSearch && matchesCategory;
    });
 
    const receivables = transactions.filter(tx => tx.type === 'Receita' && tx.status !== 'Conciliado');
    const payables = transactions.filter(tx => tx.type === 'Despesa' && tx.status !== 'Conciliado');
 
-   const uniqueCategories = ['Todas', 'Receita', 'Despesa'];
-
+   // Handlers
    const handleSaveTransaction = (e: React.FormEvent) => {
       e.preventDefault();
       if (!formData.description || !formData.amount) return;
@@ -83,7 +83,8 @@ const Finance = () => {
          planOfAccounts.find(g => g.id === formData.ledgerCode);
 
       const newTx: Transaction = {
-         id: Date.now().toString(),
+         ...formData,
+         id: selectedTransaction ? selectedTransaction.id : Date.now().toString(),
          date: formData.date || new Date().toLocaleDateString('pt-BR'),
          description: formData.description || '',
          amount: Number(formData.amount),
@@ -94,155 +95,207 @@ const Finance = () => {
          type: formData.type || 'Despesa',
          ledgerCode: selectedAccount?.code || '',
          ledgerName: selectedAccount?.name || ''
-      };
+      } as Transaction;
 
-      addTransaction(newTx);
+      if (selectedTransaction) {
+         updateTransaction(newTx);
+      } else {
+         addTransaction(newTx);
+      }
       setIsModalOpen(false);
+      setSelectedTransaction(null);
       setFormData({ type: 'Despesa', date: new Date().toLocaleDateString('pt-BR'), status: 'Pendente', account: 'Bradesco PJ' });
    };
 
-   // Plan of Accounts Actions
-   const handleAddSubAccount = (parentId: string) => {
-      const name = prompt("Nome da nova subconta:");
-      if (!name) return;
-      addPlanAccount(parentId, name);
-   };
+   // UI Components
+   const NavButton = ({ id, label, icon: Icon, colorClass = "text-slate-500" }: any) => (
+      <button
+         onClick={() => setActiveTab(id)}
+         className={`
+            px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2.5 whitespace-nowrap
+            ${activeTab === id
+               ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10 dark:bg-white dark:text-slate-900'
+               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 dark:text-slate-400'
+            }
+         `}
+      >
+         <Icon size={18} className={activeTab === id ? 'text-cyan-400' : colorClass} />
+         {label}
+      </button>
+   );
 
-   const handleDeleteSubAccount = (parentId: string, subAccountId: string) => {
-      if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
-      deletePlanAccount(parentId, subAccountId);
-   };
-
-   const handleEditAccount = (groupIndex: number, childIndex: number | null, currentName: string) => {
-      const newName = prompt("Editar nome da conta:", currentName);
-      if (!newName) return;
-      updatePlanAccount(groupIndex, childIndex, newName);
-   };
-
-   const handleSaveAccount = (e: React.FormEvent) => {
-      e.preventDefault();
-      addAccount({
-         ...accountForm,
-         id: `acc-${Date.now()}`
-      });
-      setIsAccountModalOpen(false);
-      setAccountForm({ name: '', type: 'Conta Corrente', balance: 0, color: 'bg-blue-600', code: '' });
-   };
+   const KpiCard = ({ title, value, subtext, icon: Icon, color, trend }: any) => (
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+         <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity ${color}`}>
+            <Icon size={64} />
+         </div>
+         <div className="relative">
+            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">{title}</p>
+            <h3 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mb-2">{value}</h3>
+            {subtext && (
+               <div className="flex items-center gap-1.5">
+                  {trend && (
+                     <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {trend === 'up' ? '+' : '-'}2.5%
+                     </span>
+                  )}
+                  <span className={`text-[10px] font-bold ${color}`}>{subtext}</span>
+               </div>
+            )}
+         </div>
+      </div>
+   );
 
    return (
-      <div className="flex flex-col gap-5">
-         {/* Transaction Modal */}
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+
+         {/* Top Header & Navigation */}
+         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
+            <div className="flex overflow-x-auto p-1 gap-1 no-scrollbar items-center">
+               <NavButton id="overview" label="Dashboard" icon={PieChart} />
+               <div className="w-px bg-slate-200 dark:bg-gray-700 mx-1 h-6 hidden md:block"></div>
+               <NavButton id="ledger" label="Livro Caixa" icon={List} />
+               <NavButton id="receivables" label="A Receber" icon={ArrowDown} colorClass="text-green-500" />
+               <NavButton id="payables" label="A Pagar" icon={ArrowUp} colorClass="text-red-500" />
+               <div className="w-px bg-slate-200 dark:bg-gray-700 mx-1 h-6 hidden md:block"></div>
+               <NavButton id="accounts" label="Bancos & Caixa" icon={Landmark} />
+               <NavButton id="planning" label="Plano de Contas" icon={FolderOpen} />
+            </div>
+
+            {hasPermission('finance.transact') && (
+               <button
+                  onClick={() => {
+                     setSelectedTransaction(null);
+                     setFormData({ type: 'Despesa', date: new Date().toLocaleDateString('pt-BR'), status: 'Pendente', account: 'Bradesco PJ' });
+                     setIsModalOpen(true);
+                  }}
+                  className="mx-2 xl:mx-0 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
+               >
+                  <Plus size={18} /> Novo Lançamento
+               </button>
+            )}
+         </div>
+
+         {/* Transactions Modal */}
          {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
-                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
+                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <DollarSign className="text-cyan-600" />
-                        Novo Lançamento
+                        <CreditCard className="text-cyan-600" />
+                        {selectedTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
                      </h3>
                      <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={24} />
                      </button>
                   </div>
 
-                  <form onSubmit={handleSaveTransaction} className="p-6 space-y-4">
-                     <div className="flex bg-slate-100 dark:bg-gray-700 p-1 rounded-xl mb-2">
+                  <form onSubmit={handleSaveTransaction} className="p-6 space-y-5">
+                     {/* Toggle Type */}
+                     <div className="flex bg-slate-100 dark:bg-gray-700 p-1.5 rounded-xl">
                         <button
                            type="button"
                            onClick={() => setFormData({ ...formData, type: 'Receita' })}
-                           className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'Receita' ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm' : 'text-slate-500'}`}
+                           className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${formData.type === 'Receita' ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm border border-slate-100 dark:border-gray-500' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                           Receita
+                           <ArrowDown size={16} /> Receita
                         </button>
                         <button
                            type="button"
                            onClick={() => setFormData({ ...formData, type: 'Despesa' })}
-                           className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.type === 'Despesa' ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm' : 'text-slate-500'}`}
+                           className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${formData.type === 'Despesa' ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm border border-slate-100 dark:border-gray-500' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                           Despesa
+                           <ArrowUp size={16} /> Despesa
                         </button>
                      </div>
 
-                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição</label>
-                        <input
-                           required
-                           type="text"
-                           className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                           placeholder="Ex: Pagamento Fornecedor X"
-                           value={formData.description || ''}
-                           onChange={e => setFormData({ ...formData, description: e.target.value })}
-                        />
-                     </div>
-
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-4">
                         <div>
-                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Valor (R$)</label>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Descrição</label>
                            <input
                               required
-                              type="number"
-                              step="0.01"
-                              className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold"
-                              placeholder="0,00"
-                              value={formData.amount || ''}
-                              onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
-                           />
-                        </div>
-                        <div>
-                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label>
-                           <input
                               type="text"
-                              className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              value={formData.date || ''}
-                              onChange={e => setFormData({ ...formData, date: e.target.value })}
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                              placeholder="Ex: Pagamento Fornecedor X"
+                              value={formData.description || ''}
+                              onChange={e => setFormData({ ...formData, description: e.target.value })}
                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Valor (R$)</label>
+                              <div className="relative">
+                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                                 <input
+                                    required
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white pl-10 pr-4 py-3 font-bold"
+                                    placeholder="0,00"
+                                    value={formData.amount || ''}
+                                    onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
+                                 />
+                              </div>
+                           </div>
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Data</label>
+                              <input
+                                 type="text"
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold text-center"
+                                 value={formData.date || ''}
+                                 onChange={e => setFormData({ ...formData, date: e.target.value })}
+                              />
+                           </div>
+                        </div>
+
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Categoria (Plano de Contas)</label>
+                           <select
+                              required
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 text-sm font-semibold"
+                              value={formData.ledgerCode || ''}
+                              onChange={e => setFormData({ ...formData, ledgerCode: e.target.value })}
+                           >
+                              <option value="">Selecione...</option>
+                              {planOfAccounts.filter(g => g.type === formData.type).map(group => (
+                                 <optgroup key={group.id} label={group.name} className="font-bold">
+                                    {group.children?.map(child => (
+                                       <option key={child.id} value={child.id}>{child.code} - {child.name}</option>
+                                    ))}
+                                 </optgroup>
+                              ))}
+                           </select>
+                        </div>
+
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Conta Financeira</label>
+                           <div className="grid grid-cols-2 gap-2">
+                              {accounts.slice(0, 4).map(acc => (
+                                 <button
+                                    type="button"
+                                    key={acc.id}
+                                    onClick={() => setFormData({ ...formData, account: acc.name })}
+                                    className={`p-2 rounded-lg border text-xs font-bold text-left transition-all ${formData.account === acc.name ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:text-cyan-300 dark:bg-cyan-900/30' : 'border-slate-200 dark:border-gray-600 text-slate-500 hover:border-cyan-300'}`}
+                                 >
+                                    <span className="block truncate">{acc.name}</span>
+                                 </button>
+                              ))}
+                           </div>
                         </div>
                      </div>
 
-                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Plano de Contas (Obrigatório)</label>
-                        <select
-                           required
-                           className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm"
-                           value={formData.ledgerCode || ''}
-                           onChange={e => setFormData({ ...formData, ledgerCode: e.target.value })}
-                        >
-                           <option value="">Selecione a categoria...</option>
-                           {planOfAccounts.filter(g => g.type === formData.type).map(group => (
-                              <optgroup key={group.id} label={group.name}>
-                                 {group.children?.map(child => (
-                                    <option key={child.id} value={child.id}>{child.code} - {child.name}</option>
-                                 ))}
-                              </optgroup>
-                           ))}
-                        </select>
-                     </div>
-
-                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conta de Destino/Origem</label>
-                        <select
-                           className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                           value={formData.account || ''}
-                           onChange={e => setFormData({ ...formData, account: e.target.value })}
-                        >
-                           <option value="Bradesco PJ">Bradesco PJ</option>
-                           <option value="Banco do Brasil">Banco do Brasil</option>
-                           <option value="Caixa">Caixa (Dinheiro)</option>
-                           <option value="NuBank Reserva">NuBank Reserva</option>
-                        </select>
-                     </div>
-
-                     <div className="pt-4 flex gap-3">
+                     <div className="pt-2 flex gap-3">
                         <button
                            type="button"
                            onClick={() => setIsModalOpen(false)}
-                           className="flex-1 py-2 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                           className="flex-1 py-3 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                         >
                            Cancelar
                         </button>
                         <button
                            type="submit"
-                           className="flex-1 py-2 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20"
+                           className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20"
                         >
                            Confirmar
                         </button>
@@ -252,605 +305,406 @@ const Finance = () => {
             </div>
          )}
 
-         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-               <h1 className="text-2xl font-bold text-slate-800 dark:text-white font-display tracking-tight">Financeiro</h1>
-               <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de fluxo de caixa, orçamento e plano de contas.</p>
-            </div>
-            <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg overflow-x-auto">
-               <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
-               >
-                  <TrendingUp size={16} /> Visão Geral
-               </button>
-               <button
-                  onClick={() => setActiveTab('receivables')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'receivables' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
-               >
-                  <ArrowDown size={16} className="text-green-500" /> A Receber
-               </button>
-               <button
-                  onClick={() => setActiveTab('payables')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'payables' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
-               >
-                  <ArrowUp size={16} className="text-red-500" /> A Pagar
-               </button>
-               <button
-                  onClick={() => setActiveTab('planOfAccounts')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'planOfAccounts' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
-               >
-                  <List size={16} /> Plano de Contas
-               </button>
-               <button
-                  onClick={() => setActiveTab('accounts')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'accounts' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
-               >
-                  <Landmark size={16} /> Contas
-               </button>
-            </div>
-         </div>
-
-         {activeTab === 'planOfAccounts' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom duration-300">
-               {/* Plan of Accounts Editor */}
-               <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center bg-slate-50 dark:bg-gray-700/30">
-                     <div>
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Plano de Contas Gerencial</h3>
-                        <p className="text-xs text-slate-500">Estrutura de receitas e despesas editável</p>
-                     </div>
-                     <button onClick={() => {
-                        const name = prompt("Nome do novo grupo:");
-                        if (name) alert("Recurso de adição de grupos principais em estruturação. Subcontas podem ser adicionadas nos grupos existentes.");
-                     }} className="text-xs font-bold text-cyan-600 uppercase hover:underline flex items-center gap-1">
-                        <Plus size={14} /> Novo Grupo
-                     </button>
-                  </div>
-                  <div className="p-6 flex flex-col gap-6">
-                     {planOfAccounts.map((group, gIndex) => (
-                        <div key={group.id} className="border border-slate-200 dark:border-gray-600 rounded-lg overflow-hidden transition-all hover:border-cyan-200">
-                           <div className="bg-slate-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center group/header">
-                              <div className="flex items-center gap-3">
-                                 <span className="font-mono text-xs font-bold text-slate-400 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-gray-600">{group.code}</span>
-                                 <span className="font-bold text-slate-800 dark:text-white text-sm">{group.name}</span>
-                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${group.type === 'Receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{group.type}</span>
-                              </div>
-                              <div className="flex items-center gap-2 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                                 <button onClick={() => handleEditAccount(gIndex, null, group.name)} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded text-slate-500">
-                                    <Edit2 size={14} />
-                                 </button>
-                                 <button onClick={() => handleAddSubAccount(group.id)} className="p-1.5 hover:bg-white dark:hover:bg-gray-600 rounded text-cyan-600" title="Adicionar Subconta">
-                                    <Plus size={14} />
-                                 </button>
-                              </div>
-                           </div>
-                           <div className="divide-y divide-slate-100 dark:divide-gray-700">
-                              {group.children?.map((child, cIndex) => (
-                                 <div key={child.id} className="px-4 py-3 pl-12 flex justify-between items-center group/item hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                       <span className="font-mono text-xs text-slate-400">{child.code}</span>
-                                       <span className="text-sm text-slate-600 dark:text-slate-300">{child.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                       <button onClick={() => handleEditAccount(gIndex, cIndex, child.name)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-gray-600 rounded text-slate-400 hover:text-cyan-600">
-                                          <Edit2 size={12} />
-                                       </button>
-                                       <button onClick={() => handleDeleteSubAccount(group.id, child.id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-slate-400 hover:text-red-500">
-                                          <Trash2 size={12} />
-                                       </button>
-                                    </div>
-                                 </div>
-                              ))}
-                              {(!group.children || group.children.length === 0) && (
-                                 <div className="px-4 py-3 pl-12 text-xs text-slate-400 italic">Nenhuma subconta cadastrada</div>
-                              )}
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-
-               {/* Helper / Info Panel */}
-               <div className="flex flex-col gap-6">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-100 dark:border-blue-800">
-                     <div className="flex items-start gap-3">
-                        <FolderOpen className="text-blue-600 dark:text-blue-400 mt-1" size={20} />
-                        <div>
-                           <h4 className="font-bold text-blue-800 dark:text-blue-300 text-sm">Estrutura Sugerida</h4>
-                           <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 leading-relaxed">
-                              Mantenha seu plano de contas organizado em no máximo 3 níveis de profundidade para facilitar a geração de relatórios DRE e Fluxo de Caixa.
-                           </p>
-                        </div>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 p-5">
-                     <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-4">Resumo por Grupo</h4>
-                     <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                           <span className="text-slate-500">1. Receitas</span>
-                           <span className="font-bold text-green-600">3 contas</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                           <span className="text-slate-500">2. Despesas</span>
-                           <span className="font-bold text-red-600">6 contas</span>
-                        </div>
-                        <div className="border-t border-slate-100 dark:border-gray-700 pt-2 mt-2">
-                           <div className="flex justify-between text-sm font-bold">
-                              <span className="text-slate-900 dark:text-white">Total</span>
-                              <span className="text-slate-900 dark:text-white">9 categorias</span>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {activeTab === 'accounts' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-right duration-300">
-               {accounts.map((acc: any, i: number) => (
-                  <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group">
-                     <div className={`absolute top-0 right-0 w-24 h-24 ${acc.color} opacity-[0.03] rounded-bl-full`}></div>
-                     <div className="flex justify-between items-start mb-6">
-                        <div className={`${acc.color} text-white p-3 rounded-xl shadow-lg`}>
-                           <Landmark size={24} />
-                        </div>
-                        <button className="text-slate-300 hover:text-slate-500 transition-colors"><MoreVertical size={20} /></button>
-                     </div>
-                     <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">{acc.name}</h3>
-                     <p className="text-xs text-slate-500 mb-4">{acc.type} • {acc.code}</p>
-                     <div className="pt-4 border-t dark:border-gray-700 flex justify-between items-end">
-                        <div>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Saldo Atual</p>
-                           <p className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(acc.balance)}</p>
-                        </div>
-                        <div className="flex gap-2">
-                           <button className="p-2 bg-slate-50 dark:bg-gray-700 rounded-lg text-slate-400 hover:text-cyan-600 transition-colors"><Edit2 size={16} /></button>
-                           <button onClick={() => { if (confirm("Excluir conta?")) deleteAccount(acc.id); }} className="p-2 bg-slate-50 dark:bg-gray-700 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                        </div>
-                     </div>
-                  </div>
-               ))}
-               <button onClick={() => setIsAccountModalOpen(true)} className="bg-slate-50 dark:bg-gray-800/50 border-2 border-dashed border-slate-200 dark:border-gray-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-cyan-300 hover:text-cyan-500 transition-all group">
-                  <div className="p-3 bg-white dark:bg-gray-700 rounded-full group-hover:scale-110 transition-transform">
-                     <Plus size={32} />
-                  </div>
-                  <span className="font-bold text-sm">Adicionar Nova Conta</span>
-               </button>
-            </div>
-         )}
-
-         {activeTab === 'overview' && (
-            <div className="space-y-6 animate-in fade-in duration-500">
-               <div className="flex flex-wrap gap-3 mb-2">
-                  <button onClick={() => importTransactions(null)} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors text-sm font-medium">
-                     <Upload size={16} />
-                     Importar Extrato
-                  </button>
-                  <button
-                     onClick={() => setIsModalOpen(true)}
-                     className="flex items-center gap-2 px-6 py-2 bg-cyan-600 text-white rounded-xl shadow-lg shadow-cyan-600/20 hover:bg-cyan-700 transition-all font-bold text-sm"
-                  >
-                     <Plus size={18} />
-                     Novo Lançamento
-                  </button>
-               </div>
-
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-gray-700 relative overflow-hidden group hover:border-cyan-200 transition-colors">
-                     <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wide mb-2">Saldo Consolidado</p>
-                     <h3 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">{formatMoney(financials.balance + 642450)}</h3>
-                     <div className="flex items-center gap-1 mt-2 text-green-600 bg-green-50 w-fit px-2 py-0.5 rounded-full text-[10px] font-bold dark:bg-green-900/20 uppercase">
-                        <TrendingUp size={12} />
-                        <span>+2.4% vs mês anterior</span>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-pink-200 transition-colors">
-                     <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wide mb-2">A Pagar (Hoje)</p>
-                     <h3 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">R$ 12.450,00</h3>
-                     <p className="text-xs text-pink-500 font-bold mt-2 flex items-center gap-1">
-                        <AlertCircle size={12} /> 3 boletos vencendo
-                     </p>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-blue-200 transition-colors">
-                     <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wide mb-2">Entradas Brutas</p>
-                     <h3 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">{formatMoney(financials.totalRevenue)}</h3>
-                     <div className="flex items-center gap-1 mt-2 text-slate-400 text-xs font-medium">
-                        <Calendar size={14} />
-                        <span>Ciclo atual</span>
-                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-teal-200 transition-colors">
-                     <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wide mb-2">Resultado Operacional</p>
-                     <h3 className="text-2xl lg:text-3xl font-black text-cyan-600 dark:text-cyan-400">{formatMoney(financials.balance)}</h3>
-                     <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3 dark:bg-gray-700 overflow-hidden">
-                        <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: '70%' }}></div>
-                     </div>
-                     <p className="text-[10px] text-slate-400 mt-1 text-right font-medium">EBITDA: 14%</p>
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                  <div className="xl:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-slate-100 dark:border-gray-700">
-                     <div className="flex items-center justify-between mb-6">
-                        <div>
-                           <h4 className="font-bold text-slate-800 dark:text-white">Fluxo de Caixa Mensal</h4>
-                           <p className="text-xs text-slate-500 italic">Comparativo Receitas vs Despesas</p>
-                        </div>
-                        <div className="flex gap-2">
-                           <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-teal-500"><CheckCircle size={10} /> Entradas</span>
-                           <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-pink-500"><CheckCircle size={10} /> Saídas</span>
-                        </div>
-                     </div>
-                     <div className="h-72 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                           <BarChart data={CHART_DATA_CASHFLOW}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                              <Tooltip
-                                 cursor={{ fill: '#f8fafc' }}
-                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              />
-                              <Bar dataKey="income" name="Receitas" fill="#2dd4bf" radius={[4, 4, 0, 0]} barSize={20} />
-                              <Bar dataKey="expense" name="Despesas" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={20} />
-                           </BarChart>
-                        </ResponsiveContainer>
-                     </div>
-                  </div>
-
-                  <div className="flex flex-col gap-5">
-                     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-slate-100 dark:border-gray-700 flex-1">
-                        <div className="flex justify-between items-center mb-4">
-                           <h4 className="text-lg font-bold text-slate-900 dark:text-white">Disponibilidade</h4>
-                           <button onClick={() => setActiveTab('accounts')} className="text-cyan-600 text-xs font-bold hover:underline uppercase">Gerenciar</button>
-                        </div>
-                        <div className="space-y-3">
-                           {accounts.slice(0, 3).map((acc, i) => (
-                              <div key={i} className="flex items-center justify-between p-3 border border-slate-100 dark:border-gray-700 rounded-xl bg-slate-50 dark:bg-gray-800/50 hover:border-cyan-200 transition-colors">
-                                 <div className="flex items-center gap-3">
-                                    <div className={`${acc.color} text-white p-2 rounded-lg text-xs font-black w-10 h-10 flex items-center justify-center shadow-sm uppercase`}>
-                                       {acc.name.substring(0, 2)}
-                                    </div>
-                                    <div>
-                                       <p className="text-sm font-bold text-slate-800 dark:text-white">{acc.name}</p>
-                                       <p className="text-[10px] text-slate-400 font-medium">{acc.type}</p>
-                                    </div>
-                                 </div>
-                                 <span className="text-sm font-black text-slate-700 dark:text-slate-100">{formatMoney(acc.balance)}</span>
-                              </div>
-                           ))}
-                           {accounts.length === 0 && (
-                              <p className="text-center py-4 text-xs text-slate-400 italic">Nenhuma conta ativa.</p>
-                           )}
-                        </div>
-                     </div>
-
-                     {(() => {
-                        const nextBill = transactions.find(t => t.type === 'Despesa' && t.status === 'Pendente');
-                        return (
-                           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl text-white relative overflow-hidden">
-                              <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard size={80} /></div>
-                              <h5 className="font-bold text-xs text-slate-400 uppercase mb-4 tracking-widest">Próximo Vencimento</h5>
-                              {nextBill ? (
-                                 <>
-                                    <div className="flex items-start gap-4 mb-6">
-                                       <div className="bg-red-500/10 text-red-500 p-3 rounded-2xl border border-red-500/20">
-                                          <Calendar size={24} />
-                                       </div>
-                                       <div>
-                                          <p className="font-bold text-lg leading-tight line-clamp-1">{nextBill.description}</p>
-                                          <p className="text-xs text-slate-400 mt-0.5 font-mono">{nextBill.date} • Pendente</p>
-                                       </div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                       <h4 className="text-2xl font-black text-white">{formatMoney(nextBill.amount)}</h4>
-                                       <button
-                                          onClick={() => updateTransactionStatus(nextBill.id, 'Conciliado')}
-                                          className="bg-cyan-500 hover:bg-cyan-400 text-white text-[10px] font-black px-4 py-2 rounded-xl transition-all shadow-lg shadow-cyan-500/20 uppercase"
-                                       >
-                                          PAGAR
-                                       </button>
-                                    </div>
-                                 </>
-                              ) : (
-                                 <div className="py-10 text-center opacity-40">
-                                    <CheckCircle size={32} className="mx-auto mb-2" />
-                                    <p className="text-[10px] font-black uppercase">Faturas em dia</p>
-                                 </div>
-                              )}
-                           </div>
-                        );
-                     })()}
-                  </div>
-               </div>
-
-               {/* Transactions Table */}
-               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
-                  <div className="p-5 border-b border-slate-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 dark:bg-gray-700/50">
-                     <div className="flex items-center gap-3">
-                        <List className="text-cyan-600" />
-                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Livro Caixa</h4>
-                     </div>
-                     <div className="relative flex items-center gap-2">
-                        <div className="relative">
-                           <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                           <select
-                              className="pl-9 pr-8 py-2 text-sm bg-white border-slate-200 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                              value={categoryFilter}
-                              onChange={(e) => setCategoryFilter(e.target.value)}
-                           >
-                              {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                           </select>
-                        </div>
-                        <div className="relative">
-                           <Settings size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                           <input
-                              className="pl-9 pr-4 py-2 text-sm bg-white border-slate-200 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white w-full sm:w-64"
-                              placeholder="Filtrar por nome..."
-                              type="text"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                           />
-                        </div>
-                     </div>
-                  </div>
-                  <div className="overflow-x-auto">
-                     <table className="w-full text-sm text-left">
-                        <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 dark:bg-gray-800 font-black border-b border-slate-100 dark:border-gray-700">
-                           <tr>
-                              <th className="px-6 py-3">Data</th>
-                              <th className="px-6 py-3">Descrição / Origem</th>
-                              <th className="px-6 py-3">Plano de Contas</th>
-                              <th className="px-6 py-3 text-right">Valor</th>
-                              <th className="px-6 py-3 text-center">Status</th>
-                              <th className="px-6 py-3 text-right">Ações</th>
-                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                           {filteredTransactions.map(tx => (
-                              <tr key={tx.id} className="bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors group">
-                                 <td className="px-6 py-3.5 whitespace-nowrap">
-                                    <span className="font-bold text-slate-500 dark:text-gray-400 text-xs">{tx.date}</span>
-                                 </td>
-                                 <td className="px-6 py-3.5">
-                                    <div className="flex items-center gap-3">
-                                       <div className={`p-1.5 rounded-lg ${tx.type === 'Receita' ? 'bg-green-100 text-green-600 dark:bg-green-900/40' : 'bg-red-100 text-red-600 dark:bg-red-900/40'}`}>
-                                          {tx.type === 'Receita' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
-                                       </div>
-                                       <div>
-                                          <span className="font-bold text-slate-800 dark:text-white text-sm">{tx.description}</span>
-                                          <p className="text-[10px] text-slate-400">{tx.account}</p>
-                                       </div>
-                                    </div>
-                                 </td>
-                                 <td className="px-6 py-3.5">
-                                    <div className="flex flex-col">
-                                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                                          {tx.ledgerCode || '---'}
-                                       </span>
-                                       <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                                          {tx.ledgerName || tx.category}
-                                       </span>
-                                    </div>
-                                 </td>
-                                 <td className={`px-6 py-3.5 text-right font-black text-sm ${tx.type === 'Receita' ? 'text-green-600' : 'text-slate-900 dark:text-slate-100'}`}>
-                                    {tx.type === 'Receita' ? '+' : '-'} {formatMoney(tx.amount)}
-                                 </td>
-                                 <td className="px-6 py-3.5 text-center">
-                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${tx.status === 'Conciliado' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                                       <span className={`h-1.5 w-1.5 rounded-full ${tx.status === 'Conciliado' ? 'bg-green-600' : 'bg-amber-600'}`}></span>
-                                       {tx.status}
-                                    </span>
-                                 </td>
-                                 <td className="px-6 py-3.5 text-right">
-                                    <div className="flex items-center justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
-                                       <button
-                                          onClick={() => updateTransactionStatus(tx.id, tx.status === 'Conciliado' ? 'Pendente' : 'Conciliado')}
-                                          className={`p-2 rounded-lg transition-colors ${tx.status === 'Conciliado' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
-                                          title={tx.status === 'Conciliado' ? 'Reverter Conciliação' : 'Conciliar / Pagar'}
-                                       >
-                                          <CheckCircle size={16} />
-                                       </button>
-                                       <button className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-white rounded-lg"><Eye size={16} /></button>
-                                       <button className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-white rounded-lg"><Paperclip size={16} /></button>
-                                       <button onClick={() => { if (confirm("Remover esta transação?")) deleteTransaction(tx.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-lg"><Trash2 size={16} /></button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           ))}
-                        </tbody>
-                     </table>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {activeTab === 'receivables' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-300">
-               <div className="p-5 border-b border-slate-100 dark:border-gray-700 bg-green-50/50 dark:bg-green-900/10">
-                  <h3 className="text-lg font-bold text-green-700 dark:text-green-400 flex items-center gap-2"><ArrowDown size={20} /> Contas a Receber</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie valores pendentes de clientes e vendas a prazo</p>
-               </div>
-               <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                     <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 dark:bg-gray-800 font-black border-b border-slate-100 dark:border-gray-700">
-                        <tr>
-                           <th className="px-6 py-3">Vencimento</th>
-                           <th className="px-6 py-3">Cliente / Descrição</th>
-                           <th className="px-6 py-3 text-right">Valor</th>
-                           <th className="px-6 py-3 text-center">Status</th>
-                           <th className="px-6 py-3 text-right">Ações</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                        {receivables.map(tx => (
-                           <tr key={tx.id} className="bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
-                              <td className="px-6 py-3 font-mono text-xs text-slate-500 dark:text-slate-300">{tx.dueDate || tx.date}</td>
-                              <td className="px-6 py-3">
-                                 <p className="font-bold text-slate-800 dark:text-white">{tx.description}</p>
-                                 <p className="text-[10px] text-slate-400">{tx.category}</p>
-                              </td>
-                              <td className="px-6 py-3 text-right font-black text-green-600">{formatMoney(tx.amount)}</td>
-                              <td className="px-6 py-3 text-center">
-                                 <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
-                              </td>
-                              <td className="px-6 py-3 text-right">
-                                 <button onClick={() => {
-                                    const date = prompt("Data do Recebimento:", new Date().toLocaleDateString('pt-BR'));
-                                    if (date) updateTransactionStatus(tx.id, 'Conciliado', date);
-                                 }} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-all font-bold shadow-sm shadow-green-600/20">
-                                    RECEBER
-                                 </button>
-                              </td>
-                           </tr>
-                        ))}
-                        {receivables.length === 0 && (
-                           <tr>
-                              <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Nenhuma conta a receber pendente.</td>
-                           </tr>
-                        )}
-                     </tbody>
-                  </table>
-               </div>
-            </div>
-         )}
-
-         {activeTab === 'payables' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-300">
-               <div className="p-5 border-b border-slate-100 dark:border-gray-700 bg-red-50/50 dark:bg-red-900/10">
-                  <h3 className="text-lg font-bold text-red-700 dark:text-red-400 flex items-center gap-2"><ArrowUp size={20} /> Contas a Pagar</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie boletos, fornecedores e despesas agendadas</p>
-               </div>
-               <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                     <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 dark:bg-gray-800 font-black border-b border-slate-100 dark:border-gray-700">
-                        <tr>
-                           <th className="px-6 py-3">Vencimento</th>
-                           <th className="px-6 py-3">Fornecedor / Descrição</th>
-                           <th className="px-6 py-3 text-right">Valor</th>
-                           <th className="px-6 py-3 text-center">Status</th>
-                           <th className="px-6 py-3 text-right">Ações</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                        {payables.map(tx => (
-                           <tr key={tx.id} className="bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
-                              <td className="px-6 py-3 font-mono text-xs text-slate-500 dark:text-slate-300">{tx.dueDate || tx.date}</td>
-                              <td className="px-6 py-3">
-                                 <p className="font-bold text-slate-800 dark:text-white">{tx.description}</p>
-                                 <p className="text-[10px] text-slate-400">{tx.category}</p>
-                              </td>
-                              <td className="px-6 py-3 text-right font-black text-red-600">{formatMoney(Math.abs(tx.amount))}</td>
-                              <td className="px-6 py-3 text-center">
-                                 <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] uppercase font-bold">{tx.status}</span>
-                              </td>
-                              <td className="px-6 py-3 text-right">
-                                 <button onClick={() => {
-                                    const date = prompt("Data do Pagamento:", new Date().toLocaleDateString('pt-BR'));
-                                    if (date) updateTransactionStatus(tx.id, 'Conciliado', date);
-                                 }} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all font-bold shadow-sm shadow-red-600/20">
-                                    PAGAR
-                                 </button>
-                              </td>
-                           </tr>
-                        ))}
-                        {payables.length === 0 && (
-                           <tr>
-                              <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Nenhuma conta a pagar pendente.</td>
-                           </tr>
-                        )}
-                     </tbody>
-                  </table>
-               </div>
-            </div>
-         )}
-
-         {/* Account Modal */}
+         {/* New Account Modal */}
          {isAccountModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
-                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
+                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Landmark className="text-cyan-600" />
-                        Nova Conta Financeira
+                        Nova Conta
                      </h3>
                      <button onClick={() => setIsAccountModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={24} />
                      </button>
                   </div>
 
-                  <form onSubmit={handleSaveAccount} className="p-6 space-y-4">
+                  <form onSubmit={(e) => {
+                     e.preventDefault();
+                     addAccount({ ...accountForm, id: Date.now().toString(), balance: Number(accountForm.balance) });
+                     setIsAccountModalOpen(false);
+                  }} className="p-6 space-y-5">
                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Conta / Banco</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nome da Conta / Banco</label>
                         <input
                            required
                            type="text"
-                           className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                           placeholder="Ex: Itaú Personalité"
+                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                           placeholder="Ex: Nubank Principal"
                            value={accountForm.name}
                            onChange={e => setAccountForm({ ...accountForm, name: e.target.value })}
                         />
                      </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                           <select
-                              className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                              value={accountForm.type}
-                              onChange={e => setAccountForm({ ...accountForm, type: e.target.value })}
-                           >
-                              <option value="Conta Corrente">Conta Corrente</option>
-                              <option value="Investimento">Investimento</option>
-                              <option value="Espécie">Espécie / Caixa</option>
-                              <option value="Cartão de Crédito">Cartão de Crédito</option>
-                           </select>
-                        </div>
-                        <div>
-                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Saldo Inicial</label>
-                           <input
-                              type="number"
-                              className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold"
-                              value={accountForm.balance}
-                              onChange={e => setAccountForm({ ...accountForm, balance: Number(e.target.value) })}
-                           />
-                        </div>
-                     </div>
                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código / Agência / Obs</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Saldo Inicial (R$)</label>
                         <input
-                           type="text"
-                           className="w-full rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                           placeholder="Ex: Ag 0001 / CC 1234-5"
-                           value={accountForm.code}
-                           onChange={e => setAccountForm({ ...accountForm, code: e.target.value })}
+                           required
+                           type="number"
+                           step="0.01"
+                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold"
+                           value={accountForm.balance}
+                           onChange={e => setAccountForm({ ...accountForm, balance: e.target.value })}
                         />
                      </div>
                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cor de Identificação</label>
-                        <div className="flex gap-2 mt-1">
-                           {['bg-blue-600', 'bg-red-600', 'bg-purple-600', 'bg-teal-600', 'bg-orange-600', 'bg-emerald-600'].map(c => (
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cor do Card</label>
+                        <div className="flex gap-2">
+                           {['bg-blue-600', 'bg-green-600', 'bg-orange-600', 'bg-purple-600', 'bg-slate-900'].map(color => (
                               <button
-                                 key={c}
                                  type="button"
-                                 onClick={() => setAccountForm({ ...accountForm, color: c })}
-                                 className={`w-8 h-8 rounded-full ${c} ${accountForm.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
+                                 key={color}
+                                 onClick={() => setAccountForm({ ...accountForm, color })}
+                                 className={`w-8 h-8 rounded-full ${color} ${accountForm.color === color ? 'ring-4 ring-offset-2 ring-cyan-500' : 'opacity-70 hover:opacity-100'}`}
                               />
                            ))}
                         </div>
                      </div>
-                     <div className="pt-4 flex gap-3">
-                        <button type="button" onClick={() => setIsAccountModalOpen(false)} className="flex-1 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl">Cancelar</button>
-                        <button type="submit" className="flex-1 py-2 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 shadow-lg shadow-cyan-600/20">Salvar Conta</button>
-                     </div>
+                     <button
+                        type="submit"
+                        className="w-full py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 mt-4"
+                     >
+                        Criar Conta
+                     </button>
                   </form>
                </div>
             </div>
          )}
+
+         {/* Main Content Area */}
+         {activeTab === 'overview' && (
+            <div className="space-y-6">
+               {/* KPIs */}
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <KpiCard
+                     title="Caixa Disponível"
+                     value={formatMoney(financials.balance)}
+                     subtext="Conciliado Real"
+                     color="text-slate-900"
+                     icon={Landmark}
+                     trend="up"
+                  />
+                  <KpiCard
+                     title="A Receber"
+                     value={formatMoney(financials.receivables)}
+                     subtext="Previsão de Entrada"
+                     color="text-green-600"
+                     icon={ArrowDown}
+                  />
+                  <KpiCard
+                     title="A Pagar"
+                     value={formatMoney(financials.payables)}
+                     subtext="Previsão de Saída"
+                     color="text-red-600"
+                     icon={ArrowUp}
+                  />
+                  <KpiCard
+                     title="Saldo Projetado"
+                     value={formatMoney(financials.projectedBalance)}
+                     subtext="Após quitações"
+                     color="text-cyan-600"
+                     icon={TrendingUp}
+                  />
+               </div>
+
+               {/* Charts & Recent Activity */}
+               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  <div className="xl:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-gray-700">
+                     <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-slate-800 dark:text-white">Fluxo de Caixa</h3>
+                        <div className="flex gap-4">
+                           <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-teal-400"></div>
+                              <span className="text-xs font-bold text-slate-500">Entradas</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-pink-400"></div>
+                              <span className="text-xs font-bold text-slate-500">Saídas</span>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                           <BarChart data={CHART_DATA_CASHFLOW} barGap={8}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
+                              <Tooltip
+                                 cursor={{ fill: '#f8fafc' }}
+                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                              />
+                              <Bar dataKey="income" fill="#2dd4bf" radius={[4, 4, 0, 0]} barSize={32} />
+                              <Bar dataKey="expense" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={32} />
+                           </BarChart>
+                        </ResponsiveContainer>
+                     </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col">
+                     <h3 className="font-bold text-slate-800 dark:text-white mb-4">Contas Bancárias</h3>
+                     <div className="space-y-4 overflow-y-auto flex-1 custom-scrollbar pr-2">
+                        {accounts.map(acc => (
+                           <div key={acc.id} className="p-4 rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/30 flex justify-between items-center group hover:border-cyan-300 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                 <div className={`w-10 h-10 rounded-lg ${acc.color} text-white flex items-center justify-center shadow-lg shadow-cyan-900/10`}>
+                                    <Landmark size={18} />
+                                 </div>
+                                 <div>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-white">{acc.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-medium uppercase">{acc.type}</p>
+                                 </div>
+                              </div>
+                              <span className="text-sm font-black text-slate-700 dark:text-slate-200">{formatMoney(acc.balance)}</span>
+                           </div>
+                        ))}
+                     </div>
+                     <button onClick={() => setActiveTab('accounts')} className="mt-4 w-full py-3 text-cyan-600 text-xs font-bold uppercase border border-cyan-100 hover:bg-cyan-50 rounded-xl transition-colors">
+                        Gerenciar Contas
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* Ledger View (Transactions List) */}
+         {(activeTab === 'ledger' || activeTab === 'receivables' || activeTab === 'payables') && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+               <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        {activeTab === 'ledger' ? <List className="text-cyan-600" /> : activeTab === 'receivables' ? <ArrowDown className="text-green-500" /> : <ArrowUp className="text-red-500" />}
+                        {activeTab === 'ledger' ? 'Livro Caixa' : activeTab === 'receivables' ? 'Contas a Receber' : 'Contas a Pagar'}
+                     </h3>
+                     <p className="text-xs text-slate-500 mt-1">
+                        {activeTab === 'ledger' ? 'Histórico completo de transações' : activeTab === 'receivables' ? 'Valores pendentes de recebimento' : 'Compromissos pendentes de pagamento'}
+                     </p>
+                  </div>
+                  <div className="flex gap-2">
+                     <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                           type="text"
+                           placeholder="Buscar..."
+                           value={searchTerm}
+                           onChange={e => setSearchTerm(e.target.value)}
+                           className="pl-10 pr-4 py-2 bg-slate-50 dark:bg-gray-700 border-none rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 w-48"
+                        />
+                     </div>
+                     <button className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg">
+                        <Filter size={18} />
+                     </button>
+                     <button className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg">
+                        <Download size={18} />
+                     </button>
+                  </div>
+               </div>
+
+               <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                     <thead className="text-[10px] uppercase text-slate-400 bg-slate-50 dark:bg-gray-700/50 font-black tracking-wider">
+                        <tr>
+                           <th className="px-6 py-4">Data / Vencimento</th>
+                           <th className="px-6 py-4">Descrição</th>
+                           <th className="px-6 py-4">Categoria</th>
+                           <th className="px-6 py-4">Conta</th>
+                           <th className="px-6 py-4 text-right">Valor</th>
+                           <th className="px-6 py-4 text-center">Status</th>
+                           <th className="px-6 py-4 text-right">Ações</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
+                        {(activeTab === 'ledger' ? filteredTransactions : activeTab === 'receivables' ? receivables : payables).map(tx => (
+                           <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors group">
+                              <td className="px-6 py-4 font-mono text-xs text-slate-500">{tx.dueDate || tx.date}</td>
+                              <td className="px-6 py-4">
+                                 <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${tx.type === 'Receita' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                       {tx.type === 'Receita' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                                    </div>
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">{tx.description}</span>
+                                 </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                 <span className="inline-block px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">
+                                    {tx.ledgerName || tx.category}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-xs text-slate-500">{tx.account}</td>
+                              <td className={`px-6 py-4 text-right font-black ${tx.type === 'Receita' ? 'text-green-600' : 'text-slate-800 dark:text-white'}`}>
+                                 {formatMoney(tx.amount)}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${tx.status === 'Conciliado' ? 'bg-green-100 text-green-700' :
+                                    tx.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                       'bg-slate-100 text-slate-600'
+                                    }`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${tx.status === 'Conciliado' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                    {tx.status}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                 <div className="flex items-center justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
+                                    {hasPermission('finance.reconcile') && (
+                                       <button
+                                          onClick={() => {
+                                             // Quick Conciliate/Undo
+                                             const newStatus = tx.status === 'Conciliado' ? 'Pendente' : 'Conciliado';
+                                             if (newStatus === 'Conciliado') {
+                                                const date = prompt("Data da Conciliação:", new Date().toLocaleDateString('pt-BR'));
+                                                if (date) updateTransactionStatus(tx.id, 'Conciliado', date);
+                                             } else {
+                                                updateTransactionStatus(tx.id, 'Pendente');
+                                             }
+                                          }}
+                                          className={`p-1.5 rounded-lg transition-colors ${tx.status === 'Conciliado' ? 'text-green-600 bg-green-50' : 'text-slate-400 hover:text-cyan-600 hover:bg-slate-100'}`}
+                                          title="Conciliar / Pagar"
+                                       >
+                                          <CheckCircle size={16} />
+                                       </button>
+                                    )}
+
+                                    {hasPermission('finance.transact') && (
+                                       <button
+                                          onClick={() => {
+                                             setSelectedTransaction(tx);
+                                             setFormData(tx);
+                                             setIsModalOpen(true);
+                                          }}
+                                          className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg"
+                                          title="Editar"
+                                       >
+                                          <Edit2 size={16} />
+                                       </button>
+                                    )}
+
+                                    {hasPermission('finance.delete') && (
+                                       <button
+                                          onClick={() => { if (confirm("Excluir?")) deleteTransaction(tx.id); }}
+                                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg table-row-action"
+                                       >
+                                          <Trash2 size={16} />
+                                       </button>
+                                    )}
+                                 </div>
+                              </td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         )}
+
+         {/* Accounts Tab */}
+         {activeTab === 'accounts' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700">
+                  <div>
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Landmark className="text-cyan-600" /> Contas Bancárias & Caixa
+                     </h3>
+                     <p className="text-xs text-slate-500 mt-1">Gerencie os saldos iniciais e contas de movimento.</p>
+                  </div>
+                  <button onClick={() => { setAccountForm({ id: '', name: '', type: 'Conta Corrente', balance: 0, color: 'bg-blue-600', code: '' }); setIsAccountModalOpen(true); }} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
+                     <Plus size={14} /> Nova Conta
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {accounts.map(acc => (
+                     <div key={acc.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 relative overflow-hidden group">
+                        <div className={`absolute top-0 right-0 w-24 h-24 rounded-full ${acc.color} opacity-10 blur-2xl -mr-10 -mt-10`}></div>
+                        <div className="relative">
+                           <div className="flex justify-between items-start mb-6">
+                              <div className={`w-12 h-12 rounded-xl ${acc.color} text-white flex items-center justify-center shadow-lg shadow-cyan-900/10`}>
+                                 <Landmark size={24} />
+                              </div>
+                              <div className="flex gap-1">
+                                 {hasPermission('finance.delete') && (
+                                    <button onClick={() => deleteAccount(acc.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                 )}
+                              </div>
+                           </div>
+                           <h4 className="text-xl font-black text-slate-900 dark:text-white mb-1">{acc.name}</h4>
+                           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{acc.type}</p>
+                           <div className="flex items-end justify-between border-t border-slate-100 dark:border-gray-700 pt-4">
+                              <div>
+                                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Saldo Atual</p>
+                                 <p className="text-lg font-black text-slate-800 dark:text-white">{formatMoney(acc.balance)}</p>
+                              </div>
+                              <button className="text-xs font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1">
+                                 Ver Extrato <ChevronRight size={14} />
+                              </button>
+                           </div>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+         )}
+
+         {/* Planning Tab */}
+         {activeTab === 'planning' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-300">
+               <div className="p-6 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center">
+                  <div>
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <FolderOpen className="text-cyan-600" /> Plano de Contas
+                     </h3>
+                     <p className="text-xs text-slate-500 mt-1">Estrutura de Categorias de Receitas e Despesas.</p>
+                  </div>
+                  <button onClick={() => alert('Para criar categorias, utilize as Configurações do Sistema.')} className="px-4 py-2 bg-slate-50 text-slate-400 text-xs font-bold rounded-lg cursor-not-allowed flex items-center gap-2">
+                     <Plus size={14} /> Nova Categoria
+                  </button>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                     <thead className="bg-slate-50 dark:bg-gray-700/50 text-[10px] uppercase font-black text-slate-400">
+                        <tr>
+                           <th className="px-6 py-4">Código</th>
+                           <th className="px-6 py-4">Nome da Categoria</th>
+                           <th className="px-6 py-4 text-center">Tipo</th>
+                           <th className="px-6 py-4 text-center">Nível</th>
+                           <th className="px-6 py-4 text-right">Ações</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
+                        {planOfAccounts.map(group => (
+                           <React.Fragment key={group.id}>
+                              {/* Group Header */}
+                              <tr className="bg-slate-50/50 dark:bg-gray-800/50 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors">
+                                 <td className="px-6 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{group.id}</td>
+                                 <td className="px-6 py-3 font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                    <FolderOpen size={16} className="text-slate-400" /> {group.name}
+                                 </td>
+                                 <td className="px-6 py-3 text-center text-xs font-bold text-slate-500">{group.type}</td>
+                                 <td className="px-6 py-3 text-center"><span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold">GRUPO</span></td>
+                                 <td className="px-6 py-3 text-right">
+                                    {hasPermission('finance.delete') && (
+                                       <button onClick={() => deletePlanAccount(group.id)} className="p-1.5 text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                    )}
+                                 </td>
+                              </tr>
+                              {/* Children */}
+                              {group.children?.map(child => (
+                                 <tr key={child.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <td className="px-6 py-3 font-mono text-xs text-slate-400 pl-10 border-l-4 border-transparent hover:border-cyan-400">{child.code}</td>
+                                    <td className="px-6 py-3 text-slate-600 dark:text-slate-300 font-medium pl-10">{child.name}</td>
+                                    <td className="px-6 py-3 text-center text-xs text-slate-400">{child.type}</td>
+                                    <td className="px-6 py-3 text-center"><span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-400 text-[10px] font-bold">ANALÍTICA</span></td>
+                                    <td className="px-6 py-3 text-right">
+                                       {hasPermission('finance.delete') && (
+                                          <button onClick={() => deletePlanAccount(child.id)} className="p-1.5 text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>
+                                       )}
+                                    </td>
+                                 </tr>
+                              ))}
+                           </React.Fragment>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         )}
+
       </div>
    );
 };

@@ -56,11 +56,13 @@ const Purchases = () => {
       receivePurchaseOrder,
       addStockItem,
       updateStockItem,
-      deleteStockItem
+      deleteStockItem,
+      accounts
    } = useApp();
 
    const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory'>('dashboard');
    const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+   const [isSubmitting, setIsSubmitting] = useState(false);
 
    // New Order Form States
    const [selectedSupplier, setSelectedSupplier] = useState<string>('');
@@ -73,11 +75,7 @@ const Purchases = () => {
    const [shippingCost, setShippingCost] = useState<number>(0);
    const [sourceAccount, setSourceAccount] = useState<string>('');
 
-   // Available Financial Accounts (Mock)
-   const financialAccounts = [
-      { id: 'acc-1', name: 'Banco do Brasil', type: 'Banco' },
-      { id: 'acc-2', name: 'Caixa Interno', type: 'Caixa' }
-   ];
+
 
    // Inventory Management States
    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -125,6 +123,8 @@ const Purchases = () => {
    const orderTotal = orderSubtotal + shippingCost; // With shipping
 
    const handleCreateOrder = (status: PurchaseOrder['status'] = 'Pendente') => {
+      if (isSubmitting) return;
+
       if (!selectedSupplier || orderItems.length === 0) {
          alert("Selecione um fornecedor e adicione itens ao pedido.");
          return;
@@ -135,6 +135,8 @@ const Purchases = () => {
          alert("Selecione uma conta financeira para vincular o pagamento/previsão.");
          return;
       }
+
+      setIsSubmitting(true);
 
       const supplier = suppliers.find(s => s.id === selectedSupplier);
       const newOrder: PurchaseOrder = {
@@ -154,25 +156,6 @@ const Purchases = () => {
 
       addPurchaseOrder(newOrder);
 
-      // If Received, we assume it's paid or a Payable is created. 
-      // For now, let's create a Transaction if Paid/Received.
-      if (status === 'Recebido') {
-         addTransaction({
-            id: `TR-${Date.now()}`,
-            date: new Date().toLocaleDateString('pt-BR'),
-            description: `Pagamento Compra #${newOrder.id} - ${supplier?.name}`,
-            category: 'Suprimentos',
-            amount: -Math.abs(orderTotal),
-            type: 'Despesa',
-            status: 'Conciliado',
-            accountId: sourceAccount,
-            partnerId: selectedSupplier,
-            originModule: 'Compras',
-            originId: newOrder.id,
-            documentNumber: newOrder.id
-         });
-      }
-
       alert(status === 'Recebido' ? "Compra registrada, estoque atualizado e financeiro lançado!" : "Pedido de compra gerado com sucesso!");
 
       // Reset and redirect
@@ -182,6 +165,7 @@ const Purchases = () => {
       setShippingCost(0);
       setSourceAccount('');
       setActiveTab('orders');
+      setIsSubmitting(false);
    };
 
    const handleSaveStock = (e: React.FormEvent) => {
@@ -718,7 +702,7 @@ const Purchases = () => {
                                     onChange={e => setSourceAccount(e.target.value)}
                                  >
                                     <option value="">Selecione...</option>
-                                    {financialAccounts.map(acc => (
+                                    {accounts.map(acc => (
                                        <option key={acc.id} value={acc.id}>{acc.name}</option>
                                     ))}
                                  </select>
@@ -754,15 +738,18 @@ const Purchases = () => {
                         <div className="grid grid-cols-2 gap-3">
                            <button
                               onClick={() => handleCreateOrder('Pendente')}
-                              className="py-2.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
+                              disabled={isSubmitting}
+                              className={`py-2.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                            >
                               Gerar Pedido
                            </button>
                            <button
                               onClick={() => handleCreateOrder('Recebido')}
-                              className="py-2.5 bg-cyan-600 rounded-xl text-xs font-bold text-white shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2"
+                              disabled={isSubmitting}
+                              className={`py-2.5 bg-cyan-600 rounded-xl text-xs font-bold text-white shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              <CheckCircle size={16} /> Finalizar
+                              {isSubmitting ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div> : <CheckCircle size={16} />}
+                              {isSubmitting ? 'Processando...' : 'Finalizar'}
                            </button>
                         </div>
                      </div>
@@ -1132,11 +1119,40 @@ const Purchases = () => {
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Categoria</label>
-                           <input type="text" className="w-full bg-slate-50 dark:bg-gray-700 border-none rounded-xl py-3 font-bold text-sm" value={stockForm.category || ''} onChange={e => setStockForm({ ...stockForm, category: e.target.value })} required />
+                           <select
+                              className="w-full bg-slate-50 dark:bg-gray-700 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                              value={stockForm.category || ''}
+                              onChange={e => setStockForm({ ...stockForm, category: e.target.value })}
+                              required
+                           >
+                              <option value="">Selecione...</option>
+                              <option value="Insumos">Insumos</option>
+                              <option value="Matéria Prima">Matéria Prima</option>
+                              <option value="Acabamentos">Acabamentos</option>
+                              <option value="Ferramentas">Ferramentas</option>
+                              <option value="Equipamentos">Equipamentos</option>
+                              <option value="Consumíveis">Consumíveis</option>
+                              <option value="Outros">Outros</option>
+                           </select>
                         </div>
                         <div>
                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Unidade</label>
-                           <input type="text" className="w-full bg-slate-50 dark:bg-gray-700 border-none rounded-xl py-3 font-bold text-sm" value={stockForm.unit || ''} onChange={e => setStockForm({ ...stockForm, unit: e.target.value })} required />
+                           <select
+                              className="w-full bg-slate-50 dark:bg-gray-700 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                              value={stockForm.unit || ''}
+                              onChange={e => setStockForm({ ...stockForm, unit: e.target.value })}
+                              required
+                           >
+                              <option value="">Selecione...</option>
+                              <option value="un">UN (Unidade)</option>
+                              <option value="kg">KG (Quilos)</option>
+                              <option value="ton">TON (Toneladas)</option>
+                              <option value="m³">M³ (Metros Cúb.)</option>
+                              <option value="m²">M² (Metros Quad.)</option>
+                              <option value="m">M (Metros Lineares)</option>
+                              <option value="l">L (Litros)</option>
+                              <option value="sc">SC (Sacos)</option>
+                           </select>
                         </div>
                      </div>
                      <div className="grid grid-cols-2 gap-4">

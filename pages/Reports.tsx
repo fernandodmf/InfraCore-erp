@@ -47,7 +47,7 @@ import { exportToCSV, printDocument } from '../utils/exportUtils';
 const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Reports = () => {
-    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees } = useApp();
+    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('dashboard');
 
@@ -61,6 +61,7 @@ const Reports = () => {
         { id: 'sales', name: 'Vendas e Comercial', icon: <DollarSign size={16} /> },
         { id: 'finance', name: 'Transações Financeiras', icon: <TrendingUp size={16} /> },
         { id: 'inventory', name: 'Estoque e Produtos', icon: <Package size={16} /> },
+        { id: 'stock_movements', name: 'Movimentação de Estoque', icon: <RefreshCw size={16} /> },
         { id: 'clients', name: 'Base de Clientes', icon: <Circle size={16} /> },
         { id: 'fleet', name: 'Frota e Veículos', icon: <Truck size={16} /> },
         { id: 'hr', name: 'Recursos Humanos', icon: <User size={16} /> }, // Assuming User icon imported later
@@ -117,6 +118,20 @@ const Reports = () => {
                     'Valor Total': i.price * i.quantity
                 }));
                 break;
+            case 'stock_movements':
+                data = stockMovements.filter(m => {
+                    const mDate = new Date(m.date);
+                    return mDate >= start && mDate <= end;
+                }).map(m => ({
+                    Data: new Date(m.date).toLocaleDateString('pt-BR'),
+                    Hora: new Date(m.date).toLocaleTimeString('pt-BR'),
+                    Item: m.itemName,
+                    Tipo: m.type,
+                    Qtd: m.quantity,
+                    Motivo: m.reason,
+                    Usuário: m.userName || '-'
+                }));
+                break;
             case 'clients':
                 // Filter by registration date if needed, or just show all active
                 data = clients.map(c => ({
@@ -150,7 +165,7 @@ const Reports = () => {
                 break;
         }
         return data;
-    }, [selectedModule, startDate, endDate, sales, transactions, inventory, clients, fleet, employees]);
+    }, [selectedModule, startDate, endDate, sales, transactions, inventory, clients, fleet, employees, stockMovements]);
 
     const handlePrintReport = () => {
         const title = `Relatório de ${modules.find(m => m.id === selectedModule)?.name}`;

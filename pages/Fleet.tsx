@@ -47,7 +47,7 @@ const Fleet = () => {
     const {
         fleet, tires, inventory, addVehicle, updateVehicle, deleteVehicle, updateVehicleStatus,
         addMaintenanceRecord, deleteMaintenanceRecord, addFuelLog, deleteFuelLog,
-        addTire, updateTire, deleteTire, addTireHistory, deleteTireHistory
+        addTire, updateTire, deleteTire, addTireHistory, deleteTireHistory, accounts: financialAccounts
     } = useApp();
     const [activeTab, setActiveTab] = useState<'overview' | 'vehicles' | 'maintenance' | 'fuel' | 'tires'>('overview');
 
@@ -60,6 +60,41 @@ const Fleet = () => {
     const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
     const [isTireModalOpen, setIsTireModalOpen] = useState(false);
     const [isTireHistoryModalOpen, setIsTireHistoryModalOpen] = useState(false);
+
+    // Tire Layout Manager
+    const [isTireLayoutOpen, setIsTireLayoutOpen] = useState(false);
+    const [layoutVehicle, setLayoutVehicle] = useState<FleetVehicle | null>(null);
+
+    const handleTireChange = (vehicleId: string, position: string, tireId: string) => {
+        if (!tireId) {
+            // Unmount
+            const currentTire = tires.find(t => t.currentVehicleId === vehicleId && t.position === position);
+            if (currentTire) {
+                updateTire({ ...currentTire, currentVehicleId: undefined, position: undefined, status: 'Estoque' });
+            }
+            return;
+        }
+
+        const newTire = tires.find(t => t.id === tireId);
+        if (!newTire) return;
+
+        // Check availability
+        if (newTire.currentVehicleId && newTire.currentVehicleId !== vehicleId) {
+            if (!confirm(`Este pneu está montado no veículo com ID ${newTire.currentVehicleId}. Deseja movê-lo?`)) return;
+            // Unmount from old
+            // Logic handled by updateTire overwriting? No, I should ideally clear the old position explicitly if needed, but updateTire updates the tire.
+            // If another tire was in that position on the OLD vehicle, it remains? No, the tire moves. 
+            // What if I mount tire A to Pos X. Tire A was at Pos Y. Pos Y becomes empty. Correct.
+        }
+
+        // Check if target position is occupied
+        const currentOccupant = tires.find(t => t.currentVehicleId === vehicleId && t.position === position);
+        if (currentOccupant) {
+            updateTire({ ...currentOccupant, currentVehicleId: undefined, position: undefined, status: 'Estoque' });
+        }
+
+        updateTire({ ...newTire, currentVehicleId: vehicleId, position, status: 'Em uso' });
+    };
 
     // Forms
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
@@ -81,8 +116,7 @@ const Fleet = () => {
 
     const [vehicleForm, setVehicleForm] = useState<Partial<FleetVehicle>>({
         status: 'Operacional',
-        type: 'Caminhão',
-        fuelLevel: 100,
+        type: 'Toco',
         km: 0
     });
 
@@ -149,6 +183,7 @@ const Fleet = () => {
             attachments: newMaint.attachments,
             productId: newMaint.productId,
             productQuantity: newMaint.productQuantity,
+            debitAccountId: newMaint.debitAccountId,
             ledgerCode: newMaint.ledgerCode,
             ledgerName: newMaint.ledgerName
         };
@@ -173,7 +208,6 @@ const Fleet = () => {
             name: vehicleForm.name || '',
             plate: vehicleForm.plate || '',
             km: Number(vehicleForm.km) || 0,
-            fuelLevel: Number(vehicleForm.fuelLevel) || 0,
             lastMaintenance: vehicleForm.lastMaintenance || new Date().toLocaleDateString('pt-BR')
         } as FleetVehicle;
 
@@ -185,7 +219,7 @@ const Fleet = () => {
 
         setIsVehicleModalOpen(false);
         setEditingVehicleId(null);
-        setVehicleForm({ status: 'Operacional', type: 'Caminhão', fuelLevel: 100, km: 0 });
+        setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
         alert(editingVehicleId ? "Veículo atualizado!" : "Novo veículo cadastrado!");
     };
 
@@ -215,7 +249,9 @@ const Fleet = () => {
             fuelType: newFuel.fuelType || 'Diesel',
             attachments: newFuel.attachments,
             ledgerCode: newFuel.ledgerCode,
-            ledgerName: newFuel.ledgerName
+            ledgerName: newFuel.ledgerName,
+            pricePerLiter: 0,
+            isPaid: true
         };
 
         addFuelLog(selectedVehicleId, log);
@@ -297,7 +333,7 @@ const Fleet = () => {
                     <button
                         onClick={() => {
                             setEditingVehicleId(null);
-                            setVehicleForm({ status: 'Operacional', type: 'Caminhão', fuelLevel: 100, km: 0 });
+                            setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
                             setIsVehicleModalOpen(true);
                         }}
                         className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white font-black rounded-2xl shadow-xl shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-widest text-[10px]"
@@ -530,7 +566,7 @@ const Fleet = () => {
             )}
 
             {activeTab === 'vehicles' && (
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
                     <div className="p-6 border-b dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/50">
                         <div className="flex items-center gap-3">
                             <Truck className="text-teal-600" />
@@ -558,7 +594,7 @@ const Fleet = () => {
                             <button
                                 onClick={() => {
                                     setEditingVehicleId(null);
-                                    setVehicleForm({ status: 'Operacional', type: 'Caminhão', fuelLevel: 100, km: 0 });
+                                    setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
                                     setIsVehicleModalOpen(true);
                                 }}
                                 className="px-4 py-2.5 bg-teal-600 text-white font-black rounded-xl text-xs uppercase shadow-lg shadow-teal-600/20 flex items-center gap-2 hover:bg-teal-700 transition-all"
@@ -567,7 +603,7 @@ const Fleet = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
                         {filteredVehicles.map(v => (
                             <div key={v.id} className="p-6 rounded-3xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:shadow-xl hover:border-teal-200 transition-all group">
                                 <div className="flex justify-between items-start mb-6">
@@ -596,20 +632,111 @@ const Fleet = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Odômetro</p>
-                                        <p className="text-sm font-black text-slate-800 dark:text-white">{v.km.toLocaleString()} KM</p>
-                                    </div>
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Combustível</p>
+                                {/* Vertical Tire Schematic - Compact */}
+                                <div className="mb-4 relative h-[280px] bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-600 flex justify-center overflow-hidden">
+                                    {/* Chassis Line - Vertical */}
+                                    <div className="absolute top-4 bottom-4 left-1/2 w-16 -translate-x-1/2 border-x-2 border-slate-300 dark:border-slate-600"></div>
+
+                                    {/* Odometer Overlay - Top Right Absolute */}
+                                    <div className="absolute top-2 right-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm z-20">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-1.5 flex-1 bg-slate-200 rounded-full overflow-hidden">
-                                                <div className={`h-full ${v.fuelLevel < 20 ? 'bg-red-500' : 'bg-teal-500'}`} style={{ width: `${v.fuelLevel}%` }}></div>
-                                            </div>
-                                            <span className="text-[10px] font-black">{v.fuelLevel}%</span>
+                                            <div className="p-1 bg-teal-100 text-teal-700 rounded-md"><Gauge size={10} /></div>
+                                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">{v.km.toLocaleString()} KM</span>
                                         </div>
                                     </div>
+
+                                    {/* Cabin Indicator (Only for trucks) - Lower Z-Index */}
+                                    {v.type !== 'Carreta LS' && (
+                                        <div className="absolute top-4 w-32 h-24 bg-slate-200 dark:bg-slate-700/50 rounded-3xl border-2 border-slate-300 dark:border-slate-600 flex items-start pt-2 justify-center shadow-inner z-0">
+                                            <span className="text-[9px] font-black text-slate-400 tracking-widest opacity-50">CABINE</span>
+                                        </div>
+                                    )}
+
+                                    {/* Dynamic Slots - Vertical Logic */}
+                                    {(() => {
+                                        const vSlots: any[] = [];
+                                        const type = v.type;
+                                        const isCarreta = type === 'Carreta LS';
+                                        const isTruck = type === 'Truck';
+
+                                        // Vertical Helpers
+                                        // Left Side -> Left of center (-40px for single, -40/-70 for dual)
+                                        // Right Side -> Right of center (+40px for single, +40/+70 for dual)
+                                        // Top -> Y position relative to container
+
+                                        const centerX = '50%';
+
+                                        if (isCarreta) {
+                                            // 3 Axles at rear - compacted
+                                            [1, 2, 3].forEach((axle, idx) => {
+                                                const topPos = 80 + (idx * 60);
+                                                vSlots.push(
+                                                    { id: `E${axle}_LE_EXT`, style: { top: `${topPos}px`, left: 'calc(50% - 70px)' } },
+                                                    { id: `E${axle}_LE_INT`, style: { top: `${topPos}px`, left: 'calc(50% - 35px)' } },
+                                                    { id: `E${axle}_LD_INT`, style: { top: `${topPos}px`, left: 'calc(50% + 15px)' } },
+                                                    { id: `E${axle}_LD_EXT`, style: { top: `${topPos}px`, left: 'calc(50% + 50px)' } }
+                                                );
+                                            });
+                                        } else {
+                                            // Front Axle (Top 80px)
+                                            vSlots.push(
+                                                { id: 'E1_LE', style: { top: '80px', left: 'calc(50% - 50px)' } }, // Single Left
+                                                { id: 'E1_LD', style: { top: '80px', left: 'calc(50% + 30px)' } }  // Single Right
+                                            );
+
+                                            // Axle 2 (Drive) - Compressed Distance
+                                            const a2Top = isTruck ? 160 : 200;
+                                            vSlots.push(
+                                                { id: 'E2_LE_EXT', style: { top: `${a2Top}px`, left: 'calc(50% - 70px)' } },
+                                                { id: 'E2_LE_INT', style: { top: `${a2Top}px`, left: 'calc(50% - 35px)' } },
+                                                { id: 'E2_LD_INT', style: { top: `${a2Top}px`, left: 'calc(50% + 15px)' } },
+                                                { id: 'E2_LD_EXT', style: { top: `${a2Top}px`, left: 'calc(50% + 50px)' } }
+                                            );
+
+                                            if (isTruck) {
+                                                // Axle 3 (Trailing) 
+                                                const a3Top = 220;
+                                                vSlots.push(
+                                                    { id: 'E3_LE_EXT', style: { top: `${a3Top}px`, left: 'calc(50% - 70px)' } },
+                                                    { id: 'E3_LE_INT', style: { top: `${a3Top}px`, left: 'calc(50% - 35px)' } },
+                                                    { id: 'E3_LD_INT', style: { top: `${a3Top}px`, left: 'calc(50% + 15px)' } },
+                                                    { id: 'E3_LD_EXT', style: { top: `${a3Top}px`, left: 'calc(50% + 50px)' } }
+                                                );
+                                            }
+                                        }
+
+                                        return vSlots.map(slot => {
+                                            const mountedTire = tires.find(t => t.currentVehicleId === v.id && t.position === slot.id);
+                                            return (
+                                                <div key={slot.id} className="absolute z-10" style={slot.style}>
+                                                    <div className={`w-6 h-12 rounded border-2 shadow-sm transition-all flex items-center justify-center cursor-pointer group/pin relative ${mountedTire
+                                                        ? 'bg-slate-800 border-slate-900 text-white hover:bg-teal-600 shadow-md'
+                                                        : 'bg-white border-dashed border-slate-400 hover:border-teal-500 hover:bg-teal-50'
+                                                        }`}>
+                                                        {mountedTire ? (
+                                                            <span className="text-[6px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber}</span>
+                                                        ) : <Plus size={8} className="text-slate-300" />}
+
+                                                        {/* Native Select for Direct Interaction */}
+                                                        <select
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                            value={mountedTire?.id || ''}
+                                                            title={mountedTire ? `${mountedTire.brand} - ${mountedTire.serialNumber}` : 'Vazio'}
+                                                            onChange={(e) => handleTireChange(v.id, slot.id, e.target.value)}
+                                                        >
+                                                            <option value="">Vazio</option>
+                                                            {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
+                                                                <option key={t.id} value={t.id}>
+                                                                    {t.serialNumber} ({t.brand})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+
+                                    })()}
                                 </div>
 
                                 <div className="flex gap-2">
@@ -943,74 +1070,104 @@ const Fleet = () => {
 
             {/* Maintenance Modal */}
             {isMaintModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
+                        <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                             <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Registrar Manutenção</h3>
                             <button onClick={() => setIsMaintModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
-                        <form onSubmit={handleSaveMaintenance} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
-                                <select
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                    value={selectedVehicleId}
-                                    onChange={e => setSelectedVehicleId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">Selecione o veículo...</option>
-                                    {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
-                                    <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newMaint.date} onChange={e => setNewMaint({ ...newMaint, date: e.target.value })} required />
+                        <form onSubmit={handleSaveMaintenance} className="p-10 space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                            value={selectedVehicleId}
+                                            onChange={e => setSelectedVehicleId(e.target.value)}
+                                            required
+                                        >
+                                            <option value="">Selecione o veículo...</option>
+                                            {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
+                                            <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.date} onChange={e => setNewMaint({ ...newMaint, date: e.target.value })} required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo</label>
+                                            <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.type} onChange={e => setNewMaint({ ...newMaint, type: e.target.value as any })} required>
+                                                <option value="Preventiva">Preventiva</option>
+                                                <option value="Corretiva">Corretiva</option>
+                                                <option value="Preditiva">Preditiva</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição do Serviço</label>
+                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Ex: Troca de óleo, filtros, pastilhas..." value={newMaint.description} onChange={e => setNewMaint({ ...newMaint, description: e.target.value })} required rows={4}></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Conta de Débito</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                            value={newMaint.debitAccountId || ''}
+                                            onChange={e => setNewMaint({ ...newMaint, debitAccountId: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Selecione a conta...</option>
+                                            {financialAccounts.map(acc => (
+                                                <option key={acc.id} value={acc.id}>{acc.name} ({formatBRL(acc.balance)})</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo</label>
-                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newMaint.type} onChange={e => setNewMaint({ ...newMaint, type: e.target.value as any })} required>
-                                        <option value="Preventiva">Preventiva</option>
-                                        <option value="Corretiva">Corretiva</option>
-                                        <option value="Preditiva">Preditiva</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição do Serviço</label>
-                                <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" placeholder="Ex: Troca de óleo, filtros, pastilhas..." value={newMaint.description} onChange={e => setNewMaint({ ...newMaint, description: e.target.value })} required rows={3}></textarea>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Custo (R$)</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0.00" value={newMaint.cost || ''} onChange={e => setNewMaint({ ...newMaint, cost: Number(e.target.value) })} required />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0" value={newMaint.km || ''} onChange={e => setNewMaint({ ...newMaint, km: Number(e.target.value) })} required />
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Peça / Produto (Estoque)</label>
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                        value={newMaint.productId}
-                                        onChange={e => {
-                                            const prod = inventory.find(i => i.id === e.target.value);
-                                            setNewMaint({ ...newMaint, productId: e.target.value, productQuantity: 1, cost: (newMaint.cost || 0) + (prod?.price || 0) });
-                                        }}
-                                    >
-                                        <option value="">Nenhum produto...</option>
-                                        {inventory.map(item => (
-                                            <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Qtd Produto</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newMaint.productQuantity || 0} onChange={e => setNewMaint({ ...newMaint, productQuantity: Number(e.target.value) })} min="0" />
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Custo Mão de Obra (R$)</label>
+                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={newMaint.cost || ''} onChange={e => setNewMaint({ ...newMaint, cost: Number(e.target.value) })} required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
+                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0" value={newMaint.km || ''} onChange={e => setNewMaint({ ...newMaint, km: Number(e.target.value) })} required />
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                        <h4 className="text-xs font-black text-teal-600 uppercase mb-4">Peças e Insumos</h4>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto (Filtro: Peças/Manutenção)</label>
+                                                <select
+                                                    className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm"
+                                                    value={newMaint.productId}
+                                                    onChange={e => {
+                                                        const prod = inventory.find(i => i.id === e.target.value);
+                                                        // Add product cost to total cost logic would be here, but simplified for now
+                                                        setNewMaint({ ...newMaint, productId: e.target.value, productQuantity: 1 });
+                                                    }}
+                                                >
+                                                    <option value="">Nenhum produto...</option>
+                                                    {inventory
+                                                        .filter(item => {
+                                                            const cat = (item.category || '').toLowerCase();
+                                                            return cat.includes('peça') || cat.includes('peca') || cat.includes('manutenção') || cat.includes('manutencao');
+                                                        })
+                                                        .map(item => (
+                                                            <option key={item.id} value={item.id}>{item.name} (Disp: {item.quantity} {item.unit}) - {formatBRL(item.price)}</option>
+                                                        ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Quantidade</label>
+                                                <input type="number" className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm" value={newMaint.productQuantity || 0} onChange={e => setNewMaint({ ...newMaint, productQuantity: Number(e.target.value) })} min="0" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1238,8 +1395,9 @@ const Fleet = () => {
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Tipo</label>
                                             <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.type} onChange={e => setVehicleForm({ ...vehicleForm, type: e.target.value as any })}>
-                                                <option value="Caminhão">Caminhão</option>
-                                                <option value="Carro">Carro</option>
+                                                <option value="Toco">Caminhão Toco (6 Pneus)</option>
+                                                <option value="Truck">Caminhão Truck (10 Pneus)</option>
+                                                <option value="Carreta LS">Carreta LS (12 Pneus)</option>
                                                 <option value="Máquina">Máquina</option>
                                                 <option value="Utilitário">Utilitário</option>
                                             </select>
@@ -1445,6 +1603,133 @@ const Fleet = () => {
                                 </div>
                             )}
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Tire Layout Manager Modal */}
+            {isTireLayoutOpen && layoutVehicle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl border dark:border-slate-700 h-[80vh] flex flex-col">
+                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gestão de Rodado</h3>
+                                <p className="text-xs text-slate-400 font-bold uppercase">{layoutVehicle.name} • {layoutVehicle.plate}</p>
+                            </div>
+                            <button onClick={() => setIsTireLayoutOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 flex justify-center items-center bg-slate-50 dark:bg-slate-900/50">
+                            {/* Vehicle Schematic */}
+                            <div className="relative w-64 h-[500px] bg-slate-200 dark:bg-slate-700 rounded-[3rem] shadow-2xl border-4 border-slate-300 dark:border-slate-600">
+                                {/* Cabin Area */}
+                                <div className="absolute top-6 left-6 right-6 h-32 bg-slate-300 dark:bg-slate-600 rounded-2xl border-4 border-slate-400/30 flex items-center justify-center">
+                                    <span className="text-slate-400 font-black text-xs uppercase opacity-50">Cabine</span>
+                                </div>
+
+                                {/* Axle Lines */}
+                                <div className="absolute top-48 left-0 right-0 h-1 bg-slate-400/30"></div>
+                                <div className="absolute bottom-32 left-0 right-0 h-1 bg-slate-400/30"></div>
+                                <div className="absolute bottom-16 left-0 right-0 h-1 bg-slate-400/30"></div>
+
+                                {/* Tire Slots */}
+                                {[/* Logic handled below */].length === 0 ? [] : []}
+                                {(() => {
+                                    // Dynamic Slots based on Type
+                                    const getSlots = (type: string) => {
+                                        const slots: any[] = [];
+
+                                        // Configs
+                                        const isToco = type === 'Toco' || type === 'Caminhão'; // 2 Axles (2 + 4)
+                                        const isTruck = type === 'Truck'; // 3 Axles (2 + 4 + 4)
+                                        const isCarreta = type === 'Carreta LS'; // 3 Axles (4 + 4 + 4) - Trailer
+
+                                        // Front Axle (E1)
+                                        if (isCarreta) {
+                                            // 3 Rear Axles Dual
+                                            [1, 2, 3].forEach((axle, idx) => {
+                                                const baseTop = 130 + (idx * 110);
+                                                slots.push(
+                                                    { id: `E${axle}_LE_EXT`, label: `E${axle} LE EXT`, style: { top: `${baseTop}px`, left: '-20px' } },
+                                                    { id: `E${axle}_LE_INT`, label: `E${axle} LE INT`, style: { top: `${baseTop}px`, left: '30px' } },
+                                                    { id: `E${axle}_LD_INT`, label: `E${axle} LD INT`, style: { top: `${baseTop}px`, right: '30px' } },
+                                                    { id: `E${axle}_LD_EXT`, label: `E${axle} LD EXT`, style: { top: `${baseTop}px`, right: '-20px' } }
+                                                );
+                                            });
+                                        } else {
+                                            // Toco or Truck - Front Single
+                                            slots.push(
+                                                { id: 'E1_LE', label: 'E1 LE', style: { top: '80px', left: '-20px' } },
+                                                { id: 'E1_LD', label: 'E1 LD', style: { top: '80px', right: '-20px' } }
+                                            );
+
+                                            // Axle 2: Dual (Drive)
+                                            const a2Top = isTruck ? 280 : 350;
+                                            slots.push(
+                                                { id: 'E2_LE_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, left: '-20px' } },
+                                                { id: 'E2_LE_INT', label: 'E2 INT', style: { top: `${a2Top}px`, left: '30px' } },
+                                                { id: 'E2_LD_INT', label: 'E2 INT', style: { top: `${a2Top}px`, right: '30px' } },
+                                                { id: 'E2_LD_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, right: '-20px' } }
+                                            );
+
+                                            if (isTruck) {
+                                                // Axle 3: Dual (Trailing/Tag)
+                                                const a3Top = 380;
+                                                slots.push(
+                                                    { id: 'E3_LE_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, left: '-20px' } },
+                                                    { id: 'E3_LE_INT', label: 'E3 INT', style: { top: `${a3Top}px`, left: '30px' } },
+                                                    { id: 'E3_LD_INT', label: 'E3 INT', style: { top: `${a3Top}px`, right: '30px' } },
+                                                    { id: 'E3_LD_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, right: '-20px' } }
+                                                );
+                                            }
+                                        }
+
+                                        return slots;
+                                    };
+
+                                    return getSlots(layoutVehicle.type).map(slot => {
+                                        const mountedTire = tires.find(t => t.currentVehicleId === layoutVehicle.id && t.position === slot.id);
+
+                                        return (
+                                            <div key={slot.id} className="absolute flex flex-col items-center z-10" style={slot.style}>
+                                                <div className="relative group/slot">
+                                                    <div className={`w-10 h-16 rounded-lg border-2 shadow-lg transition-all flex flex-col items-center justify-center cursor-pointer ${mountedTire
+                                                        ? 'bg-slate-800 border-slate-900 text-white hover:scale-110 shadow-slate-900/50'
+                                                        : 'bg-white/50 border-dashed border-slate-400 hover:border-teal-500 hover:bg-teal-50'
+                                                        }`}>
+                                                        {mountedTire ? (
+                                                            <span className="text-[8px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber}</span>
+                                                        ) : (
+                                                            <Plus size={12} className="text-slate-400" />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Tooltip / Selector */}
+                                                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/slot:block w-48 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-xl z-50 border border-slate-100 dark:border-slate-600">
+                                                        <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{slot.label}</p>
+                                                        <select
+                                                            className="w-full text-xs p-1 border rounded"
+                                                            value={mountedTire?.id || ''}
+                                                            onChange={(e) => handleTireChange(layoutVehicle.id, slot.id, e.target.value)}
+                                                        >
+                                                            <option value="">Vazio (Desmontar)</option>
+                                                            {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
+                                                                <option key={t.id} value={t.id}>
+                                                                    {t.serialNumber} - {t.brand} {t.position ? `(${t.position})` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-center">
+                            <p className="text-xs text-slate-400">Passe o mouse sobre os pneus para montar/desmontar</p>
+                        </div>
                     </div>
                 </div>
             )}

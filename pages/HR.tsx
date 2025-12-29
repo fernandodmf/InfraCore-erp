@@ -14,7 +14,8 @@ const HR = () => {
         payroll, addPayroll, payPayroll,
         timeLogs, addTimeLog,
         vacations, addVacation, updateVacationStatus, deleteVacation,
-        salaryAdvances, addSalaryAdvance, updateAdvanceStatus, paySalaryAdvance, deleteAdvance
+        salaryAdvances, addSalaryAdvance, updateAdvanceStatus, paySalaryAdvance, deleteAdvance,
+        users
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'payroll' | 'vacations' | 'advances' | 'time'>('employees');
@@ -135,11 +136,28 @@ const HR = () => {
         const emp = employees.find(e => e.id === advanceForm.employeeId);
         if (!emp) return;
 
+        // Validation: Check if Total Advances > Salary
+        const requestedAmount = Number(advanceForm.amount) || 0;
+        const targetMonth = advanceForm.deductFromMonth || '';
+
+        // Calculate existing advances for the same month
+        const existingAdvances = salaryAdvances.filter(a =>
+            a.employeeId === emp.id &&
+            a.deductFromMonth === targetMonth &&
+            ['Pendente', 'Aprovado', 'Pago'].includes(a.status)
+        );
+        const totalUsed = existingAdvances.reduce((sum, a) => sum + a.amount, 0);
+
+        if ((totalUsed + requestedAmount) > emp.salary) {
+            alert(`LIMITE EXCEDIDO!\n\nO valor solicitado (${formatCurrency(requestedAmount)}) somado às antecipações já registradas (${formatCurrency(totalUsed)}) ultrapassa o salário mensal do colaborador (${formatCurrency(emp.salary)}).`);
+            return;
+        }
+
         const advance: SalaryAdvance = {
             id: `adv-${Date.now()}`,
             employeeId: advanceForm.employeeId!,
             employeeName: emp.name,
-            amount: advanceForm.amount!,
+            amount: requestedAmount,
             requestDate: new Date().toLocaleDateString('pt-BR'),
             status: 'Pendente',
             deductFromMonth: advanceForm.deductFromMonth!,
@@ -166,6 +184,62 @@ const HR = () => {
         };
         addTimeLog(log);
         alert(`Ponto de ${type === 'In' ? 'Entrada' : 'Saída'} registrado às ${now.toLocaleTimeString()}`);
+    };
+
+    // --- Clock Kiosk Logic ---
+    const [clockMethod, setClockMethod] = useState<'pin' | 'bio'>('pin');
+    const [clockEmpId, setClockEmpId] = useState('');
+    const [clockPass, setClockPass] = useState('');
+    const [isBioScanning, setIsBioScanning] = useState(false);
+
+    const handlePinClock = (type: 'In' | 'Out') => {
+        if (!clockEmpId) return alert("Selecione um colaborador.");
+        const emp = employees.find(e => e.id === clockEmpId);
+        if (!emp) return;
+
+        // Verify password against linked user
+        const user = users.find(u => u.employeeId === emp.id);
+
+        // Fallback for verification
+        if (!user) {
+            if (clockPass !== '1234') return alert("Colaborador sem usuário vinculado. Use senha padrão (1234).");
+        } else {
+            if (user.password && user.password !== clockPass) return alert("Senha incorreta.");
+            if (!user.password && clockPass !== '') return alert("Senha incorreta.");
+        }
+
+        const now = new Date();
+        addTimeLog({
+            id: `log-${Date.now()}`,
+            employeeId: emp.id,
+            date: now.toLocaleDateString('pt-BR'),
+            checkIn: type === 'In' ? now.toLocaleTimeString() : undefined,
+            checkOut: type === 'Out' ? now.toLocaleTimeString() : undefined,
+            status: type === 'In' ? 'Presente' : 'Saída'
+        });
+        alert(`Ponto Registrado com Sucesso!\n${emp.name} - ${type === 'In' ? 'ENTRADA' : 'SAÍDA'} às ${now.toLocaleTimeString()}`);
+        setClockPass('');
+        setClockEmpId('');
+    };
+
+    const handleBioSimulation = () => {
+        setIsBioScanning(true);
+        setTimeout(() => {
+            setIsBioScanning(false);
+            if (employees.length === 0) return;
+            // Simulate recognizing the first active employee
+            const emp = employees[0];
+            const now = new Date();
+
+            addTimeLog({
+                id: `log-${Date.now()}`,
+                employeeId: emp.id,
+                date: now.toLocaleDateString('pt-BR'),
+                checkIn: now.toLocaleTimeString(),
+                status: 'Presente'
+            });
+            alert(`BIOMETRIA RECONHECIDA\n${emp.name}\nEntrada registrada às ${now.toLocaleTimeString()}`);
+        }, 2000);
     };
 
     return (
@@ -319,8 +393,8 @@ const HR = () => {
                                         <p className="text-xs text-slate-400 font-bold mt-1">{vac.days} dias • {vac.startDate} a {vac.endDate}</p>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${vac.status === 'Aprovado' ? 'bg-emerald-100 text-emerald-700' :
-                                            vac.status === 'Rejeitado' ? 'bg-rose-100 text-rose-700' :
-                                                'bg-amber-100 text-amber-700'
+                                        vac.status === 'Rejeitado' ? 'bg-rose-100 text-rose-700' :
+                                            'bg-amber-100 text-amber-700'
                                         }`}>
                                         {vac.status}
                                     </span>
@@ -386,9 +460,9 @@ const HR = () => {
                                             <td className="px-6 py-5 font-black text-slate-500">{adv.deductFromMonth}</td>
                                             <td className="px-6 py-5 text-center">
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${adv.status === 'Pago' ? 'bg-emerald-100 text-emerald-700' :
-                                                        adv.status === 'Aprovado' ? 'bg-blue-100 text-blue-700' :
-                                                            adv.status === 'Rejeitado' ? 'bg-rose-100 text-rose-700' :
-                                                                'bg-amber-100 text-amber-700'
+                                                    adv.status === 'Aprovado' ? 'bg-blue-100 text-blue-700' :
+                                                        adv.status === 'Rejeitado' ? 'bg-rose-100 text-rose-700' :
+                                                            'bg-amber-100 text-amber-700'
                                                     }`}>
                                                     {adv.status}
                                                 </span>
@@ -502,27 +576,94 @@ const HR = () => {
                 </div>
             )}
 
-            {/* Time Clock Tab */}
+            {/* Time Clock Tab (Reformulated) */}
             {activeTab === 'time' && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                        <div className="p-8 border-b dark:border-slate-700 text-center">
-                            <Fingerprint size={64} className="mx-auto text-cyan-600 mb-4" />
-                            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Registro de Ponto</h3>
-                            <p className="text-slate-400 text-xs font-bold uppercase mt-1">Sessão atual: Carlos Mendes</p>
-                            <div className="mt-8 grid grid-cols-2 gap-4">
-                                <button onClick={() => handleTimeClock('In')} className="flex flex-col items-center justify-center p-6 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-800 rounded-3xl group hover:border-emerald-500 transition-all">
-                                    <Play size={32} className="text-emerald-600 mb-2 group-hover:scale-125 transition-transform" />
-                                    <span className="font-black text-emerald-700 uppercase text-xs">Entrada</span>
-                                </button>
-                                <button onClick={() => handleTimeClock('Out')} className="flex flex-col items-center justify-center p-6 bg-rose-50 dark:bg-rose-900/10 border-2 border-rose-100 dark:border-rose-800 rounded-3xl group hover:border-rose-500 transition-all">
-                                    <StopCircle size={32} className="text-rose-600 mb-2 group-hover:scale-125 transition-transform" />
-                                    <span className="font-black text-rose-700 uppercase text-xs">Saída</span>
-                                </button>
-                            </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    {/* Kiosk Panel */}
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
+                        <div className="p-6 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-center">
+                            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Relógio de Ponto</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase">Selecione o método de identificação</p>
+                        </div>
+
+                        <div className="flex border-b dark:border-slate-700">
+                            <button
+                                onClick={() => setClockMethod('pin')}
+                                className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${clockMethod === 'pin' ? 'bg-white dark:bg-slate-800 text-cyan-600 border-b-2 border-cyan-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                            >
+                                Senha / PIN
+                            </button>
+                            <button
+                                onClick={() => setClockMethod('bio')}
+                                className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${clockMethod === 'bio' ? 'bg-white dark:bg-slate-800 text-cyan-600 border-b-2 border-cyan-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                            >
+                                Biometria (Serial)
+                            </button>
+                        </div>
+
+                        <div className="p-8 flex-1 flex flex-col justify-center">
+                            {clockMethod === 'pin' ? (
+                                <div className="space-y-6 max-w-sm mx-auto w-full">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Colaborador</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                            value={clockEmpId}
+                                            onChange={e => setClockEmpId(e.target.value)}
+                                        >
+                                            <option value="">Selecione seu nome...</option>
+                                            {employees.filter(e => e.status === 'Ativo').map(e => (
+                                                <option key={e.id} value={e.id}>{e.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Senha / PIN</label>
+                                        <input
+                                            type="password"
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-center text-2xl tracking-widest"
+                                            placeholder="••••"
+                                            value={clockPass}
+                                            onChange={e => setClockPass(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 pt-4">
+                                        <button
+                                            onClick={() => handlePinClock('In')}
+                                            className="py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform"
+                                        >
+                                            Entrada
+                                        </button>
+                                        <button
+                                            onClick={() => handlePinClock('Out')}
+                                            className="py-4 bg-rose-600 text-white rounded-2xl font-black uppercase shadow-lg shadow-rose-600/20 hover:scale-105 transition-transform"
+                                        >
+                                            Saída
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center space-y-8">
+                                    <div className={`w-32 h-32 mx-auto rounded-full border-4 flex items-center justify-center transition-all ${isBioScanning ? 'border-cyan-400 bg-cyan-50 animate-pulse' : 'border-slate-100 bg-slate-50'}`}>
+                                        <Fingerprint size={64} className={isBioScanning ? 'text-cyan-600' : 'text-slate-300'} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-slate-900 dark:text-white uppercase mb-2">Leitor Biométrico (COM3)</h4>
+                                        <p className="text-sm text-slate-500">{isBioScanning ? 'Lendo impressão digital...' : 'Posicione o dedo no leitor'}</p>
+                                    </div>
+                                    <button
+                                        onClick={handleBioSimulation}
+                                        disabled={isBioScanning}
+                                        className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs tracking-widest disabled:opacity-50"
+                                    >
+                                        {isBioScanning ? 'Processando...' : 'Iniciar Leitura Manual'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
+                    {/* Recent Logs (Existing) */}
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col">
                         <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50">
                             <div className="flex items-center gap-3">
@@ -530,17 +671,19 @@ const HR = () => {
                                 <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase">Últimos Registros</h3>
                             </div>
                         </div>
-                        <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[400px]">
+                        <div className="flex-1 p-6 space-y-4 overflow-y-auto max-h-[500px]">
                             {timeLogs.map(log => (
                                 <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-transparent hover:border-cyan-100 transition-all">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-sm flex items-center justify-center text-cyan-600 font-black"><Clock size={20} /></div>
+                                        <div className={`w-12 h-12 rounded-xl shadow-sm flex items-center justify-center font-black ${log.status === 'Saída' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            {log.status === 'Saída' ? <StopCircle size={24} /> : <Play size={24} />}
+                                        </div>
                                         <div>
-                                            <p className="font-black text-xs text-slate-800 dark:text-white uppercase">{log.date}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Check-in: {log.checkIn} {log.checkOut && `• Check-out: ${log.checkOut}`}</p>
+                                            <p className="font-bold text-sm text-slate-800 dark:text-white">{employees.find(e => e.id === log.employeeId)?.name || 'Colaborador'}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{log.date} • {log.checkIn || log.checkOut}</p>
                                         </div>
                                     </div>
-                                    <span className="px-3 py-1 bg-cyan-100 text-cyan-700 text-[10px] font-black rounded-full uppercase">{log.status}</span>
+                                    <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase ${log.status === 'Saída' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>{log.status === 'Presente' ? 'Entrada' : log.status}</span>
                                 </div>
                             ))}
                             {timeLogs.length === 0 && (

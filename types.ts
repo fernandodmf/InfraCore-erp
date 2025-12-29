@@ -92,6 +92,19 @@ export interface InventoryItem {
   color?: string; // For UI
 }
 
+export interface StockMovement {
+  id: string;
+  itemId: string;
+  itemName: string;
+  type: 'Entrada' | 'Saída' | 'Ajuste';
+  quantity: number;
+  date: string;
+  reason: string;
+  documentId?: string;
+  userId?: string;
+  userName?: string;
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -130,6 +143,7 @@ export interface Sale extends Transaction {
   items: SalesItem[];
   paymentMethod?: string;
   installments?: number;
+  installmentDueDates?: string[]; // Array of ISO date strings for each installment
   weightTicket?: string; // ID of scale ticket if used
   measuredWeight?: number; // Weight from scale
 
@@ -219,6 +233,7 @@ export interface MaintenanceRecord {
   ledgerName?: string;
   productId?: string;
   productQuantity?: number;
+  debitAccountId?: string;
 }
 // Alias for backward compatibility if needed, or prefer MaintenanceRecord
 export type VehicleMaintenance = MaintenanceRecord;
@@ -339,6 +354,8 @@ export interface AppRole {
 export interface User {
   id: string;
   name: string;
+  username: string; // Login ID
+  password?: string; // Mock password
   email: string;
   roleId: string;
   status: 'Ativo' | 'Inativo';

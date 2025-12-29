@@ -5,7 +5,7 @@ import {
   Client, Transaction, FleetVehicle, Sale, InventoryItem, Budget, Supplier,
   Employee, PurchaseOrder, MaintenanceRecord, FuelLog, PayrollRecord, TimeLog, Tire, TireHistory,
   ProductionOrder, ProductionFormula, QualityTest, ProductionUnit, User, AppRole, AppSettings, AuditLog,
-  Vacation, SalaryAdvance
+  Vacation, SalaryAdvance, StockMovement
 } from '../types';
 import { MOCK_CLIENTS, MOCK_TRANSACTIONS, MOCK_FLEET } from '../constants';
 
@@ -133,8 +133,8 @@ const INITIAL_ROLES: AppRole[] = [
 ];
 
 const INITIAL_USERS: User[] = [
-  { id: '1', name: 'Admin Construsys', email: 'admin@construsys.com', roleId: 'admin', status: 'Ativo', registeredAt: '01/01/2023' },
-  { id: '2', name: 'Gerência Vendas', email: 'vendas@construsys.com', roleId: 'manager', status: 'Ativo', registeredAt: '15/05/2023' },
+  { id: '1', name: 'Admin Construsys', username: 'admin', password: '123', email: 'admin@construsys.com', roleId: 'admin', status: 'Ativo', registeredAt: '01/01/2023' },
+  { id: '2', name: 'Gerência Vendas', username: 'vendas', password: '123', email: 'vendas@construsys.com', roleId: 'manager', status: 'Ativo', registeredAt: '15/05/2023' },
 ];
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -183,6 +183,7 @@ interface AppContextType {
   purchaseOrders: PurchaseOrder[];
   fleet: FleetVehicle[];
   inventory: InventoryItem[];
+  stockMovements: StockMovement[];
   payroll: PayrollRecord[];
   timeLogs: TimeLog[];
   tires: Tire[];
@@ -197,7 +198,7 @@ interface AppContextType {
   planOfAccounts: any[]; // Assuming 'any' for now based on INITIAL_PLAN_OF_ACCOUNTS structure
 
   currentUser: User | null;
-  login: (email: string) => Promise<boolean>;
+  login: (username: string, password?: string) => Promise<boolean>;
   logout: () => void;
   hasPermission: (permissionId: string) => boolean;
 
@@ -258,7 +259,7 @@ interface AppContextType {
   deleteFuelLog: (vehicleId: string, logId: string) => void;
 
   addStockItem: (item: InventoryItem) => void;
-  updateStock: (itemId: string, quantityDelta: number) => void;
+  updateStock: (itemId: string, quantityDelta: number, reason?: string, documentId?: string) => void;
   updateStockItem: (item: InventoryItem) => void;
   deleteStockItem: (id: string) => void;
 
@@ -297,6 +298,9 @@ interface AppContextType {
     totalRevenue: number;
     totalExpenses: number;
     balance: number;
+    projectedBalance: number;
+    receivables: number;
+    payables: number;
     recentTransactions: Transaction[];
   };
 }
@@ -345,6 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [fleet, setFleet] = useState<FleetVehicle[]>(MOCK_FLEET);
   const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [vacations, setVacations] = useState<Vacation[]>([]);
@@ -367,8 +372,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Initialize with first user as mock admin session if no user logged
 
 
-  const login = async (email: string) => {
-    const user = users.find(u => u.email === email && u.status === 'Ativo');
+  const login = async (username: string, password?: string) => {
+    const user = users.find(u => u.username === username && (u.password === password || !u.password) && u.status === 'Ativo');
     if (user) {
       setCurrentUser(user);
       return true;
@@ -399,7 +404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const [
-        cl, su, emp, inv, tr, fl, ti, us, ro, set, sa, po, pro, prf, pru, fac, pay
+        cl, su, emp, inv, tr, fl, ti, us, ro, set, sa, po, pro, prf, pru, fac, pay, stm
       ] = await Promise.all([
         api.fetchData<Client>('clients'),
         api.fetchData<Supplier>('suppliers'),
@@ -420,6 +425,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         api.fetchData<ProductionUnit>('production_units'),
         api.fetchData<any>('financial_accounts'),
         api.fetchData<PayrollRecord>('payroll'),
+        api.fetchData<StockMovement>('stock_movements'),
       ]);
 
       if (cl.length > 0) setClients(cl);
@@ -441,6 +447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (pru && pru.length > 0) setProductionUnits(pru);
       if (fac && fac.length > 0) setAccounts(fac);
       if (pay && pay.length > 0) setPayroll(pay);
+      if (stm && stm.length > 0) setStockMovements(stm);
 
       // If 'users' table is empty (first load), we might want to keep the initial mock admin in state
       // or rely on the seed from SQL.
@@ -478,6 +485,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.roles) setRoles(data.roles);
         if (data.settings) setSettings(data.settings);
         if (data.auditLogs) setAuditLogs(data.auditLogs);
+        if (data.stockMovements) setStockMovements(data.stockMovements);
       } catch (e) {
         console.error("Failed to load persistence", e);
       }
@@ -493,10 +501,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const data = {
       clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires,
-      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts
+      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts, stockMovements
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires, productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts]);
+  }, [clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires, productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts, stockMovements]);
 
   const clearAllData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -568,20 +576,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateStockItem = (item: InventoryItem) => syncUpdate('inventory', item.id, item, setInventory);
   const deleteStockItem = (id: string) => syncDelete('inventory', id, setInventory);
 
-  const updateStock = (itemId: string, quantityDelta: number) => {
+  const updateStock = (itemId: string, quantityDelta: number, reason: string = 'Ajuste Manual', documentId?: string) => {
     setInventory(prev => prev.map(item => {
       if (item.id === itemId) {
         const newItem = { ...item, quantity: item.quantity + quantityDelta };
-        if (isSupabaseConfigured()) api.updateItem('inventory', itemId, { quantity: newItem.quantity }); // Patch
+        if (isSupabaseConfigured()) api.updateItem('inventory', itemId, { quantity: newItem.quantity });
+
+        // Log Movement
+        const movement: StockMovement = {
+          id: `mv-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          itemId: item.id,
+          itemName: item.name,
+          type: quantityDelta >= 0 ? 'Entrada' : 'Saída',
+          quantity: Math.abs(quantityDelta),
+          date: new Date().toISOString(),
+          reason: reason,
+          documentId: documentId,
+          userId: currentUser?.id,
+          userName: currentUser?.name
+        };
+        setStockMovements(prev => [movement, ...prev]);
+        if (isSupabaseConfigured()) api.createItem('stock_movements', movement);
+
         return newItem;
       }
       return item;
     }));
   };
 
-  // Transactions
-  const addTransaction = (t: Transaction) => syncAdd('transactions', t, setTransactions);
-  const deleteTransaction = (id: string) => syncDelete('transactions', id, setTransactions);
 
 
   // Keep remaining simple setters for now to avoid breaking everything at once, 
@@ -739,8 +761,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const importTransactions = (file: any) => { alert('Importação via arquivo não implementada com Supabase ainda.'); };
 
+  // Transactions
+  const addTransaction = (t: Transaction) => {
+    // Guards: Prevent duplicates based on ID
+    if (transactions.some(existing => existing.id === t.id)) {
+      console.warn(`Transaction ${t.id} already exists. Skipping.`);
+      return;
+    }
+    syncAdd('transactions', t, setTransactions);
+  };
+
+  const updateTransaction = (t: Transaction) => {
+    syncUpdate('transactions', t.id, t, setTransactions);
+  };
+
+  const deleteTransaction = (id: string) => syncDelete('transactions', id, setTransactions);
+
+  // ...
+
   // Sales
   const addSale = (sale: Sale) => {
+    // Guard: Prevent duplicate sales
+    if (sales.some(s => s.id === sale.id)) return;
+
     setSales(prev => [sale, ...prev]);
 
     const numInstallments = sale.installments && sale.installments > 1 ? sale.installments : 1;
@@ -763,8 +806,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const installmentValue = sale.amount / numInstallments;
 
       for (let i = 1; i <= numInstallments; i++) {
-        // Default logic: 30 days gap for each installment
-        const dueDate = addDays(baseDate, i * 30);
+        let dueDate = addDays(baseDate, i * 30);
+
+        // Use custom date if provided
+        if (sale.installmentDueDates && sale.installmentDueDates[i - 1]) {
+          const [y, m, d] = sale.installmentDueDates[i - 1].split('-');
+          dueDate = `${d}/${m}/${y}`;
+        }
 
         const installmentTx: Transaction = {
           ...sale,
@@ -773,23 +821,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           amount: installmentValue,
           status: 'Pendente',
           dueDate: dueDate,
-          date: dueDate, // Show in future on Cash Flow
+          date: dueDate,
           type: 'Receita'
         };
         addTransaction(installmentTx);
       }
     } else {
-      // Single Transaction
       addTransaction(sale);
     }
 
+    // Update stock only if not already processed (implicitly handled by UI flow, but good to be safe)
     sale.items.forEach(item => updateStock(item.id, -item.quantity));
   };
+
   const addBudget = (budget: Budget) => setBudgets(prev => [budget, ...prev]);
   const updateBudgetStatus = (id: string, status: Budget['status']) => setBudgets(prev => prev.map(b => b.id === id ? { ...b, status } : b));
 
   // Purchases
   const addPurchaseOrder = (order: PurchaseOrder) => {
+    // Guard: Prevent ID duplication
+    if (purchaseOrders.some(p => p.id === order.id)) return;
+
     const orderWithLedger = {
       ...order,
       ledgerCode: '2.02.03',
@@ -817,8 +869,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const receivePurchaseOrder = (id: string) => {
     setPurchaseOrders(prev => prev.map(order => {
+      // Guard: Strictly check status to prevent double receiving
       if (order.id === id && order.status !== 'Recebido') {
         const receivedDate = new Date().toLocaleDateString('pt-BR');
+
+        // Prevent duplicate transaction if somehow button clicked twice
+        const expenseId = `exp-${order.id}`;
+        if (transactions.some(t => t.id === expenseId)) return order;
+
         const updated: PurchaseOrder = {
           ...order,
           status: 'Recebido' as const,
@@ -827,7 +885,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ledgerName: 'Material de Consumo'
         };
         const expense: Transaction = {
-          id: `exp-${order.id}`,
+          id: expenseId,
           date: receivedDate,
           description: `Compra: ${order.supplierName}`,
           category: 'Insumos',
@@ -865,13 +923,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ledgerName
         };
 
+        const debitAccount = accounts.find(a => a.id === record.debitAccountId);
         const expense: Transaction = {
           id: `maint-${record.id}`,
           date: record.date,
           description: `Manutenção: ${v.plate} - ${record.description}`,
           category: 'Manutenção',
-          account: 'Banco do Brasil',
-          accountId: '',
+          account: debitAccount?.name || 'Caixa',
+          accountId: debitAccount?.id || '',
           amount: record.cost,
           status: 'Conciliado',
           type: 'Despesa',
@@ -1124,21 +1183,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Dynamic Account Balance Calculation
+  const calculatedAccounts = useMemo(() => {
+    return accounts.map(acc => {
+      // Create a unified matcher for Account ID or Name (Legacy support)
+      const accTxs = transactions.filter(t =>
+        t.status === 'Conciliado' &&
+        (t.accountId === acc.id || t.account === acc.name)
+      );
+
+      const totalIncome = accTxs
+        .filter(t => t.type === 'Receita')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalExpense = accTxs
+        .filter(t => t.type === 'Despesa')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      // We maintain the 'balance' property in the state as the "Initial Balance"
+      // The displayed balance is Initial + Revenue - Expenses
+      // If 'initialBalance' doesn't exist (legacy data), we treat the stored 'balance' as initial.
+      const startBalance = acc.initialBalance !== undefined ? acc.initialBalance : (acc.balance || 0);
+
+      return {
+        ...acc,
+        balance: startBalance + totalIncome - totalExpense,
+        initialBalance: startBalance // Ensure this persists
+      };
+    });
+  }, [accounts, transactions]);
+
   const financials = useMemo(() => {
-    const totalRevenue = transactions.filter(t => t.type === 'Receita').reduce((acc, curr) => acc + curr.amount, 0);
-    const totalExpenses = transactions.filter(t => t.type === 'Despesa').reduce((acc, curr) => acc + curr.amount, 0);
+    // 1. Real Balance (Cash on Hand) - CAIXA REAL
+    // Only 'Conciliado' transactions affect the actual money the company has.
+    const realizedRevenue = transactions
+      .filter(t => t.type === 'Receita' && t.status === 'Conciliado')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
+    const realizedExpenses = transactions
+      .filter(t => t.type === 'Despesa' && t.status === 'Conciliado')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
+    // Initial Balances of all accounts (Starting Capital)
+    const totalInitialBalance = accounts.reduce((sum, acc) => sum + (acc.initialBalance !== undefined ? acc.initialBalance : (acc.balance || 0)), 0);
+
+    // 2. Projected Balance (Forecast) - COMPETÊNCIA / PREVISÃO
+    // Includes everything not cancelled.
+    const projectedRevenue = transactions
+      .filter(t => t.type === 'Receita' && t.status !== 'Cancelado')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
+    const projectedExpenses = transactions
+      .filter(t => t.type === 'Despesa' && t.status !== 'Cancelado')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+
     return {
-      totalRevenue,
-      totalExpenses,
-      balance: totalRevenue - totalExpenses,
+      totalRevenue: realizedRevenue,
+      totalExpenses: realizedExpenses,
+      balance: totalInitialBalance + realizedRevenue - realizedExpenses, // Real Cash Flow
+
+      // New Indicators for Dashboard
+      projectedBalance: totalInitialBalance + projectedRevenue - projectedExpenses,
+      receivables: projectedRevenue - realizedRevenue, // To Collect
+      payables: projectedExpenses - realizedExpenses,  // To Pay
+
       recentTransactions: transactions.slice(0, 10)
     };
-  }, [transactions]);
+  }, [transactions, accounts]);
 
   return (
     <AppContext.Provider value={{
       clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires,
-      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, accounts, planOfAccounts,
+      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs,
+      accounts: calculatedAccounts, // Use the dynamically calculated accounts
+      planOfAccounts,
       currentUser, login, logout, hasPermission,
       addClient, updateClient, deleteClient,
       addSupplier, updateSupplier, deleteSupplier,
@@ -1146,7 +1264,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addPayroll, payPayroll, addTimeLog,
       addVacation, updateVacationStatus, deleteVacation,
       addSalaryAdvance, updateAdvanceStatus, paySalaryAdvance, deleteAdvance,
-      addTransaction, updateTransactionStatus, deleteTransaction, importTransactions, addSale, addBudget, updateBudgetStatus,
+      addTransaction, updateTransaction, updateTransactionStatus, deleteTransaction, importTransactions, addSale, addBudget, updateBudgetStatus,
       addPurchaseOrder, receivePurchaseOrder,
       addStockItem, updateStock, updateStockItem, deleteStockItem,
       addVehicle, updateVehicle, updateVehicleStatus, deleteVehicle,

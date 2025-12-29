@@ -804,8 +804,25 @@ const Production = () => {
                                     <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={formulaForm.category || ''} onChange={e => setFormulaForm({ ...formulaForm, category: e.target.value })} required />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">ID Produto Resultante</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={formulaForm.outputProductId || ''} onChange={e => setFormulaForm({ ...formulaForm, outputProductId: e.target.value })} required />
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto Produzido (Estoque)</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                        value={formulaForm.outputProductId || ''}
+                                        onChange={e => {
+                                            const selected = inventory.find(i => i.id === e.target.value);
+                                            setFormulaForm({
+                                                ...formulaForm,
+                                                outputProductId: e.target.value,
+                                                name: selected ? selected.name : (formulaForm.name || '')
+                                            });
+                                        }}
+                                        required
+                                    >
+                                        <option value="">Selecione o produto...</option>
+                                        {inventory.map(item => (
+                                            <option key={item.id} value={item.id}>{item.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -817,17 +834,25 @@ const Production = () => {
                                 <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
                                     {formulaForm.ingredients?.map((ing, idx) => (
                                         <div key={idx} className="grid grid-cols-5 gap-2 items-center">
-                                            <input
-                                                type="text"
-                                                placeholder="Insumo"
+                                            <select
                                                 className="col-span-2 bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold"
-                                                value={ing.name}
+                                                value={ing.productId || ''}
                                                 onChange={e => {
-                                                    const newIngs = [...(formulaForm.ingredients || [])];
-                                                    newIngs[idx].name = e.target.value;
-                                                    setFormulaForm({ ...formulaForm, ingredients: newIngs });
+                                                    const selectedItem = inventory.find(i => i.id === e.target.value);
+                                                    if (selectedItem) {
+                                                        const newIngs = [...(formulaForm.ingredients || [])];
+                                                        newIngs[idx].productId = selectedItem.id;
+                                                        newIngs[idx].name = selectedItem.name;
+                                                        newIngs[idx].unit = selectedItem.unit;
+                                                        setFormulaForm({ ...formulaForm, ingredients: newIngs });
+                                                    }
                                                 }}
-                                            />
+                                            >
+                                                <option value="">Selecione...</option>
+                                                {inventory.map(item => (
+                                                    <option key={item.id} value={item.id}>{item.name}</option>
+                                                ))}
+                                            </select>
                                             <input
                                                 type="number"
                                                 placeholder="Qtd"
@@ -842,13 +867,9 @@ const Production = () => {
                                             <input
                                                 type="text"
                                                 placeholder="Un"
-                                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold uppercase"
+                                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold uppercase text-slate-500"
                                                 value={ing.unit}
-                                                onChange={e => {
-                                                    const newIngs = [...(formulaForm.ingredients || [])];
-                                                    newIngs[idx].unit = e.target.value;
-                                                    setFormulaForm({ ...formulaForm, ingredients: newIngs });
-                                                }}
+                                                readOnly
                                             />
                                             <button
                                                 type="button"

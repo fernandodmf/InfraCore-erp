@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Construction, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Login = () => {
-    const [email, setEmail] = useState('admin@construsys.com');
+    const [username, setUsername] = useState('admin');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -20,7 +20,7 @@ const Login = () => {
         // Simulate network delay for realism
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const success = await login(email);
+        const success = await login(username, password);
         if (success) {
             navigate('/');
         } else {
@@ -78,17 +78,17 @@ const Login = () => {
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                                         <User size={18} />
                                     </div>
                                     <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        type="text"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-transparent dark:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-2xl py-4 pl-12 pr-4 font-bold text-sm text-slate-700 dark:text-slate-200 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                                        placeholder="ex: nome@construtora.com"
+                                        placeholder="ex: admin"
                                     />
                                 </div>
                             </div>

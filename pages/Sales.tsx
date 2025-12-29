@@ -72,6 +72,8 @@ const Sales = () => {
   const [installments, setInstallments] = useState<number>(1);
   const [scaleWeight, setScaleWeight] = useState<number>(0);
   const [weightTicket, setWeightTicket] = useState<string>('');
+  const [customDueDates, setCustomDueDates] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dispatch / Logistics State
   const [requiresWeighing, setRequiresWeighing] = useState(false);
@@ -107,8 +109,23 @@ const Sales = () => {
   React.useEffect(() => {
     if (['money', 'pix'].includes(paymentMethod)) {
       setInstallments(1);
+      setCustomDueDates([]);
+    } else if (installments > 1) {
+      // Initialize dates for installments
+      const dates = Array.from({ length: installments }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() + ((i + 1) * 30));
+        return d.toISOString().split('T')[0];
+      });
+      setCustomDueDates(dates);
     }
-  }, [paymentMethod]);
+  }, [paymentMethod, installments]);
+
+  const updateDueDate = (index: number, value: string) => {
+    const newDates = [...customDueDates];
+    newDates[index] = value;
+    setCustomDueDates(newDates);
+  };
 
   const addToCart = (product: typeof inventory[0]) => {
     setCart(prev => {
@@ -156,7 +173,7 @@ const Sales = () => {
 
         let newQty = reading;
         // If unit is m3, we need volume = weight / density
-        if (item.unit === 'm³') {
+        if (['m³', 'm3'].includes(item.unit.toLowerCase())) {
           newQty = reading / density;
         }
         // If unit is ton, quantity is reading
@@ -171,13 +188,14 @@ const Sales = () => {
     setCart(prev => prev.map(item => {
       if (item.id === id && item.weight) {
         const density = item.weight / 1000;
-        if (item.unit === 'm³') {
+        const unitLower = item.unit.toLowerCase();
+        if (['m³', 'm3'].includes(unitLower)) {
           // Convert to Ton
           // Price/Ton = Price/m3 / Density
           const newPrice = (item.originalPrice || item.price) / density;
           const newQty = item.quantity * density;
           return { ...item, unit: 'ton', price: newPrice, quantity: parseFloat(newQty.toFixed(3)) };
-        } else if (item.unit === 'ton') {
+        } else if (unitLower === 'ton') {
           // Convert to m3
           // Price/m3 = OriginalPrice
           const newPrice = item.originalPrice || item.price * density;
@@ -203,6 +221,7 @@ const Sales = () => {
     setInstallments(1);
     setScaleWeight(0);
     setWeightTicket('');
+    setIsSubmitting(false);
   };
 
   const handleFinalizeOrder = () => {
@@ -216,12 +235,57 @@ const Sales = () => {
       return;
     }
 
+    // Validation: Enforce Net Weight if Scale is Connected
+    if (isScaleConnected) {
+      if (!requiresWeighing) {
+        alert("Atenção: A Balança está ativa! É obrigatório realizar a pesagem do veículo (Tara/Bruto) para finalizar.");
+        return;
+      }
+      if (grossWeight <= tareWeight) {
+        alert("Erro de Pesagem: O Peso Bruto deve ser maior que a Tara para gerar o Peso Líquido.");
+        return;
+      }
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const saleId = `S-${Date.now()}`;
     const client = clients.find(c => c.id === selectedClient);
     const vehicle = fleet.find(v => v.id === selectedVehicle);
 
     // Dispatch / Weighing Logic
+    // Dispatch / Weighing Logic
     const netWeight = requiresWeighing && grossWeight > tareWeight ? grossWeight - tareWeight : undefined;
+
+    // Recalculate based on Truck Weight if applicable (Scale Automatic Calculation)
+    let finalItems = [...cart];
+    let finalAmount = total;
+
+    if (isScaleConnected && netWeight && netWeight > 0) {
+      // Find bulk item (first valid one for weighing)
+      const bulkIndex = finalItems.findIndex(i => ['ton', 'm³', 'kg'].includes(i.unit.toLowerCase()));
+      if (bulkIndex !== -1) {
+        const item = finalItems[bulkIndex];
+        const netWeightTons = netWeight / 1000;
+        let newQty = item.quantity;
+
+        const unitLower = item.unit.toLowerCase();
+        if (unitLower === 'kg') newQty = netWeight;
+        else if (unitLower === 'ton') newQty = netWeightTons;
+        else if (['m³', 'm3'].includes(unitLower)) {
+          const density = item.weight ? item.weight / 1000 : 1; // ton/m3 default 1
+          newQty = netWeightTons / density;
+        }
+
+        // Update Item with Weight-based Quantity
+        finalItems[bulkIndex] = { ...item, quantity: parseFloat(newQty.toFixed(3)) };
+
+        // Recalculate Total Amount
+        const newSubtotal = finalItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+        finalAmount = Math.max(0, newSubtotal - (parseFloat(discount) || 0));
+      }
+    }
 
     // Create Transaction/Sale
     addSale({
@@ -231,14 +295,15 @@ const Sales = () => {
       category: 'Vendas',
       accountId: account, // Use ID
       account: financialAccounts.find(a => a.id === account)?.name || 'Desconhecido', // Legacy Name
-      amount: total,
+      amount: finalAmount,
       status: ['money', 'pix', 'debit'].includes(paymentMethod) ? 'Conciliado' : 'Pendente',
       type: 'Receita',
       clientId: selectedClient,
       clientName: client?.name || 'Cliente Avulso',
-      items: cart,
+      items: finalItems,
       paymentMethod,
       installments,
+      installmentDueDates: customDueDates.length > 0 ? customDueDates : undefined,
       // Dispatch Fields
       vehicleId: selectedVehicle,
       driverName: driverName,
@@ -247,18 +312,7 @@ const Sales = () => {
       grossWeight: requiresWeighing ? grossWeight : undefined,
       netWeight: netWeight,
       weightTicket: weightTicket || undefined,
-    });
-
-    // Create Financial Transaction
-    addTransaction({
-      id: `TR-${Date.now()}`,
-      date: new Date().toLocaleDateString('pt-BR'),
-      description: `Venda Direta - ${client?.name || 'Cliente Avulso'}`,
-      category: 'Vendas de Produtos',
-      amount: total,
-      type: 'Receita',
-      status: ['money', 'pix', 'debit'].includes(paymentMethod) ? 'Conciliado' : 'Pendente',
-      accountId: account,
+      // Financial Metadata
       partnerId: selectedClient || undefined,
       originModule: 'Vendas',
       originId: saleId,
@@ -506,6 +560,21 @@ const Sales = () => {
                     <div className="p-2"><p className="text-[8px] font-black uppercase">V. Total da Nota</p><p className="text-sm font-black">{formatMoney(showNFE.type === 'sale' ? showNFE.data.amount : showNFE.data.total)}</p></div>
                   </div>
                 </div>
+
+                {/* Weighing Ticket Info */}
+                {(showNFE.data.netWeight || (showNFE.type === 'sale' && showNFE.data.grossWeight)) && (
+                  <div className="space-y-0.5 -mx-4">
+                    <div className="bg-gray-100 p-1 text-[8px] font-black uppercase border-b-2 border-black flex items-center justify-between">
+                      <span>Ticket de Pesagem Rodoviária</span>
+                      <span>{showNFE.data.weightTicket ? `Ref: ${showNFE.data.weightTicket}` : 'Integrado'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 border-b-2 border-black text-center divide-x-2 divide-black">
+                      <div className="p-2"><p className="text-[8px] font-black uppercase">Peso Tara</p><p className="text-xs font-bold">{showNFE.data.tareWeight} kg</p></div>
+                      <div className="p-2"><p className="text-[8px] font-black uppercase">Peso Bruto</p><p className="text-xs font-bold">{showNFE.data.grossWeight} kg</p></div>
+                      <div className="p-2 bg-gray-50"><p className="text-[8px] font-black uppercase">Peso Líquido</p><p className="text-sm font-black">{showNFE.data.netWeight} kg</p></div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Items Table */}
                 <div className="space-y-0.5 -mx-4 -mb-4">
@@ -948,19 +1017,41 @@ const Sales = () => {
                               ))}
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Parcelas</label>
-                            <select
-                              value={installments}
-                              onChange={e => setInstallments(Number(e.target.value))}
-                              className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
-                            >
-                              {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
-                                <option key={n} value={n}>{n}x {n > 1 ? 'sem juros' : ''}</option>
-                              ))}
-                            </select>
-                          </div>
+                          {!['money', 'pix'].includes(paymentMethod) && (
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Parcelas</label>
+                              <select
+                                value={installments}
+                                onChange={e => setInstallments(Number(e.target.value))}
+                                className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
+                              >
+                                {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
+                                  <option key={n} value={n}>{n}x {n > 1 ? 'sem juros' : ''}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
+
+                        {/* Installment Date Inputs */}
+                        {installments > 1 && !['money', 'pix'].includes(paymentMethod) && (
+                          <div className="bg-slate-50 dark:bg-gray-700/30 p-3 rounded-lg border border-slate-200 dark:border-gray-600">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Vencimentos das Parcelas</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {customDueDates.map((date, idx) => (
+                                <div key={idx}>
+                                  <label className="block text-[8px] font-bold text-slate-400 uppercase mb-0.5">{idx + 1}ª Parcela</label>
+                                  <input
+                                    type="date"
+                                    value={date}
+                                    onChange={(e) => updateDueDate(idx, e.target.value)}
+                                    className="w-full p-1.5 bg-white dark:bg-gray-600 rounded border border-slate-200 dark:border-gray-500 text-xs font-bold font-mono"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Dispatch and Weighing Section */}
                         <div className="bg-slate-50 dark:bg-gray-700/30 p-4 rounded-xl border border-slate-200 dark:border-gray-600 space-y-4">
@@ -1047,11 +1138,67 @@ const Sales = () => {
                                 </div>
                               </div>
 
-                              <div className="pt-2 border-t border-slate-100 dark:border-gray-700 flex justify-between items-center">
-                                <span className="text-xs font-bold text-slate-500">Peso Líquido (Carga)</span>
-                                <span className="text-lg font-black text-cyan-600">
-                                  {Math.max(0, grossWeight - tareWeight).toLocaleString('pt-BR')} kg
-                                </span>
+                              <div className="pt-2 border-t border-slate-100 dark:border-gray-700 space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-slate-500">Peso Líquido (Carga)</span>
+                                  <span className="text-lg font-black text-cyan-600">
+                                    {Math.max(0, grossWeight - tareWeight).toLocaleString('pt-BR')} kg
+                                  </span>
+                                </div>
+
+                                {isScaleConnected && (grossWeight > tareWeight) && cart.find(i => ['ton', 'm³', 'kg'].includes(i.unit.toLowerCase())) && (
+                                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-800 animate-in zoom-in duration-300">
+                                    <p className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 uppercase mb-1 flex items-center gap-1"><Scale size={10} /> Conversão Automática (Ativa)</p>
+                                    {(() => {
+                                      const item = cart.find(i => ['ton', 'm³', 'kg'].includes(i.unit.toLowerCase()));
+                                      if (!item) return null;
+
+                                      // Calc Prices
+                                      const density = item.weight ? item.weight / 1000 : 1; // ton/m3
+                                      let priceTon = 0;
+                                      let priceM3 = 0;
+                                      if (item.unit === 'ton') {
+                                        priceTon = item.price;
+                                        priceM3 = item.price * density;
+                                      } else if (item.unit === 'm³') {
+                                        priceM3 = item.price;
+                                        priceTon = item.price / density;
+                                      } else if (item.unit === 'kg') {
+                                        priceTon = item.price * 1000;
+                                        priceM3 = priceTon * density;
+                                      }
+
+                                      // Calc Qty
+                                      const netWeightKg = grossWeight - tareWeight;
+                                      const netWeightTon = netWeightKg / 1000;
+                                      let convertedQty = netWeightTon;
+                                      if (item.unit === 'kg') convertedQty = netWeightKg;
+                                      else if (item.unit === 'm³') convertedQty = netWeightTon / density;
+
+                                      return (
+                                        <>
+                                          <div className="text-xs flex justify-between font-mono text-emerald-900 dark:text-emerald-100 items-center mb-0.5">
+                                            <span>Preço / m³:</span>
+                                            <span className="font-bold">{formatMoney(priceM3)}</span>
+                                          </div>
+                                          <div className="text-xs flex justify-between font-mono text-emerald-900 dark:text-emerald-100 items-center mb-1">
+                                            <span>Preço / Ton:</span>
+                                            <span className="font-bold">{formatMoney(priceTon)}</span>
+                                          </div>
+                                          <div className="text-xs flex justify-between font-mono text-emerald-900 dark:text-emerald-100 items-center border-t border-emerald-200 dark:border-emerald-700 pt-1">
+                                            <span>Qtd. Convertida:</span>
+                                            <span className="font-bold bg-white dark:bg-emerald-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-700">
+                                              {convertedQty.toFixed(3)} {item.unit}
+                                            </span>
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 italic">
+                                      * O valor total da venda será atualizado ao finalizar.
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -1071,8 +1218,18 @@ const Sales = () => {
                         <button onClick={handleSaveBudget} className="py-4 bg-white dark:bg-gray-700 text-slate-800 dark:text-white font-black rounded-2xl border border-slate-200 dark:border-gray-600 text-xs shadow-sm hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-1">
                           <Save size={16} /> SALVAR ORÇAMENTO
                         </button>
-                        <button onClick={handleFinalizeOrder} className="py-4 bg-cyan-600 text-white font-black rounded-2xl shadow-lg shadow-cyan-600/30 text-xs hover:bg-cyan-700 transition-all flex flex-col items-center justify-center gap-1">
-                          <CheckCircle size={16} /> FINALIZAR VENDA
+                        <button
+                          onClick={handleFinalizeOrder}
+                          disabled={isSubmitting}
+                          className={`py-4 ${isSubmitting ? 'bg-cyan-800 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700'} text-white font-black rounded-2xl shadow-lg shadow-cyan-600/30 text-xs transition-all flex flex-col items-center justify-center gap-1`}
+                        >
+                          {isSubmitting ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                          ) : (
+                            <>
+                              <CheckCircle size={16} /> FINALIZAR VENDA
+                            </>
+                          )}
                         </button>
                       </div>
                       <button onClick={() => setShowCheckout(false)} className="w-full py-2 text-slate-400 font-bold text-[10px] hover:underline uppercase">Voltar para Edição</button>

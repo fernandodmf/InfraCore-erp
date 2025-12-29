@@ -299,7 +299,7 @@ const Reports = () => {
                         <PieChartIcon size={16} /> VISÃO GERAL
                     </button>
                     <button
-                        onClick={() => setActiveTab('generator')}
+                        onClick={() => { setActiveTab('generator'); setSelectedModule(null); }}
                         className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'generator' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                         <Printer size={16} /> RELATÓRIOS DETALHADOS
@@ -401,104 +401,123 @@ const Reports = () => {
                         </div>
                     </div>
                 </div>
+            ) : selectedModule === null ? (
+                /* --- REPORT LIBRARY VIEW --- */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom duration-300">
+                    {modules.map(m => (
+                        <button
+                            key={m.id}
+                            onClick={() => setSelectedModule(m.id)}
+                            className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-cyan-200 dark:hover:border-cyan-800 transition-all text-left group"
+                        >
+                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-cyan-600 group-hover:text-white transition-colors mb-6">
+                                {React.cloneElement(m.icon as React.ReactElement, { size: 24 })}
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{m.name}</h3>
+                            <p className="text-sm text-slate-500 font-medium">Gerar relatórios detalhados, exportar dados e analisar métricas de {m.name.toLowerCase()}.</p>
+                        </button>
+                    ))}
+                </div>
             ) : (
-                /* --- REPORT GENERATOR VIEW --- */
-                <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-right duration-300">
-
-                    {/* Sidebar Configuration */}
-                    <div className="w-full lg:w-80 shrink-0 space-y-6">
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-6">
-                            <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-2">
-                                <Activity size={20} className="text-cyan-600" /> Configuração
-                            </h3>
-
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Módulo</label>
-                                <div className="space-y-2">
-                                    {modules.map(m => (
-                                        <button
-                                            key={m.id}
-                                            onClick={() => setSelectedModule(m.id)}
-                                            className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${selectedModule === m.id ? 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border-2 border-cyan-500' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
-                                        >
-                                            {m.icon}
-                                            <span className="text-sm font-bold">{m.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Início</label>
-                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-700 rounded-lg text-xs font-bold border-none" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Fim</label>
-                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-700 rounded-lg text-xs font-bold border-none" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-cyan-600 p-6 rounded-3xl shadow-lg shadow-cyan-600/20 text-white space-y-4">
-                            <h3 className="font-black flex items-center gap-2"><Printer size={20} /> Exportação</h3>
-                            <button
-                                onClick={() => exportToCSV(reportData, `Relatorio_${selectedModule}`)}
-                                className="w-full py-3 bg-white text-cyan-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-50 transition-colors"
-                            >
-                                <FileText size={18} /> Baixar Excel / CSV
-                            </button>
-                            <button
-                                onClick={handlePrintReport}
-                                className="w-full py-3 bg-cyan-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-800 transition-colors"
-                            >
-                                <Printer size={18} /> Imprimir / PDF
-                            </button>
-                        </div>
+                /* --- REPORT CONFIGURATOR VIEW --- */
+                <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setSelectedModule(null)}
+                            className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600"
+                        >
+                            ← Voltar
+                        </button>
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            {modules.find(m => m.id === selectedModule)?.icon}
+                            Relatório de {modules.find(m => m.id === selectedModule)?.name}
+                        </h2>
                     </div>
 
-                    {/* Report Preview */}
-                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden">
-                        <div className="p-6 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-black text-lg text-slate-900 dark:text-white">Pré-visualização</h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase">{modules.find(m => m.id === selectedModule)?.name} • {reportData.length} Registros</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Filters Panel */}
+                        <div className="lg:col-span-1 space-y-6">
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-6">
+                                <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-2 text-sm uppercase">
+                                    <Activity size={16} className="text-cyan-600" /> Filtros de Período
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Início</label>
+                                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold shadow-inner" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Fim</label>
+                                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold shadow-inner" />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-black flex items-center gap-1">
-                                    <Circle size={8} fill="currentColor" /> ONLINE
-                                </span>
+
+                            <div className="bg-cyan-600 p-8 rounded-3xl shadow-lg shadow-cyan-600/20 text-white space-y-6">
+                                <div>
+                                    <h3 className="font-black text-lg mb-1">Exportar Dados</h3>
+                                    <p className="text-cyan-100 text-xs font-medium">Selecione o formato desejado para baixar o relatório completo.</p>
+                                </div>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => exportToCSV(reportData, `Relatorio_${selectedModule}`)}
+                                        className="w-full py-4 bg-white text-cyan-600 font-black rounded-xl flex items-center justify-center gap-3 hover:bg-cyan-50 transition-colors shadow-xl"
+                                    >
+                                        <FileText size={18} /> EXCEL / CSV
+                                    </button>
+                                    <button
+                                        onClick={handlePrintReport}
+                                        className="w-full py-4 bg-cyan-800 text-white font-black rounded-xl flex items-center justify-center gap-3 hover:bg-cyan-900 transition-colors shadow-lg border border-cyan-700"
+                                    >
+                                        <Printer size={18} /> IMPRIMIR PDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div className="overflow-auto flex-1 p-0">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px] sticky top-0">
-                                    <tr>
-                                        {reportData.length > 0 ? Object.keys(reportData[0]).map(key => (
-                                            <th key={key} className="px-6 py-4 whitespace-nowrap">{key}</th>
-                                        )) : <th className="px-6 py-4">Sem dados</th>}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y dark:divide-gray-700">
-                                    {reportData.length > 0 ? reportData.map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
-                                            {Object.keys(row).map((key, i) => {
-                                                let val = row[key];
-                                                if (typeof val === 'number' && (key.includes('Valor') || key.includes('Total') || key.includes('Preço') || key.includes('Salário'))) {
-                                                    val = formatMoney(val);
-                                                }
-                                                return <td key={i} className="px-6 py-4 dark:text-gray-300 whitespace-nowrap">{val}</td>;
-                                            })}
-                                        </tr>
-                                    )) : (
+
+                        {/* Preview Table */}
+                        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden h-[600px]">
+                            <div className="p-6 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="font-black text-sm text-slate-900 dark:text-white uppercase tracking-widest">Pré-visualização</h3>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black flex items-center gap-1 uppercase">
+                                        <Circle size={6} fill="currentColor" /> {reportData.length} Registros Encontrados
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="overflow-auto flex-1 custom-scrollbar">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-white dark:bg-slate-800 text-slate-400 font-bold uppercase text-[10px] sticky top-0 shadow-sm z-10">
                                         <tr>
-                                            <td className="px-6 py-20 text-center text-slate-400 italic">
-                                                Nenhum registro encontrado para este período.
-                                            </td>
+                                            {reportData.length > 0 ? Object.keys(reportData[0]).map(key => (
+                                                <th key={key} className="px-6 py-4 whitespace-nowrap bg-slate-50 dark:bg-slate-900">{key}</th>
+                                            )) : <th className="px-6 py-4 text-center">Dados</th>}
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y dark:divide-gray-700">
+                                        {reportData.length > 0 ? reportData.map((row, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+                                                {Object.keys(row).map((key, i) => {
+                                                    let val = row[key];
+                                                    if (typeof val === 'number' && (key.includes('Valor') || key.includes('Total') || key.includes('Preço') || key.includes('Salário'))) {
+                                                        val = formatMoney(val);
+                                                    }
+                                                    return <td key={i} className="px-6 py-4 dark:text-gray-300 whitespace-nowrap font-medium text-xs">{val}</td>;
+                                                })}
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td className="px-6 py-32 text-center text-slate-400 flex flex-col items-center justify-center gap-4">
+                                                    <div className="p-4 bg-slate-50 rounded-full"><FileText size={32} /></div>
+                                                    <p>Nenhum registro encontrado neste período.</p>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

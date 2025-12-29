@@ -37,51 +37,159 @@ import {
     ExternalLink,
     AlertTriangle,
     TrendingDown,
-    PieChart as PieChartIcon
+    PieChart as PieChartIcon,
+    Truck,
+    User
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { exportToCSV } from '../utils/exportUtils';
+import { exportToCSV, printDocument } from '../utils/exportUtils';
 
-const COLORS = ['#0891b2', '#06b6d4', '#22d3ee', '#67e8f9', '#99f6ff'];
+const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Reports = () => {
-    const { financials, transactions, sales, inventory, purchaseOrders } = useApp();
+    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [reportPeriod, setReportPeriod] = useState('30d');
-    const [reportType, setReportType] = useState<'financial' | 'operational' | 'sales'>('financial');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('dashboard');
 
-    // Simulate generating report or export to Excel
-    const handleGenerateReport = (action: 'download' | 'share' | 'print' | 'excel') => {
-        setIsGenerating(true);
-        setTimeout(() => {
-            setIsGenerating(false);
-            if (action === 'download') alert("Relatório PDF de alta resolução baixado!");
-            if (action === 'excel') {
-                // Determine what to export based on some logic or just the transactions
-                if (reportType === 'financial') {
-                    exportToCSV(transactions, 'Relatorio_Financeiro_InfraCore');
-                } else if (reportType === 'sales') {
-                    const salesData = sales.map(s => ({
-                        ID: s.id,
-                        Data: s.date,
-                        Cliente: s.clientName,
-                        Total: s.total,
-                        Status: s.status,
-                        Itens: s.items.map(i => i.name).join(', ')
-                    }));
-                    exportToCSV(salesData, 'Relatorio_Vendas_InfraCore');
-                } else {
-                    exportToCSV(inventory, 'Relatorio_Estoque_InfraCore');
-                }
+    // Report Generator State
+    const [selectedModule, setSelectedModule] = useState<string>('sales');
+    const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Available Modules for Reporting
+    const modules = [
+        { id: 'sales', name: 'Vendas e Comercial', icon: <DollarSign size={16} /> },
+        { id: 'finance', name: 'Transações Financeiras', icon: <TrendingUp size={16} /> },
+        { id: 'inventory', name: 'Estoque e Produtos', icon: <Package size={16} /> },
+        { id: 'clients', name: 'Base de Clientes', icon: <Circle size={16} /> },
+        { id: 'fleet', name: 'Frota e Veículos', icon: <Truck size={16} /> },
+        { id: 'hr', name: 'Recursos Humanos', icon: <User size={16} /> }, // Assuming User icon imported later
+    ];
+
+    // Filter Logic
+    const reportData = useMemo(() => {
+        let data: any[] = [];
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59);
+
+        // Helper to check date range (if item has date)
+        const isInRange = (dateStr?: string) => {
+            if (!dateStr) return true; // Include if no date? Or exclude? Default include for master data like clients
+            // Parse PT-BR date dd/mm/yyyy
+            const [day, month, year] = dateStr.split('/').map(Number);
+            const itemDate = new Date(year, month - 1, day);
+            return itemDate >= start && itemDate <= end;
+        };
+
+        switch (selectedModule) {
+            case 'sales':
+                data = sales.filter(s => isInRange(s.date)).map(s => ({
+                    ID: s.id,
+                    Data: s.date,
+                    Cliente: s.clientName,
+                    'Forma Pagto': s.paymentMethod,
+                    Total: s.amount,
+                    Status: s.status
+                }));
+                break;
+            case 'finance':
+                data = transactions.filter(t => isInRange(t.date)).map(t => ({
+                    ID: t.id,
+                    Data: t.date,
+                    Descrição: t.description,
+                    Categoria: t.category,
+                    Tipo: t.type,
+                    Valor: t.amount,
+                    Status: t.status,
+                    Conta: t.account
+                }));
+                break;
+            case 'inventory':
+                data = inventory.map(i => ({
+                    ID: i.id,
+                    Produto: i.name,
+                    Categoria: i.category,
+                    Qtd: i.quantity,
+                    Unidade: i.unit,
+                    'Preço Venda': i.price,
+                    Peso: i.weight || '-',
+                    'Valor Total': i.price * i.quantity
+                }));
+                break;
+            case 'clients':
+                // Filter by registration date if needed, or just show all active
+                data = clients.map(c => ({
+                    Nome: c.name,
+                    Documento: c.document,
+                    Email: c.email,
+                    Telefone: c.phone,
+                    Cidade: c.address?.city,
+                    Status: c.status
+                }));
+                break;
+            case 'fleet':
+                data = fleet.map(f => ({
+                    Placa: f.plate,
+                    Modelo: f.model,
+                    Tipo: f.type,
+                    KM: f.km,
+                    Status: f.status,
+                    Combustível: f.fuelType
+                }));
+                break;
+            case 'hr':
+                data = employees.map(e => ({
+                    Nome: e.name,
+                    Cargo: e.role,
+                    Depto: e.department,
+                    Salário: e.salary,
+                    Admissão: e.admissionDate,
+                    Status: e.status
+                }));
+                break;
+        }
+        return data;
+    }, [selectedModule, startDate, endDate, sales, transactions, inventory, clients, fleet, employees]);
+
+    const handlePrintReport = () => {
+        const title = `Relatório de ${modules.find(m => m.id === selectedModule)?.name}`;
+
+        // Generate HTML Table
+        if (reportData.length === 0) {
+            alert("Sem dados para imprimir.");
+            return;
+        }
+
+        const headers = Object.keys(reportData[0]);
+        const html = `
+            <div style="margin-bottom: 20px;">
+                <p><strong>Período:</strong> ${new Date(startDate).toLocaleDateString()} a ${new Date(endDate).toLocaleDateString()}</p>
+                <p><strong>Total de Registros:</strong> ${reportData.length}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                    ${reportData.map(row => `
+                        <tr>${headers.map(h => {
+            let val = row[h as keyof typeof row];
+            if (typeof val === 'number' && (h.includes('Valor') || h.includes('Total') || h.includes('Preço') || h.includes('Salário'))) {
+                val = formatMoney(val);
             }
-            if (action === 'share') {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url);
-                alert("Link para este dashboard copiado com sucesso!");
-            }
-            if (action === 'print') window.print();
-        }, 1200);
+            return `<td>${val}</td>`;
+        }).join('')}</tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        printDocument(title, html);
     };
+
+    // Keep existing BI Dash logic
+    const [reportPeriod, setReportPeriod] = useState('30d');
+
 
     // --- REAL DATA AGGREGATION ---
 
@@ -153,272 +261,250 @@ const Reports = () => {
         return formatBRL(val);
     };
 
+    const COLORS = ['#0891b2', '#06b6d4', '#22d3ee', '#67e8f9', '#99f6ff'];
+
+    // Legacy handler for the dashboard buttons (optional, or redirect to generator)
+    const handleDashboardExport = (action: 'download' | 'share' | 'excel') => {
+        if (action === 'share') {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Link copiado!");
+        } else if (action === 'excel') {
+            exportToCSV(transactions, 'Relatorio_Financeiro_Geral');
+        } else {
+            setActiveTab('generator'); // Redirect to detailed generator
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-700">
-            {/* Header / Toolbar */}
+            {/* Main Header with Tabs */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 font-display tracking-tight">
                         <div className="p-2 bg-gradient-to-br from-cyan-600 to-cyan-400 rounded-2xl text-white shadow-lg shadow-cyan-500/20">
-                            <PieChartIcon size={24} />
+                            {activeTab === 'dashboard' ? <PieChartIcon size={24} /> : <FileText size={24} />}
                         </div>
-                        BI & Analytics
+                        {activeTab === 'dashboard' ? 'BI & Analytics' : 'Gerador de Relatórios'}
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 font-medium">Insights operacionais e financeiros em tempo real.</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 font-medium">
+                        {activeTab === 'dashboard' ? 'Insights operacionais e financeiros em tempo real.' : 'Exportação detalhada de dados do sistema.'}
+                    </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border dark:border-slate-700">
-                        <button
-                            onClick={() => setReportPeriod('7d')}
-                            className={`px-4 py-2 text-xs font-black rounded-xl transition-all ${reportPeriod === '7d' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            7 DIAS
-                        </button>
-                        <button
-                            onClick={() => setReportPeriod('30d')}
-                            className={`px-4 py-2 text-xs font-black rounded-xl transition-all ${reportPeriod === '30d' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            30 DIAS
-                        </button>
-                        <button
-                            onClick={() => setReportPeriod('12m')}
-                            className={`px-4 py-2 text-xs font-black rounded-xl transition-all ${reportPeriod === '12m' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            12 MESES
-                        </button>
-                    </div>
-
-                    <div className="h-10 w-px bg-slate-200 dark:bg-slate-700 hidden xl:block" />
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handleGenerateReport('share')}
-                            className="p-3 bg-slate-50 dark:bg-slate-900 text-slate-500 hover:text-cyan-600 rounded-2xl transition-all border dark:border-slate-700"
-                            title="Compartilhar Dashboard"
-                        >
-                            <Share2 size={20} />
-                        </button>
-                        <button
-                            onClick={() => handleGenerateReport('excel')}
-                            className="p-3 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all border border-emerald-100 dark:border-emerald-900/30"
-                            title="Exportar para Excel (.csv)"
-                        >
-                            <FileText size={20} />
-                        </button>
-                        <button
-                            disabled={isGenerating}
-                            onClick={() => handleGenerateReport('download')}
-                            className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl shadow-xl hover:opacity-90 transition-all font-black text-xs flex items-center gap-3 disabled:opacity-70"
-                        >
-                            {isGenerating ? <Loader size={18} className="animate-spin" /> : <Download size={18} />}
-                            {isGenerating ? 'PROCESSANDO...' : 'RELATÓRIO PDF'}
-                        </button>
-                    </div>
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border dark:border-slate-700">
+                    <button
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        <PieChartIcon size={16} /> VISÃO GERAL
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('generator')}
+                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'generator' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        <Printer size={16} /> RELATÓRIOS DETALHADOS
+                    </button>
                 </div>
             </div>
 
-            {/* Smart KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                    { label: 'RECEITA BRUTA', value: financials.totalRevenue, trend: '+12.5%', icon: <DollarSign />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
-                    { label: 'LUCRO ESTIMADO', value: financials.balance, trend: '+4.2%', icon: <TrendingUp />, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/10' },
-                    { label: 'TICKET MÉDIO', value: sales.length > 0 ? financials.totalRevenue / sales.length : 0, trend: '-1.8%', icon: <Activity />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10' },
-                    { label: 'EFFICIENCY (OEE)', value: 94.2, trend: '+2.1%', icon: <Factory />, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/10' },
-                ].map((kpi, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700 group hover:shadow-xl transition-all duration-300">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color} group-hover:scale-110 transition-transform`}>
-                                {kpi.icon}
-                            </div>
-                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${kpi.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-                                {kpi.trend}
-                            </span>
-                        </div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{kpi.label}</p>
-                        <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
-                            {kpi.label.includes('EFFICIENCY') ? kpi.value.toFixed(1) + '%' : formatBRLCompact(kpi.value)}
-                        </h3>
-                    </div>
-                ))}
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Cash Flow Main Chart */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase text-xs">Fluxo de Caixa Consolidado</h3>
-                            <p className="text-sm text-slate-400 font-medium">Entradas vs Saídas Diárias</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-2 text-[10px] font-black text-cyan-500 uppercase"><Circle size={8} fill="currentColor" /> Receitas</span>
-                            <span className="flex items-center gap-2 text-[10px] font-black text-pink-500 uppercase"><Circle size={8} fill="currentColor" /> Despesas</span>
-                        </div>
-                    </div>
-
-                    <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={financialHistory} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f472b6" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#f472b6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                                    cursor={{ stroke: '#06b6d4', strokeWidth: 2, strokeDasharray: '5 5' }}
-                                />
-                                <Area type="monotone" dataKey="receita" stroke="#06b6d4" strokeWidth={4} fillOpacity={1} fill="url(#colorInc)" />
-                                <Area type="monotone" dataKey="despesa" stroke="#f472b6" strokeWidth={4} fillOpacity={1} fill="url(#colorExp)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Categories Breakdown */}
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight uppercase text-xs">Alocação de Recursos</h3>
-                    <p className="text-sm text-slate-400 mb-8 font-medium">Distribuição por centro de custo</p>
-
-                    <div className="h-[350px] w-full relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={categoryData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={70}
-                                    outerRadius={110}
-                                    fill="#8884d8"
-                                    paddingAngle={8}
-                                    dataKey="value"
-                                    stroke="none"
+            {activeTab === 'dashboard' ? (
+                /* --- DASHBOARD VIEW (Existing Logic) --- */
+                <div className="flex flex-col gap-6 animate-in slide-in-from-left duration-300">
+                    {/* Period Selector & Dashboard Tools */}
+                    <div className="flex justify-end gap-4">
+                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                            {['7d', '30d', '12m'].map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => setReportPeriod(p)}
+                                    className={`px-4 py-2 text-xs font-black rounded-lg transition-all ${reportPeriod === p ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400'}`}
                                 >
-                                    {categoryData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', fontSize: '12px', fontWeight: 'bold' }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        {/* Center Content */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gasto Total</span>
-                            <span className="text-xl font-black text-slate-800 dark:text-white">{formatBRL(financials.totalExpenses).split(',')[0]}</span>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 space-y-3">
-                        {categoryData.slice(0, 3).map((item, i) => (
-                            <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase">{item.name}</span>
-                                </div>
-                                <span className="text-xs font-black text-slate-900 dark:text-white">{formatBRL(item.value)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom Section: Top Products & Stock Analysis */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top Performance</h3>
-                            <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase leading-tight">Produtos Líderes em Faturamento</h4>
-                        </div>
-                        <Package className="text-cyan-500" size={24} />
-                    </div>
-                    <div className="space-y-4">
-                        {topProducts.map((p, i) => (
-                            <div key={i} className="flex items-center gap-4 group">
-                                <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center font-black text-slate-400 group-hover:bg-cyan-600 group-hover:text-white transition-all">{i + 1}</div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between mb-1 text-xs">
-                                        <span className="font-black dark:text-gray-300">{p.name}</span>
-                                        <span className="font-black text-cyan-600">{formatBRL(p.value)}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                                        <div className="h-full bg-cyan-600 rounded-full shadow-[0_0_10px_rgba(8,145,178,0.4)] transition-all duration-1000" style={{ width: `${(p.value / (topProducts[0]?.value || 1)) * 100}%` }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                        {topProducts.length === 0 && (
-                            <div className="text-center py-10 text-slate-400 italic text-sm">Nenhum dado de venda consolidado ainda.</div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-3xl shadow-2xl text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-10 opacity-5 grayscale"><Factory size={200} /></div>
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex justify-between items-start mb-10">
-                            <div>
-                                <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2">Monitor de Disponibilidade</h3>
-                                <h4 className="text-2xl font-black leading-tight">Gargalos e Reposição</h4>
-                            </div>
-                            <div className="bg-white/10 p-3 rounded-2xl border border-white/10 backdrop-blur-md">
-                                <Activity size={24} className="text-cyan-400" />
-                            </div>
-                        </div>
-
-                        <div className="flex-1 space-y-6">
-                            {inventory.filter(p => (p.quantity / p.minStock) < 1.5).slice(0, 3).map((item, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm group hover:bg-white/10 transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`p-2 rounded-xl ${item.quantity < item.minStock ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'}`}>
-                                            <AlertTriangle size={18} />
-                                        </div>
-                                        <div>
-                                            <p className="font-black text-sm">{item.name}</p>
-                                            <p className="text-[10px] font-bold text-white/40 uppercase">Atenção: Estoque Baixo</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-black text-lg">{item.quantity} {item.unit}</p>
-                                        <p className="text-[10px] font-bold text-white/40">MIN: {item.minStock}</p>
-                                    </div>
-                                </div>
+                                    {p.toUpperCase()}
+                                </button>
                             ))}
-                            {inventory.filter(p => (p.quantity / p.minStock) < 1.5).length === 0 && (
-                                <div className="text-center py-10 opacity-50">Tudo operando conforme o planejado.</div>
-                            )}
+                        </div>
+                        <button onClick={() => handleDashboardExport('excel')} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100" title="Exportar Resumo"><FileText size={20} /></button>
+                        <button onClick={() => handleDashboardExport('share')} className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200"><Share2 size={20} /></button>
+                    </div>
+
+                    {/* Smart KPIs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[
+                            { label: 'RECEITA BRUTA', value: financials.totalRevenue, trend: '+12.5%', icon: <DollarSign />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
+                            { label: 'LUCRO ESTIMADO', value: financials.balance, trend: '+4.2%', icon: <TrendingUp />, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/10' },
+                            { label: 'TICKET MÉDIO', value: sales.length > 0 ? financials.totalRevenue / sales.length : 0, trend: '-1.8%', icon: <Activity />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10' },
+                            { label: 'EFFICIENCY (OEE)', value: 94.2, trend: '+2.1%', icon: <Factory />, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/10' },
+                        ].map((kpi, i) => (
+                            <div key={i} className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700 group hover:shadow-xl transition-all duration-300">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color} group-hover:scale-110 transition-transform`}>
+                                        {kpi.icon}
+                                    </div>
+                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${kpi.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                        {kpi.trend}
+                                    </span>
+                                </div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{kpi.label}</p>
+                                <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+                                    {kpi.label.includes('EFFICIENCY') ? kpi.value.toFixed(1) + '%' : formatBRLCompact(kpi.value)}
+                                </h3>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Charts Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Cash Flow Main Chart */}
+                        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div className="h-[350px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={financialHistory} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.1} />
+                                                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#f472b6" stopOpacity={0.1} />
+                                                <stop offset="95%" stopColor="#f472b6" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                        <Tooltip />
+                                        <Area type="monotone" dataKey="receita" stroke="#06b6d4" strokeWidth={4} fillOpacity={1} fill="url(#colorInc)" />
+                                        <Area type="monotone" dataKey="despesa" stroke="#f472b6" strokeWidth={4} fillOpacity={1} fill="url(#colorExp)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
 
-                        <button
-                            onClick={() => {
-                                const lowStock = inventory.filter(p => p.quantity < p.minStock);
-                                if (lowStock.length > 0) {
-                                    alert(`Sugestão: Criar pedidos de compra para ${lowStock.length} itens com estoque crítico: ${lowStock.map(i => i.name).join(', ')}.`);
-                                } else {
-                                    alert("Todos os itens estão com estoque saudável acima do mínimo.");
-                                }
-                            }}
-                            className="w-full mt-10 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl shadow-xl transition-all shadow-cyan-600/30 uppercase tracking-widest text-xs"
-                        >
-                            Gerar Pedidos de Reposição
-                        </button>
+                        {/* Categories Breakdown */}
+                        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div className="h-[350px] w-full relative">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={categoryData} cx="50%" cy="50%" innerRadius={70} outerRadius={110} fill="#8884d8" paddingAngle={8} dataKey="value" stroke="none">
+                                            {categoryData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gasto Total</span>
+                                    <span className="text-xl font-black text-slate-800 dark:text-white">{formatBRL(financials.totalExpenses).split(',')[0]}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                /* --- REPORT GENERATOR VIEW --- */
+                <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-right duration-300">
+
+                    {/* Sidebar Configuration */}
+                    <div className="w-full lg:w-80 shrink-0 space-y-6">
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-6">
+                            <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                <Activity size={20} className="text-cyan-600" /> Configuração
+                            </h3>
+
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Módulo</label>
+                                <div className="space-y-2">
+                                    {modules.map(m => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setSelectedModule(m.id)}
+                                            className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${selectedModule === m.id ? 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border-2 border-cyan-500' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
+                                        >
+                                            {m.icon}
+                                            <span className="text-sm font-bold">{m.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Início</label>
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-700 rounded-lg text-xs font-bold border-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Data Fim</label>
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-700 rounded-lg text-xs font-bold border-none" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-cyan-600 p-6 rounded-3xl shadow-lg shadow-cyan-600/20 text-white space-y-4">
+                            <h3 className="font-black flex items-center gap-2"><Printer size={20} /> Exportação</h3>
+                            <button
+                                onClick={() => exportToCSV(reportData, `Relatorio_${selectedModule}`)}
+                                className="w-full py-3 bg-white text-cyan-600 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-50 transition-colors"
+                            >
+                                <FileText size={18} /> Baixar Excel / CSV
+                            </button>
+                            <button
+                                onClick={handlePrintReport}
+                                className="w-full py-3 bg-cyan-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-800 transition-colors"
+                            >
+                                <Printer size={18} /> Imprimir / PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Report Preview */}
+                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden">
+                        <div className="p-6 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-black text-lg text-slate-900 dark:text-white">Pré-visualização</h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase">{modules.find(m => m.id === selectedModule)?.name} • {reportData.length} Registros</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-black flex items-center gap-1">
+                                    <Circle size={8} fill="currentColor" /> ONLINE
+                                </span>
+                            </div>
+                        </div>
+                        <div className="overflow-auto flex-1 p-0">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px] sticky top-0">
+                                    <tr>
+                                        {reportData.length > 0 ? Object.keys(reportData[0]).map(key => (
+                                            <th key={key} className="px-6 py-4 whitespace-nowrap">{key}</th>
+                                        )) : <th className="px-6 py-4">Sem dados</th>}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y dark:divide-gray-700">
+                                    {reportData.length > 0 ? reportData.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+                                            {Object.keys(row).map((key, i) => {
+                                                let val = row[key];
+                                                if (typeof val === 'number' && (key.includes('Valor') || key.includes('Total') || key.includes('Preço') || key.includes('Salário'))) {
+                                                    val = formatMoney(val);
+                                                }
+                                                return <td key={i} className="px-6 py-4 dark:text-gray-300 whitespace-nowrap">{val}</td>;
+                                            })}
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td className="px-6 py-20 text-center text-slate-400 italic">
+                                                Nenhum registro encontrado para este período.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-export default Reports;
+

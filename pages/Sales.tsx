@@ -30,7 +30,8 @@ import {
   AlertTriangle,
   Download,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  ArrowLeftRight
 } from 'lucide-react';
 import { SalesItem, Client, Budget, Sale } from '../types';
 import { useApp } from '../context/AppContext';
@@ -41,6 +42,7 @@ const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'cu
 const Sales = () => {
   const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus, addTransaction, accounts } = useApp();
   const [activeTab, setActiveTab] = useState<'new' | 'history' | 'budgets'>('new');
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'checkout'>('catalog');
 
   // Modal State
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -101,21 +103,33 @@ const Sales = () => {
   const discountStart = parseFloat(discount) || 0;
   const total = Math.max(0, subtotal - discountStart);
 
+  // Effect to reset installments for instant payments
+  React.useEffect(() => {
+    if (['money', 'pix'].includes(paymentMethod)) {
+      setInstallments(1);
+    }
+  }, [paymentMethod]);
+
   const addToCart = (product: typeof inventory[0]) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {
         return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
+      // Ensure weight is present if available in inventory
       return [...prev, {
         id: product.id,
         name: product.name,
         detail: product.category,
         quantity: 1,
         unit: product.unit,
-        price: product.price
+        price: product.price,
+        originalPrice: product.price,
+        originalUnit: product.unit,
+        weight: product.weight // Density if m3
       }];
     });
+    // Auto switch to cart on mobile if desired? Maybe not.
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -133,10 +147,43 @@ const Sales = () => {
       alert("Balança não conectada!");
       return;
     }
-    const reading = (Math.random() * 20) + 5;
+    const reading = (Math.random() * 20) + 5; // Weight in Tons
+
     setCart(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, quantity: parseFloat(reading.toFixed(2)) };
+        // density in ton/m3 = (kg/unit) / 1000
+        const density = item.weight ? item.weight / 1000 : 1;
+
+        let newQty = reading;
+        // If unit is m3, we need volume = weight / density
+        if (item.unit === 'm³') {
+          newQty = reading / density;
+        }
+        // If unit is ton, quantity is reading
+
+        return { ...item, quantity: parseFloat(newQty.toFixed(3)) };
+      }
+      return item;
+    }));
+  };
+
+  const toggleUnit = (id: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === id && item.weight) {
+        const density = item.weight / 1000;
+        if (item.unit === 'm³') {
+          // Convert to Ton
+          // Price/Ton = Price/m3 / Density
+          const newPrice = (item.originalPrice || item.price) / density;
+          const newQty = item.quantity * density;
+          return { ...item, unit: 'ton', price: newPrice, quantity: parseFloat(newQty.toFixed(3)) };
+        } else if (item.unit === 'ton') {
+          // Convert to m3
+          // Price/m3 = OriginalPrice
+          const newPrice = item.originalPrice || item.price * density;
+          const newQty = item.quantity / density;
+          return { ...item, unit: 'm³', price: newPrice, quantity: parseFloat(newQty.toFixed(3)), originalUnit: 'm³', originalPrice: newPrice };
+        }
       }
       return item;
     }));
@@ -185,7 +232,7 @@ const Sales = () => {
       accountId: account, // Use ID
       account: financialAccounts.find(a => a.id === account)?.name || 'Desconhecido', // Legacy Name
       amount: total,
-      status: 'Conciliado', // Cash/Pix is instant, Credit might be receivable
+      status: ['money', 'pix', 'debit'].includes(paymentMethod) ? 'Conciliado' : 'Pendente',
       type: 'Receita',
       clientId: selectedClient,
       clientName: client?.name || 'Cliente Avulso',
@@ -210,7 +257,7 @@ const Sales = () => {
       category: 'Vendas de Produtos',
       amount: total,
       type: 'Receita',
-      status: 'Conciliado',
+      status: ['money', 'pix', 'debit'].includes(paymentMethod) ? 'Conciliado' : 'Pendente',
       accountId: account,
       partnerId: selectedClient || undefined,
       originModule: 'Vendas',
@@ -705,300 +752,333 @@ const Sales = () => {
       </div>
 
       {activeTab === 'new' ? (
-        <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
-          {/* Catalog */}
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden h-full animate-in fade-in duration-500">
-            <div className="relative shrink-0 flex gap-4">
-              <div className="relative flex-1 group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-cyan-600 transition-colors">
-                  <Search size={20} />
-                </span>
-                <input
-                  type="text"
-                  className="block w-full pl-11 pr-3 py-3.5 border border-slate-200 dark:border-slate-700 rounded-2xl leading-5 bg-white dark:bg-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all shadow-sm font-bold text-sm"
-                  placeholder="Pesquisar produtos no estoque..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <button
-                className={`px-4 rounded-2xl border flex items-center gap-2 font-black text-xs uppercase transition-all shadow-sm ${isScaleConnected ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800' : 'bg-slate-50 border-slate-200 text-slate-400 dark:bg-gray-800 dark:border-gray-700'}`}
-                onClick={() => setIsScaleConnected(!isScaleConnected)}
-              >
-                <Scale size={18} />
-                <span className="hidden xl:inline">{isScaleConnected ? 'Simulador Ativo' : 'Ativar Balança'}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-4 custom-scrollbar">
-              {filteredProducts.map(product => (
-                <div
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-cyan-400 dark:hover:border-cyan-500 cursor-pointer group transition-all shadow-sm hover:shadow-xl flex flex-col items-center gap-3 relative overflow-hidden"
-                >
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-1 ${product.quantity < product.minStock ? 'bg-red-50 text-red-500' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'} group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner`}>
-                    <Package size={36} strokeWidth={1.5} />
-                  </div>
-                  <div className="text-center w-full">
-                    <h3 className="font-black text-slate-800 dark:text-white text-sm leading-tight mb-1">{product.name}</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{product.category}</p>
-                    <div className="mt-3 bg-slate-50 dark:bg-gray-700 h-1 w-full rounded-full overflow-hidden">
-                      <div className={`h-full ${product.quantity < product.minStock ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${Math.min(100, (product.quantity / (product.minStock * 2)) * 100)}%` }}></div>
-                    </div>
-                    <p className="text-[10px] font-bold mt-1.5 text-slate-500">{product.quantity} {product.unit} em estoque</p>
-                    <div className="mt-4 flex items-end justify-center gap-1">
-                      <span className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(product.price).split(',')[0]}</span>
-                      <span className="text-xs font-bold text-slate-400 mb-1">/{product.unit}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Mobile Tab Switcher */}
+          <div className="lg:hidden grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-700/50 rounded-xl mb-4 shrink-0 mx-1">
+            <button
+              onClick={() => setMobileTab('catalog')}
+              className={`py-2 text-sm font-bold rounded-lg transition-all ${mobileTab === 'catalog' ? 'bg-white dark:bg-slate-600 shadow text-cyan-600 dark:text-white' : 'text-slate-400'}`}
+            >
+              Catálogo
+            </button>
+            <button
+              onClick={() => setMobileTab('checkout')}
+              className={`py-2 text-sm font-bold rounded-lg transition-all ${mobileTab === 'checkout' ? 'bg-white dark:bg-slate-600 shadow text-cyan-600 dark:text-white' : 'text-slate-400'}`}
+            >
+              Carrinho ({cart.length})
+            </button>
           </div>
 
-          {/* Cart UI (simplified structure same as before but prettier) */}
-          <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 h-full">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col h-full overflow-hidden">
-              <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-cyan-600 rounded-xl text-white shadow-lg shadow-cyan-600/20"><ShoppingCart size={20} /></div>
-                  <h2 className="font-black text-lg text-slate-900 dark:text-white tracking-tight">Checkout</h2>
+          <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full overflow-hidden relative">
+            {/* Catalog */}
+            <div className={`flex-1 flex flex-col gap-4 overflow-hidden h-full animate-in fade-in duration-500 ${mobileTab === 'catalog' ? 'flex' : 'hidden lg:flex'}`}>
+              <div className="relative shrink-0 flex gap-4">
+                <div className="relative flex-1 group">
+                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-cyan-600 transition-colors">
+                    <Search size={20} />
+                  </span>
+                  <input
+                    type="text"
+                    className="block w-full pl-11 pr-3 py-3.5 border border-slate-200 dark:border-slate-700 rounded-2xl leading-5 bg-white dark:bg-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all shadow-sm font-bold text-sm"
+                    placeholder="Pesquisar produtos no estoque..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <button onClick={() => setCart([])} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+                <button
+                  className={`px-4 rounded-2xl border flex items-center gap-2 font-black text-xs uppercase transition-all shadow-sm ${isScaleConnected ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800' : 'bg-slate-50 border-slate-200 text-slate-400 dark:bg-gray-800 dark:border-gray-700'}`}
+                  onClick={() => setIsScaleConnected(!isScaleConnected)}
+                >
+                  <Scale size={18} />
+                  <span className="hidden xl:inline">{isScaleConnected ? 'Simulador Ativo' : 'Ativar Balança'}</span>
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-6 grayscale opacity-50">
-                    <ShoppingCart size={80} strokeWidth={1} />
-                    <div className="text-center">
-                      <p className="font-black text-xl text-slate-400">Ponto de Venda Vazio</p>
-                      <p className="text-sm font-medium">Adicione itens do estoque para começar</p>
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+                {filteredProducts.map(product => (
+                  <div
+                    key={product.id}
+                    onClick={() => addToCart(product)}
+                    className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-cyan-400 dark:hover:border-cyan-500 cursor-pointer group transition-all shadow-sm hover:shadow-xl flex flex-col items-center gap-3 relative overflow-hidden"
+                  >
+                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-1 ${product.quantity < product.minStock ? 'bg-red-50 text-red-500' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'} group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner`}>
+                      <Package size={36} strokeWidth={1.5} />
+                    </div>
+                    <div className="text-center w-full">
+                      <h3 className="font-black text-slate-800 dark:text-white text-sm leading-tight mb-1">{product.name}</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{product.category}</p>
+                      <div className="mt-3 bg-slate-50 dark:bg-gray-700 h-1 w-full rounded-full overflow-hidden">
+                        <div className={`h-full ${product.quantity < product.minStock ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${Math.min(100, (product.quantity / (product.minStock * 2)) * 100)}%` }}></div>
+                      </div>
+                      <p className="text-[10px] font-bold mt-1.5 text-slate-500">{product.quantity} {product.unit} em estoque</p>
+                      <div className="mt-4 flex items-end justify-center gap-1">
+                        <span className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(product.price).split(',')[0]}</span>
+                        <span className="text-xs font-bold text-slate-400 mb-1">/{product.unit}</span>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  cart.map(item => (
-                    <div key={item.id} className="group p-4 bg-slate-50 dark:bg-gray-700/30 rounded-2xl border border-transparent hover:border-cyan-200 dark:hover:border-cyan-900/50 transition-all flex flex-col gap-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-slate-100 dark:border-gray-600"><Package size={16} /></div>
-                          <div>
-                            <p className="font-bold text-slate-900 dark:text-white leading-tight">{item.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">{item.detail}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl p-1 border dark:border-gray-600 shadow-sm">
-                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-cyan-600 transition-colors"><Minus size={14} /></button>
-                          <div className="flex flex-col items-center px-3 relative group/scale">
-                            <span className="text-sm font-black text-slate-800 dark:text-white">{item.quantity}</span>
-                            {isScaleConnected && (['ton', 'm³', 'kg'].includes(item.unit)) && (
-                              <button onClick={() => handleReadScale(item.id)} className="absolute -top-7 bg-slate-900 text-white p-1 rounded-full shadow-lg opacity-0 group-hover/scale:opacity-100 scale-90 hover:scale-110 transition-all"><Scale size={10} /></button>
-                            )}
-                          </div>
-                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-cyan-600 transition-colors"><Plus size={14} /></button>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-slate-400 font-bold uppercase">{formatMoney(item.price)} / {item.unit}</p>
-                          <p className="font-black text-slate-900 dark:text-white">{formatMoney(item.price * item.quantity)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+                ))}
               </div>
+            </div>
 
-              <div className="p-6 bg-slate-50 dark:bg-gray-800/90 border-t dark:border-slate-700 space-y-6">
-                {!showCheckout ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-sm font-bold uppercase tracking-wider">Subtotal</span>
-                      <span className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(subtotal)}</span>
-                    </div>
-                    <button
-                      disabled={cart.length === 0}
-                      onClick={() => setShowCheckout(true)}
-                      className="w-full py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-black rounded-2xl shadow-xl shadow-cyan-600/30 transition-all flex items-center justify-center gap-3 disabled:grayscale disabled:opacity-50"
-                    >
-                      <CreditCard size={20} /> IR PARA PAGAMENTO
-                    </button>
+            {/* Cart UI (simplified structure same as before but prettier) */}
+            <div className={`w-full lg:w-[400px] xl:w-[450px] shrink-0 h-full ${mobileTab === 'checkout' ? 'flex' : 'hidden lg:flex'}`}>
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col h-full overflow-hidden">
+                <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-cyan-600 rounded-xl text-white shadow-lg shadow-cyan-600/20"><ShoppingCart size={20} /></div>
+                    <h2 className="font-black text-lg text-slate-900 dark:text-white tracking-tight">Checkout</h2>
                   </div>
-                ) : (
-                  <div className="space-y-5 animate-in slide-in-from-bottom duration-300">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest pl-1">Selecionar Cliente</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <select
-                            value={selectedClient}
-                            onChange={e => setSelectedClient(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border-none rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-cyan-500"
-                          >
-                            <option value="">Cliente Avulso / Não Identificado</option>
-                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setPaymentMethod('pix')} className={`p-3 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
-                          <QrCode size={18} /> PIX
-                        </button>
-                        <button onClick={() => setPaymentMethod('credit')} className={`p-3 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-2 transition-all ${paymentMethod === 'credit' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
-                          <CreditCard size={18} /> CARTÃO
-                        </button>
+                  <button onClick={() => setCart([])} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                  {cart.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-6 grayscale opacity-50">
+                      <ShoppingCart size={80} strokeWidth={1} />
+                      <div className="text-center">
+                        <p className="font-black text-xl text-slate-400">Ponto de Venda Vazio</p>
+                        <p className="text-sm font-medium">Adicione itens do estoque para começar</p>
                       </div>
                     </div>
-
-                    <div className="pt-4 border-t dark:border-gray-700 space-y-3">
-                      {/* Financial Details */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Conta de Destino</label>
-                          <select
-                            value={account}
-                            onChange={e => setAccount(e.target.value)}
-                            className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
-                          >
-                            <option value="">Selecione...</option>
-                            {financialAccounts.map(acc => (
-                              <option key={acc.id} value={acc.id}>{acc.name}</option>
-                            ))}
-                          </select>
+                  ) : (
+                    cart.map(item => (
+                      <div key={item.id} className="group p-4 bg-slate-50 dark:bg-gray-700/30 rounded-2xl border border-transparent hover:border-cyan-200 dark:hover:border-cyan-900/50 transition-all flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-slate-100 dark:border-gray-600"><Package size={16} /></div>
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white leading-tight">{item.name}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{item.detail}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Parcelas</label>
-                          <select
-                            value={installments}
-                            onChange={e => setInstallments(Number(e.target.value))}
-                            className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
-                          >
-                            {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
-                              <option key={n} value={n}>{n}x {n > 1 ? 'sem juros' : ''}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Dispatch and Weighing Section */}
-                      <div className="bg-slate-50 dark:bg-gray-700/30 p-4 rounded-xl border border-slate-200 dark:border-gray-600 space-y-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm flex items-center gap-2">
-                            <Truck size={16} /> Logística e Despacho
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-500">Requer Pesagem?</span>
-                            <button
-                              onClick={() => setRequiresWeighing(!requiresWeighing)}
-                              className={`w-10 h-6 rounded-full p-1 transition-colors ${requiresWeighing ? 'bg-cyan-600' : 'bg-slate-300'}`}
-                            >
-                              <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${requiresWeighing ? 'translate-x-4' : ''}`} />
-                            </button>
+                          <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl p-1 border dark:border-gray-600 shadow-sm">
+                            <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-cyan-600 transition-colors"><Minus size={14} /></button>
+                            <div className="flex flex-col items-center px-3 relative group/scale">
+                              <span className="text-sm font-black text-slate-800 dark:text-white">{item.quantity}</span>
+                              {isScaleConnected && (['ton', 'm³', 'kg'].includes(item.unit)) && (
+                                <>
+                                  <button onClick={() => handleReadScale(item.id)} title="Ler Balança" className="absolute -top-8 bg-slate-900 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover/scale:opacity-100 scale-90 hover:scale-110 transition-all z-10"><Scale size={12} /></button>
+                                  {item.weight && (
+                                    <button onClick={() => toggleUnit(item.id)} title="Alternar Unidade" className="absolute -bottom-8 bg-cyan-600 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover/scale:opacity-100 scale-90 hover:scale-110 transition-all z-10"><ArrowLeftRight size={12} /></button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <button onClick={() => updateQuantity(item.id, 1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-cyan-600 transition-colors"><Plus size={14} /></button>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">{formatMoney(item.price)} / {item.unit}</p>
+                            <p className="font-black text-slate-900 dark:text-white">{formatMoney(item.price * item.quantity)}</p>
                           </div>
                         </div>
+                      </div>
+                    ))
+                  )}
+                </div>
 
+                <div className="p-6 bg-slate-50 dark:bg-gray-800/90 border-t dark:border-slate-700 space-y-6">
+                  {!showCheckout ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-sm font-bold uppercase tracking-wider">Subtotal</span>
+                        <span className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(subtotal)}</span>
+                      </div>
+                      <button
+                        disabled={cart.length === 0}
+                        onClick={() => setShowCheckout(true)}
+                        className="w-full py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-black rounded-2xl shadow-xl shadow-cyan-600/30 transition-all flex items-center justify-center gap-3 disabled:grayscale disabled:opacity-50"
+                      >
+                        <CreditCard size={20} /> IR PARA PAGAMENTO
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-5 animate-in slide-in-from-bottom duration-300">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest pl-1">Selecionar Cliente</label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <select
+                              value={selectedClient}
+                              onChange={e => setSelectedClient(e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border-none rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-cyan-500"
+                            >
+                              <option value="">Cliente Avulso / Não Identificado</option>
+                              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button onClick={() => setPaymentMethod('money')} className={`p-2 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-1 transition-all ${paymentMethod === 'money' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
+                            <Banknote size={18} /> DINHEIRO
+                          </button>
+                          <button onClick={() => setPaymentMethod('pix')} className={`p-2 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-1 transition-all ${paymentMethod === 'pix' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
+                            <QrCode size={18} /> PIX
+                          </button>
+                          <button onClick={() => setPaymentMethod('credit')} className={`p-2 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-1 transition-all ${paymentMethod === 'credit' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
+                            <CreditCard size={18} /> CARTÃO
+                          </button>
+                          <button onClick={() => setPaymentMethod('boleto')} className={`p-2 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-1 transition-all ${paymentMethod === 'boleto' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
+                            <Barcode size={18} /> BOLETO
+                          </button>
+                          <button onClick={() => setPaymentMethod('prazo')} className={`p-2 rounded-xl border-2 font-black text-[10px] flex flex-col items-center gap-1 transition-all ${paymentMethod === 'prazo' ? 'border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20' : 'border-slate-100 dark:border-gray-700 text-slate-400'}`}>
+                            <Calendar size={18} /> A PRAZO
+                          </button>
+                        </div>
+                      </div>
+
+
+                      <div className="pt-4 border-t dark:border-gray-700 space-y-3">
+                        {/* Financial Details */}
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Veículo (Frota)</label>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Conta de Destino</label>
                             <select
-                              value={selectedVehicle}
-                              onChange={e => setSelectedVehicle(e.target.value)}
-                              className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
+                              value={account}
+                              onChange={e => setAccount(e.target.value)}
+                              className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
                             >
-                              <option value="">Veículo Próprio / Terceiro</option>
-                              {fleet.map(v => (
-                                <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                              <option value="">Selecione...</option>
+                              {financialAccounts.map(acc => (
+                                <option key={acc.id} value={acc.id}>{acc.name}</option>
                               ))}
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Motorista</label>
-                            <input
-                              type="text"
-                              value={driverName}
-                              onChange={e => setDriverName(e.target.value)}
-                              className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
-                              placeholder="Nome do Condutor"
-                            />
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Parcelas</label>
+                            <select
+                              value={installments}
+                              onChange={e => setInstallments(Number(e.target.value))}
+                              className="w-full p-2 bg-slate-100 dark:bg-gray-700/50 rounded-lg text-xs font-bold"
+                            >
+                              {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
+                                <option key={n} value={n}>{n}x {n > 1 ? 'sem juros' : ''}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
 
-                        {requiresWeighing && (
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-dashed border-cyan-200 dark:border-cyan-900/50 space-y-3 animate-in fade-in zoom-in duration-300">
-                            <div className="flex justify-between items-center mb-2">
-                              <label className="text-[10px] font-black text-cyan-600 uppercase flex items-center gap-1">
-                                <Scale size={12} /> Integração Balança Rodoviária
-                              </label>
-                              <span className="text-[9px] bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded font-bold">CONECTADO</span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Tara (Entrada)</p>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="number"
-                                    value={tareWeight}
-                                    onChange={e => setTareWeight(Number(e.target.value))}
-                                    className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
-                                  />
-                                  <button
-                                    onClick={() => setTareWeight(Number((Math.random() * 5000 + 2000).toFixed(0)))}
-                                    className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
-                                  >Ler</button>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Bruto (Saída)</p>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="number"
-                                    value={grossWeight}
-                                    onChange={e => setGrossWeight(Number(e.target.value))}
-                                    className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
-                                  />
-                                  <button
-                                    onClick={() => setGrossWeight(Number((tareWeight + Math.random() * 10000).toFixed(0)))}
-                                    className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
-                                  >Ler</button>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="pt-2 border-t border-slate-100 dark:border-gray-700 flex justify-between items-center">
-                              <span className="text-xs font-bold text-slate-500">Peso Líquido (Carga)</span>
-                              <span className="text-lg font-black text-cyan-600">
-                                {Math.max(0, grossWeight - tareWeight).toLocaleString('pt-BR')} kg
-                              </span>
+                        {/* Dispatch and Weighing Section */}
+                        <div className="bg-slate-50 dark:bg-gray-700/30 p-4 rounded-xl border border-slate-200 dark:border-gray-600 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm flex items-center gap-2">
+                              <Truck size={16} /> Logística e Despacho
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-500">Requer Pesagem?</span>
+                              <button
+                                onClick={() => setRequiresWeighing(!requiresWeighing)}
+                                className={`w-10 h-6 rounded-full p-1 transition-colors ${requiresWeighing ? 'bg-cyan-600' : 'bg-slate-300'}`}
+                              >
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${requiresWeighing ? 'translate-x-4' : ''}`} />
+                              </button>
                             </div>
                           </div>
-                        )}
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Veículo (Frota)</label>
+                              <select
+                                value={selectedVehicle}
+                                onChange={e => setSelectedVehicle(e.target.value)}
+                                className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
+                              >
+                                <option value="">Veículo Próprio / Terceiro</option>
+                                {fleet.map(v => (
+                                  <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Motorista</label>
+                              <input
+                                type="text"
+                                value={driverName}
+                                onChange={e => setDriverName(e.target.value)}
+                                className="w-full p-2 bg-white dark:bg-gray-600 border border-slate-200 dark:border-gray-500 rounded-lg text-xs font-bold"
+                                placeholder="Nome do Condutor"
+                              />
+                            </div>
+                          </div>
+
+                          {requiresWeighing && (
+                            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-dashed border-cyan-200 dark:border-cyan-900/50 space-y-3 animate-in fade-in zoom-in duration-300">
+                              <div className="flex justify-between items-center mb-2">
+                                <label className="text-[10px] font-black text-cyan-600 uppercase flex items-center gap-1">
+                                  <Scale size={12} /> Integração Balança Rodoviária
+                                </label>
+                                <span className="text-[9px] bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded font-bold">CONECTADO</span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-slate-500 font-bold uppercase">Tara (Entrada)</p>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="number"
+                                      value={tareWeight}
+                                      onChange={e => setTareWeight(Number(e.target.value))}
+                                      className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
+                                    />
+                                    <button
+                                      onClick={() => setTareWeight(Number((Math.random() * 5000 + 2000).toFixed(0)))}
+                                      className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
+                                    >Ler</button>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-slate-500 font-bold uppercase">Bruto (Saída)</p>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="number"
+                                      value={grossWeight}
+                                      onChange={e => setGrossWeight(Number(e.target.value))}
+                                      className="w-full p-1.5 text-right font-mono text-sm font-bold border rounded"
+                                    />
+                                    <button
+                                      onClick={() => setGrossWeight(Number((tareWeight + Math.random() * 10000).toFixed(0)))}
+                                      className="px-2 bg-slate-200 rounded hover:bg-cyan-200 text-xs"
+                                    >Ler</button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-100 dark:border-gray-700 flex justify-between items-center">
+                                <span className="text-xs font-bold text-slate-500">Peso Líquido (Carga)</span>
+                                <span className="text-lg font-black text-cyan-600">
+                                  {Math.max(0, grossWeight - tareWeight).toLocaleString('pt-BR')} kg
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex justify-between text-slate-400 text-[10px] font-black uppercase mt-4">
+                          <span>Items Total</span>
+                          <span>{formatMoney(subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-slate-900 dark:text-white">
+                          <span className="font-black text-lg">TOTAL A PAGAR</span>
+                          <span className="font-black text-3xl text-cyan-600">{formatMoney(total)}</span>
+                        </div>
                       </div>
 
-                      <div className="flex justify-between text-slate-400 text-[10px] font-black uppercase mt-4">
-                        <span>Items Total</span>
-                        <span>{formatMoney(subtotal)}</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button onClick={handleSaveBudget} className="py-4 bg-white dark:bg-gray-700 text-slate-800 dark:text-white font-black rounded-2xl border border-slate-200 dark:border-gray-600 text-xs shadow-sm hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-1">
+                          <Save size={16} /> SALVAR ORÇAMENTO
+                        </button>
+                        <button onClick={handleFinalizeOrder} className="py-4 bg-cyan-600 text-white font-black rounded-2xl shadow-lg shadow-cyan-600/30 text-xs hover:bg-cyan-700 transition-all flex flex-col items-center justify-center gap-1">
+                          <CheckCircle size={16} /> FINALIZAR VENDA
+                        </button>
                       </div>
-                      <div className="flex justify-between items-center text-slate-900 dark:text-white">
-                        <span className="font-black text-lg">TOTAL A PAGAR</span>
-                        <span className="font-black text-3xl text-cyan-600">{formatMoney(total)}</span>
-                      </div>
+                      <button onClick={() => setShowCheckout(false)} className="w-full py-2 text-slate-400 font-bold text-[10px] hover:underline uppercase">Voltar para Edição</button>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <button onClick={handleSaveBudget} className="py-4 bg-white dark:bg-gray-700 text-slate-800 dark:text-white font-black rounded-2xl border border-slate-200 dark:border-gray-600 text-xs shadow-sm hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-1">
-                        <Save size={16} /> SALVAR ORÇAMENTO
-                      </button>
-                      <button onClick={handleFinalizeOrder} className="py-4 bg-cyan-600 text-white font-black rounded-2xl shadow-lg shadow-cyan-600/30 text-xs hover:bg-cyan-700 transition-all flex flex-col items-center justify-center gap-1">
-                        <CheckCircle size={16} /> FINALIZAR VENDA
-                      </button>
-                    </div>
-                    <button onClick={() => setShowCheckout(false)} className="w-full py-2 text-slate-400 font-bold text-[10px] hover:underline uppercase">Voltar para Edição</button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1164,8 +1244,9 @@ const Sales = () => {
             </table>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

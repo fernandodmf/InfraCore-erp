@@ -11,16 +11,16 @@ import { MOCK_CLIENTS, MOCK_TRANSACTIONS, MOCK_FLEET } from '../constants';
 
 // Initial Mock Inventory
 const INITIAL_INVENTORY: InventoryItem[] = [
-  { id: 'p1', name: 'Cimento Portland CP-II', category: 'Cimento', quantity: 450, minStock: 100, price: 32.90, unit: 'sc', color: 'bg-gray-200 text-gray-600' },
-  { id: 'p2', name: 'Areia Média Lavada', category: 'Agregados', quantity: 1200, minStock: 200, price: 120.00, unit: 'm³', color: 'bg-yellow-100 text-yellow-600' },
-  { id: 'p3', name: 'Brita 1', category: 'Agregados', quantity: 800, minStock: 150, price: 145.00, unit: 'm³', color: 'bg-stone-200 text-stone-600' },
-  { id: 'p4', name: 'Bloco de Concreto 14x19x39', category: 'Alvenaria', quantity: 15000, minStock: 2000, price: 3.80, unit: 'un', color: 'bg-zinc-200 text-zinc-600' },
-  { id: 'p5', name: 'Argamassa AC-III', category: 'Argamassas', quantity: 300, minStock: 50, price: 42.50, unit: 'sc', color: 'bg-orange-100 text-orange-600' },
-  { id: 'p6', name: 'Vergalhão CA-50 10mm', category: 'Ferragem', quantity: 500, minStock: 100, price: 48.90, unit: 'br', color: 'bg-slate-200 text-slate-600' },
-  { id: 'p7', name: 'Tijolo Cerâmico 6 Furos', category: 'Alvenaria', quantity: 8000, minStock: 1000, price: 1.25, unit: 'un', color: 'bg-red-100 text-red-600' },
-  { id: 'p8', name: 'Cal Hidratada', category: 'Aditivos', quantity: 120, minStock: 30, price: 18.90, unit: 'sc', color: 'bg-white border border-gray-200 text-gray-500' },
-  { id: 'p9', name: 'CBUQ Faixa C', category: 'Asfalto', quantity: 50, minStock: 20, price: 380.00, unit: 'ton', color: 'bg-gray-900 text-gray-300' },
-  { id: 'p10', name: 'Concreto FCK 30', category: 'Concreto', quantity: 0, minStock: 0, price: 450.00, unit: 'm³', color: 'bg-gray-400 text-white' },
+  { id: 'p1', name: 'Cimento Portland CP-II', category: 'Cimento', quantity: 450, minStock: 100, price: 32.90, unit: 'sc', color: 'bg-gray-200 text-gray-600', weight: 50 },
+  { id: 'p2', name: 'Areia Média Lavada', category: 'Agregados', quantity: 1200, minStock: 200, price: 120.00, unit: 'm³', color: 'bg-yellow-100 text-yellow-600', weight: 1500 },
+  { id: 'p3', name: 'Brita 1', category: 'Agregados', quantity: 800, minStock: 150, price: 145.00, unit: 'm³', color: 'bg-stone-200 text-stone-600', weight: 1450 },
+  { id: 'p4', name: 'Bloco de Concreto 14x19x39', category: 'Alvenaria', quantity: 15000, minStock: 2000, price: 3.80, unit: 'un', color: 'bg-zinc-200 text-zinc-600', weight: 12.5 },
+  { id: 'p5', name: 'Argamassa AC-III', category: 'Argamassas', quantity: 300, minStock: 50, price: 42.50, unit: 'sc', color: 'bg-orange-100 text-orange-600', weight: 20 },
+  { id: 'p6', name: 'Vergalhão CA-50 10mm', category: 'Ferragem', quantity: 500, minStock: 100, price: 48.90, unit: 'br', color: 'bg-slate-200 text-slate-600', weight: 7.4 },
+  { id: 'p7', name: 'Tijolo Cerâmico 6 Furos', category: 'Alvenaria', quantity: 8000, minStock: 1000, price: 1.25, unit: 'un', color: 'bg-red-100 text-red-600', weight: 2.1 },
+  { id: 'p8', name: 'Cal Hidratada', category: 'Aditivos', quantity: 120, minStock: 30, price: 18.90, unit: 'sc', color: 'bg-white border border-gray-200 text-gray-500', weight: 20 },
+  { id: 'p9', name: 'CBUQ Faixa C', category: 'Asfalto', quantity: 50, minStock: 20, price: 380.00, unit: 'ton', color: 'bg-gray-900 text-gray-300', weight: 1000 },
+  { id: 'p10', name: 'Concreto FCK 30', category: 'Concreto', quantity: 0, minStock: 0, price: 450.00, unit: 'm³', color: 'bg-gray-400 text-white', weight: 2400 },
 ];
 
 const INITIAL_BUDGETS: Budget[] = [

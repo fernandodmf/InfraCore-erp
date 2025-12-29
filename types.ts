@@ -118,6 +118,10 @@ export interface SalesItem {
   quantity: number;
   unit: string;
   price: number;
+  // Conversion / Scale Support
+  originalPrice?: number;
+  originalUnit?: string;
+  weight?: number; // Density or Unit Weight
 }
 
 export interface Sale extends Transaction {

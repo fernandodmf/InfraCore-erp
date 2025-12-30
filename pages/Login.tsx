@@ -20,12 +20,25 @@ const Login = () => {
         // Simulate network delay for realism
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const success = await login(username, password);
-        if (success) {
-            navigate('/');
-        } else {
-            setError('Credenciais inválidas ou usuário inativo.');
+        try {
+            const result = await login(username, password);
+            if (result.success) {
+                navigate('/');
+            } else {
+                setError(result.message || 'Erro desconhecido ao tentar logar.');
+                setIsLoading(false);
+            }
+        } catch (err) {
+            console.error(err);
+            setError('Falha crítica na autenticação.');
             setIsLoading(false);
+        }
+    };
+
+    const handleReset = () => {
+        if (confirm('Isso limpará todos os dados locais e tentará baixar do banco novamente. Confirmar?')) {
+            localStorage.clear();
+            window.location.reload();
         }
     };
 
@@ -70,9 +83,14 @@ const Login = () => {
                         <p className="text-slate-500 text-sm mb-10">Insira suas credenciais para acessar o painel.</p>
 
                         {error && (
-                            <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-3 animate-in slide-in-from-top-2">
-                                <AlertCircle size={16} />
-                                {error}
+                            <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-300 text-xs font-bold flex flex-col gap-2 animate-in slide-in-from-top-2">
+                                <div className="flex items-center gap-3">
+                                    <AlertCircle size={16} />
+                                    {error}
+                                </div>
+                                <button onClick={handleReset} className="w-full mt-2 py-2 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 rounded-lg text-rose-700 dark:text-rose-200 text-[10px] uppercase tracking-wider font-black transition-colors">
+                                    Resetar Dados Locais (Correção)
+                                </button>
                             </div>
                         )}
 

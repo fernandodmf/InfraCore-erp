@@ -613,164 +613,239 @@ const Fleet = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-                        {filteredVehicles.map(v => (
-                            <div key={v.id} className="p-6 rounded-3xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:shadow-xl hover:border-teal-200 transition-all group">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-slate-50 dark:bg-slate-700 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-teal-50 group-hover:text-teal-600 transition-all">
-                                            {v.type === 'Caminhão' ? <Truck size={30} /> : <Settings size={30} />}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 p-3">
+                        {filteredVehicles.map(v => {
+                            // Calculate metrics for this vehicle
+                            const fuelLogs = v.fuelLogs || [];
+                            const maintHistory = v.maintenanceHistory || [];
+                            const totalLiters = fuelLogs.reduce((acc, log) => acc + (log.liters || 0), 0);
+                            const avgConsumption = totalLiters > 0 ? (v.km / totalLiters).toFixed(1) : '0.0';
+                            const sortedFuelLogs = [...fuelLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            const lastRefuel = sortedFuelLogs[0];
+                            const oilChanges = maintHistory.filter(m =>
+                                m.type?.toLowerCase().includes('óleo') ||
+                                m.type?.toLowerCase().includes('oleo') ||
+                                m.description?.toLowerCase().includes('troca de óleo') ||
+                                m.description?.toLowerCase().includes('troca de oleo')
+                            ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            const lastOilChange = oilChanges[0];
+                            const oilChangeInterval = 10000;
+                            const lastOilKm = lastOilChange?.km || 0;
+                            const nextOilKm = lastOilKm + oilChangeInterval;
+                            const kmUntilOil = nextOilKm - v.km;
+                            const oilChangeUrgent = kmUntilOil < 1000;
+                            const oilChangeWarning = kmUntilOil < 2000;
+
+                            // Calculate monthly spending (last 30 days)
+                            const now = new Date();
+                            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+                            const parseDate = (dateStr: string) => {
+                                if (!dateStr) return new Date(0);
+                                const parts = dateStr.split('/');
+                                if (parts.length === 3) {
+                                    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                                }
+                                return new Date(dateStr);
+                            };
+
+                            const monthlyFuelCost = fuelLogs
+                                .filter(log => parseDate(log.date) >= thirtyDaysAgo)
+                                .reduce((acc, log) => acc + (log.totalCost || 0), 0);
+
+                            const monthlyMaintCost = maintHistory
+                                .filter(m => parseDate(m.date) >= thirtyDaysAgo)
+                                .reduce((acc, m) => acc + (m.cost || 0), 0);
+
+                            const formatMoney = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                            return (
+                                <div key={v.id} className="p-3 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:shadow-lg hover:border-teal-200 transition-all group">
+                                    {/* Header - Compact */}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 bg-slate-50 dark:bg-slate-700 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-teal-50 group-hover:text-teal-600 transition-all">
+                                                {v.type === 'Caminhão' ? <Truck size={16} /> : <Settings size={16} />}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-[11px] text-slate-800 dark:text-white uppercase leading-tight truncate max-w-[80px]">{v.name}</h4>
+                                                <p className="text-[9px] font-black text-teal-600">{v.plate}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-black text-slate-800 dark:text-white uppercase leading-tight">{v.name}</h4>
-                                            <p className="text-xs font-black text-teal-600 group-hover:tracking-widest transition-all">{v.plate}</p>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => handleEditVehicle(v)} className="p-1 text-slate-400 hover:text-teal-600 rounded transition-colors"><Settings size={12} /></button>
+                                            <button onClick={() => handleDelete(v.id)} className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"><Trash2 size={12} /></button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleEditVehicle(v)} className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-colors"><Settings size={18} /></button>
-                                        <button onClick={() => handleDelete(v.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"><Trash2 size={18} /></button>
-                                        <div className="flex-1"></div>
+
+                                    {/* Status Badge */}
+                                    <div className="mb-2">
                                         <select
-                                            className="bg-transparent border-none text-[10px] font-black uppercase cursor-pointer outline-none"
+                                            className={`w-full py-1 px-2 text-[8px] font-black uppercase rounded-lg border cursor-pointer outline-none transition-all ${v.status === 'Operacional' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                                v.status === 'Manutenção' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                                    'bg-slate-50 border-slate-200 text-slate-500'
+                                                }`}
                                             value={v.status}
                                             onChange={(e) => updateVehicleStatus(v.id, e.target.value as any)}
                                         >
-                                            <option value="Operacional">Operacional</option>
-                                            <option value="Manutenção">Manutenção</option>
-                                            <option value="Parado">Parado</option>
+                                            <option value="Operacional">🟢 Operacional</option>
+                                            <option value="Manutenção">🟡 Manutenção</option>
+                                            <option value="Parado">⚫ Parado</option>
                                         </select>
                                     </div>
-                                </div>
 
-                                {/* Vertical Tire Schematic - Compact */}
-                                <div className="mb-4 relative h-[280px] bg-slate-100 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-600 flex justify-center overflow-hidden">
-                                    {/* Chassis Line - Vertical */}
-                                    <div className="absolute top-4 bottom-4 left-1/2 w-16 -translate-x-1/2 border-x-2 border-slate-300 dark:border-slate-600"></div>
+                                    {/* Tire Schematic with Integrated Metrics */}
+                                    <div className="relative h-[200px] bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-600 overflow-hidden">
+                                        {/* Chassis Line */}
+                                        <div className="absolute top-2 bottom-2 left-1/2 w-10 -translate-x-1/2 border-x border-slate-300 dark:border-slate-600"></div>
 
-                                    {/* Odometer Overlay - Top Right Absolute */}
-                                    <div className="absolute top-2 right-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm z-20">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-1 bg-teal-100 text-teal-700 rounded-md"><Gauge size={10} /></div>
-                                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">{v.km.toLocaleString()} KM</span>
+                                        {/* Odometer - Top Center */}
+                                        <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-teal-600 text-white px-3 py-1 rounded-lg z-20 shadow-lg">
+                                            <span className="text-[10px] font-black">{v.km.toLocaleString()} KM</span>
                                         </div>
-                                    </div>
 
-                                    {/* Cabin Indicator (Only for trucks) - Lower Z-Index */}
-                                    {v.type !== 'Carreta LS' && (
-                                        <div className="absolute top-4 w-32 h-24 bg-slate-200 dark:bg-slate-700/50 rounded-3xl border-2 border-slate-300 dark:border-slate-600 flex items-start pt-2 justify-center shadow-inner z-0">
-                                            <span className="text-[9px] font-black text-slate-400 tracking-widest opacity-50">CABINE</span>
+                                        {/* Left Side Metrics - Consumption & Refuel */}
+                                        <div className="absolute left-1 top-8 w-[50px] flex flex-col gap-1 z-10">
+                                            {/* Consumption */}
+                                            <div className="bg-emerald-500 text-white p-1.5 rounded-lg text-center shadow-md">
+                                                <p className="text-[6px] font-bold uppercase leading-none opacity-90">Consumo</p>
+                                                <p className="text-sm font-black leading-tight">{avgConsumption}</p>
+                                                <p className="text-[5px] opacity-75">km/L</p>
+                                            </div>
+                                            {/* Last Refuel */}
+                                            <div className="bg-cyan-500 text-white p-1.5 rounded-lg text-center shadow-md">
+                                                <p className="text-[6px] font-bold uppercase leading-none opacity-90">Abastec.</p>
+                                                <p className="text-[8px] font-black leading-tight">{lastRefuel ? lastRefuel.date.split('/').slice(0, 2).join('/') : 'N/A'}</p>
+                                            </div>
                                         </div>
-                                    )}
 
-                                    {/* Dynamic Slots - Vertical Logic */}
-                                    {(() => {
-                                        const vSlots: any[] = [];
-                                        const type = v.type;
-                                        const isCarreta = type === 'Carreta LS';
-                                        const isTruck = type === 'Truck';
+                                        {/* Right Side Metrics - Oil Change */}
+                                        <div className="absolute right-1 top-8 w-[50px] flex flex-col gap-1 z-10">
+                                            {/* Last Oil */}
+                                            <div className="bg-amber-500 text-white p-1.5 rounded-lg text-center shadow-md">
+                                                <p className="text-[6px] font-bold uppercase leading-none opacity-90">Óleo</p>
+                                                <p className="text-[8px] font-black leading-tight">{lastOilChange ? lastOilChange.date.split('/').slice(0, 2).join('/') : 'N/A'}</p>
+                                            </div>
+                                            {/* Next Oil */}
+                                            <div className={`p-1.5 rounded-lg text-center text-white shadow-md ${oilChangeUrgent ? 'bg-rose-500' : oilChangeWarning ? 'bg-orange-500' : 'bg-slate-600'}`}>
+                                                <p className="text-[6px] font-bold uppercase leading-none opacity-90">Próx.</p>
+                                                <p className="text-[8px] font-black leading-tight">{lastOilChange ? `${Math.round(nextOilKm / 1000)}k` : 'N/A'}</p>
+                                                {oilChangeUrgent && <AlertTriangle size={8} className="mx-auto" />}
+                                            </div>
+                                        </div>
 
-                                        // Vertical Helpers
-                                        // Left Side -> Left of center (-40px for single, -40/-70 for dual)
-                                        // Right Side -> Right of center (+40px for single, +40/+70 for dual)
-                                        // Top -> Y position relative to container
+                                        {/* Cabin Indicator */}
+                                        {v.type !== 'Carreta LS' && (
+                                            <div className="absolute top-10 left-1/2 -translate-x-1/2 w-14 h-12 bg-slate-200 dark:bg-slate-700/50 rounded-xl border border-slate-300 dark:border-slate-600 flex items-center justify-center z-0">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase">Cabine</span>
+                                            </div>
+                                        )}
 
-                                        const centerX = '50%';
+                                        {/* Dynamic Tire Slots */}
+                                        {(() => {
+                                            const vSlots: any[] = [];
+                                            const type = v.type;
+                                            const isCarreta = type === 'Carreta LS';
+                                            const isTruck = type === 'Truck';
 
-                                        if (isCarreta) {
-                                            // 3 Axles at rear - compacted
-                                            [1, 2, 3].forEach((axle, idx) => {
-                                                const topPos = 80 + (idx * 60);
+                                            if (isCarreta) {
+                                                [1, 2, 3].forEach((axle, idx) => {
+                                                    const topPos = 40 + (idx * 35);
+                                                    vSlots.push(
+                                                        { id: `E${axle}_LE_EXT`, style: { top: `${topPos}px`, left: 'calc(50% - 42px)' } },
+                                                        { id: `E${axle}_LE_INT`, style: { top: `${topPos}px`, left: 'calc(50% - 24px)' } },
+                                                        { id: `E${axle}_LD_INT`, style: { top: `${topPos}px`, left: 'calc(50% + 12px)' } },
+                                                        { id: `E${axle}_LD_EXT`, style: { top: `${topPos}px`, left: 'calc(50% + 30px)' } }
+                                                    );
+                                                });
+                                            } else {
                                                 vSlots.push(
-                                                    { id: `E${axle}_LE_EXT`, style: { top: `${topPos}px`, left: 'calc(50% - 70px)' } },
-                                                    { id: `E${axle}_LE_INT`, style: { top: `${topPos}px`, left: 'calc(50% - 35px)' } },
-                                                    { id: `E${axle}_LD_INT`, style: { top: `${topPos}px`, left: 'calc(50% + 15px)' } },
-                                                    { id: `E${axle}_LD_EXT`, style: { top: `${topPos}px`, left: 'calc(50% + 50px)' } }
+                                                    { id: 'E1_LE', style: { top: '40px', left: 'calc(50% - 30px)' } },
+                                                    { id: 'E1_LD', style: { top: '40px', left: 'calc(50% + 18px)' } }
+                                                );
+                                                const a2Top = isTruck ? 90 : 105;
+                                                vSlots.push(
+                                                    { id: 'E2_LE_EXT', style: { top: `${a2Top}px`, left: 'calc(50% - 42px)' } },
+                                                    { id: 'E2_LE_INT', style: { top: `${a2Top}px`, left: 'calc(50% - 24px)' } },
+                                                    { id: 'E2_LD_INT', style: { top: `${a2Top}px`, left: 'calc(50% + 12px)' } },
+                                                    { id: 'E2_LD_EXT', style: { top: `${a2Top}px`, left: 'calc(50% + 30px)' } }
+                                                );
+                                                if (isTruck) {
+                                                    const a3Top = 125;
+                                                    vSlots.push(
+                                                        { id: 'E3_LE_EXT', style: { top: `${a3Top}px`, left: 'calc(50% - 42px)' } },
+                                                        { id: 'E3_LE_INT', style: { top: `${a3Top}px`, left: 'calc(50% - 24px)' } },
+                                                        { id: 'E3_LD_INT', style: { top: `${a3Top}px`, left: 'calc(50% + 12px)' } },
+                                                        { id: 'E3_LD_EXT', style: { top: `${a3Top}px`, left: 'calc(50% + 30px)' } }
+                                                    );
+                                                }
+                                            }
+
+                                            return vSlots.map(slot => {
+                                                const mountedTire = tires.find(t => t.currentVehicleId === v.id && t.position === slot.id);
+                                                return (
+                                                    <div key={slot.id} className="absolute z-10" style={slot.style}>
+                                                        <div className={`w-4 h-9 rounded border shadow-sm transition-all flex items-center justify-center cursor-pointer relative ${mountedTire
+                                                            ? 'bg-slate-800 border-slate-900 text-white hover:bg-teal-600'
+                                                            : 'bg-white border-dashed border-slate-400 hover:border-teal-500'
+                                                            }`}>
+                                                            {mountedTire ? (
+                                                                <span className="text-[5px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber?.slice(-4)}</span>
+                                                            ) : <Plus size={6} className="text-slate-300" />}
+                                                            <select
+                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                                value={mountedTire?.id || ''}
+                                                                onChange={(e) => handleTireChange(v.id, slot.id, e.target.value)}
+                                                            >
+                                                                <option value="">Vazio</option>
+                                                                {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
+                                                                    <option key={t.id} value={t.id}>{t.serialNumber} ({t.brand})</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
                                                 );
                                             });
-                                        } else {
-                                            // Front Axle (Top 80px)
-                                            vSlots.push(
-                                                { id: 'E1_LE', style: { top: '80px', left: 'calc(50% - 50px)' } }, // Single Left
-                                                { id: 'E1_LD', style: { top: '80px', left: 'calc(50% + 30px)' } }  // Single Right
-                                            );
+                                        })()}
 
-                                            // Axle 2 (Drive) - Compressed Distance
-                                            const a2Top = isTruck ? 160 : 200;
-                                            vSlots.push(
-                                                { id: 'E2_LE_EXT', style: { top: `${a2Top}px`, left: 'calc(50% - 70px)' } },
-                                                { id: 'E2_LE_INT', style: { top: `${a2Top}px`, left: 'calc(50% - 35px)' } },
-                                                { id: 'E2_LD_INT', style: { top: `${a2Top}px`, left: 'calc(50% + 15px)' } },
-                                                { id: 'E2_LD_EXT', style: { top: `${a2Top}px`, left: 'calc(50% + 50px)' } }
-                                            );
-
-                                            if (isTruck) {
-                                                // Axle 3 (Trailing) 
-                                                const a3Top = 220;
-                                                vSlots.push(
-                                                    { id: 'E3_LE_EXT', style: { top: `${a3Top}px`, left: 'calc(50% - 70px)' } },
-                                                    { id: 'E3_LE_INT', style: { top: `${a3Top}px`, left: 'calc(50% - 35px)' } },
-                                                    { id: 'E3_LD_INT', style: { top: `${a3Top}px`, left: 'calc(50% + 15px)' } },
-                                                    { id: 'E3_LD_EXT', style: { top: `${a3Top}px`, left: 'calc(50% + 50px)' } }
-                                                );
-                                            }
-                                        }
-
-                                        return vSlots.map(slot => {
-                                            const mountedTire = tires.find(t => t.currentVehicleId === v.id && t.position === slot.id);
-                                            return (
-                                                <div key={slot.id} className="absolute z-10" style={slot.style}>
-                                                    <div className={`w-6 h-12 rounded border-2 shadow-sm transition-all flex items-center justify-center cursor-pointer group/pin relative ${mountedTire
-                                                        ? 'bg-slate-800 border-slate-900 text-white hover:bg-teal-600 shadow-md'
-                                                        : 'bg-white border-dashed border-slate-400 hover:border-teal-500 hover:bg-teal-50'
-                                                        }`}>
-                                                        {mountedTire ? (
-                                                            <span className="text-[6px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber}</span>
-                                                        ) : <Plus size={8} className="text-slate-300" />}
-
-                                                        {/* Native Select for Direct Interaction */}
-                                                        <select
-                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                            value={mountedTire?.id || ''}
-                                                            title={mountedTire ? `${mountedTire.brand} - ${mountedTire.serialNumber}` : 'Vazio'}
-                                                            onChange={(e) => handleTireChange(v.id, slot.id, e.target.value)}
-                                                        >
-                                                            <option value="">Vazio</option>
-                                                            {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
-                                                                <option key={t.id} value={t.id}>
-                                                                    {t.serialNumber} ({t.brand})
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
+                                        {/* Bottom Monthly Spending Bar */}
+                                        <div className="absolute bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm p-1.5 flex justify-between items-center gap-2">
+                                            {/* Monthly Fuel Cost */}
+                                            <div className="flex items-center gap-1.5 bg-blue-600/90 text-white px-2 py-1 rounded-lg">
+                                                <Droplets size={10} className="opacity-80" />
+                                                <div className="text-left">
+                                                    <p className="text-[6px] font-bold uppercase leading-none opacity-75">Comb/Mês</p>
+                                                    <p className="text-[10px] font-black leading-tight">{formatMoney(monthlyFuelCost)}</p>
                                                 </div>
-                                            );
-                                        });
-
-                                    })()}
+                                            </div>
+                                            {/* Monthly Maintenance Cost */}
+                                            <div className="flex items-center gap-1.5 bg-purple-600/90 text-white px-2 py-1 rounded-lg">
+                                                <Wrench size={10} className="opacity-80" />
+                                                <div className="text-right">
+                                                    <p className="text-[6px] font-bold uppercase leading-none opacity-75">Manut/Mês</p>
+                                                    <p className="text-[10px] font-black leading-tight">{formatMoney(monthlyMaintCost)}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Action Buttons - Compact */}
+                                    <div className="flex gap-1 mt-2">
+                                        <button
+                                            onClick={() => { setSelectedVehicleId(v.id); setIsMaintModalOpen(true); }}
+                                            className="flex-1 py-1.5 bg-slate-50 dark:bg-slate-700 hover:bg-teal-600 hover:text-white rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-1"
+                                        >
+                                            <Wrench size={10} /> Manut.
+                                        </button>
+                                        <button
+                                            onClick={() => { setSelectedVehicleId(v.id); setIsFuelModalOpen(true); }}
+                                            className="flex-1 py-1.5 bg-slate-50 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-1"
+                                        >
+                                            <Droplets size={10} /> Abast.
+                                        </button>
+                                    </div>
                                 </div>
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedVehicleId(v.id);
-                                            setIsMaintModalOpen(true);
-                                        }}
-                                        className="flex-1 py-3 bg-slate-50 dark:bg-slate-700 hover:bg-teal-600 hover:text-white rounded-2xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <PenTool size={14} /> Manutenção
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedVehicleId(v.id);
-                                            setIsFuelModalOpen(true);
-                                        }}
-                                        className="flex-1 py-3 bg-slate-50 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white rounded-2xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Droplets size={14} /> Abastecer
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -847,1020 +922,1037 @@ const Fleet = () => {
                         </table>
                     </div>
                 </div>
-            )}
+            )
+            }
 
-            {activeTab === 'fuel' && (
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                    <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-                        <div className="flex items-center gap-3">
-                            <History className="text-teal-600" />
-                            <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight">Registro de Abastecimentos</h3>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => exportToCSV(fleet.flatMap(v => v.fuelLogs || []), 'Historico_Abastecimento')}
-                                className="p-2 bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500 rounded-xl shadow-sm border dark:border-slate-600 transition-colors"
-                            >
-                                <Download size={16} />
-                            </button>
-                            <button onClick={() => setIsFuelModalOpen(true)} className="px-4 py-2 bg-teal-600 text-white font-black rounded-xl text-xs uppercase shadow-lg shadow-teal-600/20">Registrar Ticket</button>
-                        </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 dark:bg-gray-800 text-[10px] font-black text-slate-400 uppercase border-b dark:border-gray-700">
-                                <tr>
-                                    <th className="px-6 py-4">Data</th>
-                                    <th className="px-6 py-4">Veículo / Classificação</th>
-                                    <th className="px-6 py-4 text-center">Litragem</th>
-                                    <th className="px-6 py-4 text-right">Preço Un.</th>
-                                    <th className="px-6 py-4 text-right">Total Pago</th>
-                                    <th className="px-6 py-4 text-right">KM</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y dark:divide-gray-700">
-                                {fleet.flatMap(v => v.fuelLogs || []).sort((a, b) => b.date.localeCompare(a.date)).map(l => {
-                                    const veh = fleet.find(v => v.id === l.vehicleId);
-                                    return (
-                                        <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-teal-900/10 transition-all group">
-                                            <td className="px-6 py-5 font-bold text-slate-500">{l.date}</td>
-                                            <td className="px-6 py-5">
-                                                <p className="font-black text-slate-900 dark:text-white uppercase text-xs">{veh?.name}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] text-teal-600 font-bold">{veh?.plate}</span>
-                                                    <span className="text-[9px] text-slate-400 font-mono">[{l.ledgerCode || '2.02.01'}]</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300">{l.liters} L</td>
-                                            <td className="px-6 py-4 text-right text-xs text-slate-400">{formatBRL(l.cost / l.liters)}</td>
-                                            <td className="px-6 py-5 text-right font-black text-emerald-600">
-                                                <div className="flex flex-col items-end">
-                                                    <span>{formatBRL(l.cost)}</span>
-                                                    {l.attachments && l.attachments.length > 0 && (
-                                                        <span className="flex items-center gap-1 text-[9px] text-slate-400 uppercase font-bold">
-                                                            <Paperclip size={10} /> {l.attachments.length} {l.attachments.length === 1 ? 'anexo' : 'anexos'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5 text-right font-mono text-xs">
-                                                <div className="flex items-center justify-end gap-3">
-                                                    {l.km.toLocaleString()}
-                                                    <button onClick={() => deleteFuelLog(l.vehicleId, l.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                {fleet.every(v => !v.fuelLogs?.length) && (
-                                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic font-medium uppercase text-xs tracking-widest">Sem registros de consumo ativos...</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'tires' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {[
-                            { label: 'TOTAL DE PNEUS', value: tires.length, icon: <Disc />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10' },
-                            { label: 'EM OPERAÇÃO', value: tires.filter(t => t.status === 'Em uso').length, icon: <Activity />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
-                            { label: 'EM ESTOQUE', value: tires.filter(t => t.status === 'Estoque' || t.status === 'Novo').length, icon: <LayoutDashboard />, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/10' },
-                            { label: 'ALERTA DE TROCA', value: tires.filter(t => t.currentKm > t.maxKm * 0.9).length, icon: <AlertTriangle />, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/10' },
-                        ].map((kpi, i) => (
-                            <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`p-3 rounded-2xl ${kpi.bg} ${kpi.color}`}>{kpi.icon}</div>
-                                </div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</p>
-                                <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{kpi.value}</h3>
-                            </div>
-                        ))}
-                    </div>
-
+            {
+                activeTab === 'fuel' && (
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                        <div className="p-6 border-b dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/50">
+                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <div className="flex items-center gap-3">
-                                <Disc className="text-teal-600" size={24} />
-                                <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight">Inventário Global de Pneus</h3>
+                                <History className="text-teal-600" />
+                                <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight">Registro de Abastecimentos</h3>
                             </div>
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => {
-                                        setSelectedTireId(null);
-                                        setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 });
-                                        setIsTireModalOpen(true);
-                                    }}
-                                    className="px-4 py-2 bg-teal-600 text-white font-black rounded-xl text-[10px] uppercase shadow-lg shadow-teal-600/20"
+                                    onClick={() => exportToCSV(fleet.flatMap(v => v.fuelLogs || []), 'Historico_Abastecimento')}
+                                    className="p-2 bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500 rounded-xl shadow-sm border dark:border-slate-600 transition-colors"
                                 >
-                                    Novo Pneu
+                                    <Download size={16} />
                                 </button>
+                                <button onClick={() => setIsFuelModalOpen(true)} className="px-4 py-2 bg-teal-600 text-white font-black rounded-xl text-xs uppercase shadow-lg shadow-teal-600/20">Registrar Ticket</button>
                             </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-slate-50 dark:bg-gray-800 text-[10px] font-black text-slate-400 uppercase border-b dark:border-gray-700">
                                     <tr>
-                                        <th className="px-6 py-4">Nº Série / Modelo</th>
-                                        <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4">Veículo / Posição</th>
-                                        <th className="px-6 py-4 text-center">KM Atual</th>
-                                        <th className="px-6 py-4 text-center">Vida Útil</th>
-                                        <th className="px-6 py-4 text-center">Recapagens</th>
-                                        <th className="px-6 py-4 text-right">Ações</th>
+                                        <th className="px-6 py-4">Data</th>
+                                        <th className="px-6 py-4">Veículo / Classificação</th>
+                                        <th className="px-6 py-4 text-center">Litragem</th>
+                                        <th className="px-6 py-4 text-right">Preço Un.</th>
+                                        <th className="px-6 py-4 text-right">Total Pago</th>
+                                        <th className="px-6 py-4 text-right">KM</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y dark:divide-gray-700">
-                                    {tires.map(tire => {
-                                        const vehicle = fleet.find(v => v.id === tire.currentVehicleId);
-                                        const wearPercent = (tire.currentKm / tire.maxKm) * 100;
-
+                                    {fleet.flatMap(v => v.fuelLogs || []).sort((a, b) => b.date.localeCompare(a.date)).map(l => {
+                                        const veh = fleet.find(v => v.id === l.vehicleId);
                                         return (
-                                            <tr key={tire.id} className="hover:bg-slate-50 dark:hover:bg-teal-900/10 transition-all group">
-                                                <td className="px-6 py-4">
-                                                    <p className="font-black text-slate-900 dark:text-white uppercase text-xs">{tire.serialNumber}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">{tire.brand} {tire.model}</p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${tire.status === 'Em uso' ? 'bg-emerald-100 text-emerald-700' :
-                                                        tire.status === 'Estoque' || tire.status === 'Novo' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-rose-100 text-rose-700'
-                                                        }`}>
-                                                        {tire.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {vehicle ? (
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center gap-1.5 font-black text-xs text-slate-800 dark:text-white uppercase">
-                                                                <Truck size={12} className="text-teal-600" />
-                                                                {vehicle.plate}
-                                                            </div>
-                                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                                                                <ArrowRight size={10} />
-                                                                {vehicle.name} • Eixo: {tire.position || 'N/A'}
-                                                            </div>
-                                                            {tire.installKm !== undefined && (
-                                                                <div className="text-[9px] text-teal-600/60 font-bold mt-1 uppercase tracking-tighter">
-                                                                    Montado c/ {tire.installKm.toLocaleString()} KM
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase italic">
-                                                            <LayoutDashboard size={12} />
-                                                            Almoxarifado / Estoque
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
-                                                    {tire.currentKm.toLocaleString()} KM
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <div className="w-24 mx-auto">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className={`text-[9px] font-black ${wearPercent > 90 ? 'text-rose-500' : 'text-slate-400'}`}>{wearPercent.toFixed(0)}%</span>
-                                                        </div>
-                                                        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-500 ${wearPercent > 90 ? 'bg-rose-500' : wearPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                                                style={{ width: `${Math.min(100, wearPercent)}%` }}
-                                                            ></div>
-                                                        </div>
+                                            <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-teal-900/10 transition-all group">
+                                                <td className="px-6 py-5 font-bold text-slate-500">{l.date}</td>
+                                                <td className="px-6 py-5">
+                                                    <p className="font-black text-slate-900 dark:text-white uppercase text-xs">{veh?.name}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-teal-600 font-bold">{veh?.plate}</span>
+                                                        <span className="text-[9px] text-slate-400 font-mono">[{l.ledgerCode || '2.02.01'}]</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className="px-2 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg text-[10px] font-black text-slate-600 dark:text-slate-400">
-                                                        {tire.recapCount}X
-                                                    </span>
+                                                <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300">{l.liters} L</td>
+                                                <td className="px-6 py-4 text-right text-xs text-slate-400">{formatBRL(l.cost / l.liters)}</td>
+                                                <td className="px-6 py-5 text-right font-black text-emerald-600">
+                                                    <div className="flex flex-col items-end">
+                                                        <span>{formatBRL(l.cost)}</span>
+                                                        {l.attachments && l.attachments.length > 0 && (
+                                                            <span className="flex items-center gap-1 text-[9px] text-slate-400 uppercase font-bold">
+                                                                <Paperclip size={10} /> {l.attachments.length} {l.attachments.length === 1 ? 'anexo' : 'anexos'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedTireId(tire.id);
-                                                                setHistoryEntry({ ...historyEntry, km: tire.currentKm });
-                                                                setIsTireHistoryModalOpen(true);
-                                                            }}
-                                                            className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-teal-600 rounded-xl transition-all"
-                                                        >
-                                                            <RefreshCw size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedTireId(tire.id);
-                                                                setTireForm(tire);
-                                                                setIsTireModalOpen(true);
-                                                            }}
-                                                            className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
-                                                        >
-                                                            <Settings size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (confirm("Deseja excluir este pneu do inventário?")) deleteTire(tire.id);
-                                                            }}
-                                                            className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-600 rounded-xl transition-all"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                <td className="px-6 py-5 text-right font-mono text-xs">
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        {l.km.toLocaleString()}
+                                                        <button onClick={() => deleteFuelLog(l.vehicleId, l.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
                                                     </div>
                                                 </td>
                                             </tr>
                                         );
                                     })}
+                                    {fleet.every(v => !v.fuelLogs?.length) && (
+                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic font-medium uppercase text-xs tracking-widest">Sem registros de consumo ativos...</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {
+                activeTab === 'tires' && (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[
+                                { label: 'TOTAL DE PNEUS', value: tires.length, icon: <Disc />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10' },
+                                { label: 'EM OPERAÇÃO', value: tires.filter(t => t.status === 'Em uso').length, icon: <Activity />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
+                                { label: 'EM ESTOQUE', value: tires.filter(t => t.status === 'Estoque' || t.status === 'Novo').length, icon: <LayoutDashboard />, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/10' },
+                                { label: 'ALERTA DE TROCA', value: tires.filter(t => t.currentKm > t.maxKm * 0.9).length, icon: <AlertTriangle />, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/10' },
+                            ].map((kpi, i) => (
+                                <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`p-3 rounded-2xl ${kpi.bg} ${kpi.color}`}>{kpi.icon}</div>
+                                    </div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</p>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{kpi.value}</h3>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                            <div className="p-6 border-b dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/50">
+                                <div className="flex items-center gap-3">
+                                    <Disc className="text-teal-600" size={24} />
+                                    <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight">Inventário Global de Pneus</h3>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedTireId(null);
+                                            setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 });
+                                            setIsTireModalOpen(true);
+                                        }}
+                                        className="px-4 py-2 bg-teal-600 text-white font-black rounded-xl text-[10px] uppercase shadow-lg shadow-teal-600/20"
+                                    >
+                                        Novo Pneu
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 dark:bg-gray-800 text-[10px] font-black text-slate-400 uppercase border-b dark:border-gray-700">
+                                        <tr>
+                                            <th className="px-6 py-4">Nº Série / Modelo</th>
+                                            <th className="px-6 py-4">Status</th>
+                                            <th className="px-6 py-4">Veículo / Posição</th>
+                                            <th className="px-6 py-4 text-center">KM Atual</th>
+                                            <th className="px-6 py-4 text-center">Vida Útil</th>
+                                            <th className="px-6 py-4 text-center">Recapagens</th>
+                                            <th className="px-6 py-4 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y dark:divide-gray-700">
+                                        {tires.map(tire => {
+                                            const vehicle = fleet.find(v => v.id === tire.currentVehicleId);
+                                            const wearPercent = (tire.currentKm / tire.maxKm) * 100;
+
+                                            return (
+                                                <tr key={tire.id} className="hover:bg-slate-50 dark:hover:bg-teal-900/10 transition-all group">
+                                                    <td className="px-6 py-4">
+                                                        <p className="font-black text-slate-900 dark:text-white uppercase text-xs">{tire.serialNumber}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{tire.brand} {tire.model}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${tire.status === 'Em uso' ? 'bg-emerald-100 text-emerald-700' :
+                                                            tire.status === 'Estoque' || tire.status === 'Novo' ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-rose-100 text-rose-700'
+                                                            }`}>
+                                                            {tire.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {vehicle ? (
+                                                            <div className="flex flex-col">
+                                                                <div className="flex items-center gap-1.5 font-black text-xs text-slate-800 dark:text-white uppercase">
+                                                                    <Truck size={12} className="text-teal-600" />
+                                                                    {vehicle.plate}
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                                                                    <ArrowRight size={10} />
+                                                                    {vehicle.name} • Eixo: {tire.position || 'N/A'}
+                                                                </div>
+                                                                {tire.installKm !== undefined && (
+                                                                    <div className="text-[9px] text-teal-600/60 font-bold mt-1 uppercase tracking-tighter">
+                                                                        Montado c/ {tire.installKm.toLocaleString()} KM
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase italic">
+                                                                <LayoutDashboard size={12} />
+                                                                Almoxarifado / Estoque
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
+                                                        {tire.currentKm.toLocaleString()} KM
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="w-24 mx-auto">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className={`text-[9px] font-black ${wearPercent > 90 ? 'text-rose-500' : 'text-slate-400'}`}>{wearPercent.toFixed(0)}%</span>
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full transition-all duration-500 ${wearPercent > 90 ? 'bg-rose-500' : wearPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                                    style={{ width: `${Math.min(100, wearPercent)}%` }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg text-[10px] font-black text-slate-600 dark:text-slate-400">
+                                                            {tire.recapCount}X
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedTireId(tire.id);
+                                                                    setHistoryEntry({ ...historyEntry, km: tire.currentKm });
+                                                                    setIsTireHistoryModalOpen(true);
+                                                                }}
+                                                                className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-teal-600 rounded-xl transition-all"
+                                                            >
+                                                                <RefreshCw size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedTireId(tire.id);
+                                                                    setTireForm(tire);
+                                                                    setIsTireModalOpen(true);
+                                                                }}
+                                                                className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
+                                                            >
+                                                                <Settings size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (confirm("Deseja excluir este pneu do inventário?")) deleteTire(tire.id);
+                                                                }}
+                                                                className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-600 rounded-xl transition-all"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             {/* Maintenance Modal */}
-            {isMaintModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
-                        <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                            <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Registrar Manutenção</h3>
-                            <button onClick={() => setIsMaintModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                        </div>
-                        <form onSubmit={handleSaveMaintenance} className="p-10 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
-                                        <select
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
-                                            value={selectedVehicleId}
-                                            onChange={e => setSelectedVehicleId(e.target.value)}
-                                            required
-                                        >
-                                            <option value="">Selecione o veículo...</option>
-                                            {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
+            {
+                isMaintModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                        <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
+                            <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Registrar Manutenção</h3>
+                                <button onClick={() => setIsMaintModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            </div>
+                            <form onSubmit={handleSaveMaintenance} className="p-10 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-6">
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
-                                            <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.date} onChange={e => setNewMaint({ ...newMaint, date: e.target.value })} required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo</label>
-                                            <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.type} onChange={e => setNewMaint({ ...newMaint, type: e.target.value as any })} required>
-                                                <option value="Preventiva">Preventiva</option>
-                                                <option value="Corretiva">Corretiva</option>
-                                                <option value="Preditiva">Preditiva</option>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                                value={selectedVehicleId}
+                                                onChange={e => setSelectedVehicleId(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">Selecione o veículo...</option>
+                                                {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
                                             </select>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição do Serviço</label>
-                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Ex: Troca de óleo, filtros, pastilhas..." value={newMaint.description} onChange={e => setNewMaint({ ...newMaint, description: e.target.value })} required rows={4}></textarea>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Conta de Débito</label>
-                                        <select
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
-                                            value={newMaint.debitAccountId || ''}
-                                            onChange={e => setNewMaint({ ...newMaint, debitAccountId: e.target.value })}
-                                            required
-                                        >
-                                            <option value="">Selecione a conta...</option>
-                                            {financialAccounts.map(acc => (
-                                                <option key={acc.id} value={acc.id}>{acc.name} ({formatBRL(acc.balance)})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Custo Mão de Obra (R$)</label>
-                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={newMaint.cost || ''} onChange={e => setNewMaint({ ...newMaint, cost: Number(e.target.value) })} required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
-                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0" value={newMaint.km || ''} onChange={e => setNewMaint({ ...newMaint, km: Number(e.target.value) })} required />
-                                        </div>
-                                    </div>
-
-                                    <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                        <h4 className="text-xs font-black text-teal-600 uppercase mb-4">Peças e Insumos</h4>
-                                        <div className="grid grid-cols-1 gap-4">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto (Filtro: Peças/Manutenção)</label>
-                                                <select
-                                                    className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm"
-                                                    value={newMaint.productId}
-                                                    onChange={e => {
-                                                        const prod = inventory.find(i => i.id === e.target.value);
-                                                        // Add product cost to total cost logic would be here, but simplified for now
-                                                        setNewMaint({ ...newMaint, productId: e.target.value, productQuantity: 1 });
-                                                    }}
-                                                >
-                                                    <option value="">Nenhum produto...</option>
-                                                    {inventory
-                                                        .filter(item => {
-                                                            const cat = (item.category || '').toLowerCase();
-                                                            return cat.includes('peça') || cat.includes('peca') || cat.includes('manutenção') || cat.includes('manutencao');
-                                                        })
-                                                        .map(item => (
-                                                            <option key={item.id} value={item.id}>{item.name} (Disp: {item.quantity} {item.unit}) - {formatBRL(item.price)}</option>
-                                                        ))}
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
+                                                <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.date} onChange={e => setNewMaint({ ...newMaint, date: e.target.value })} required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo</label>
+                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={newMaint.type} onChange={e => setNewMaint({ ...newMaint, type: e.target.value as any })} required>
+                                                    <option value="Preventiva">Preventiva</option>
+                                                    <option value="Corretiva">Corretiva</option>
+                                                    <option value="Preditiva">Preditiva</option>
                                                 </select>
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Quantidade</label>
-                                                <input type="number" className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm" value={newMaint.productQuantity || 0} onChange={e => setNewMaint({ ...newMaint, productQuantity: Number(e.target.value) })} min="0" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Plano de Contas</label>
-                                <select
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                    value={newMaint.ledgerCode}
-                                    onChange={e => {
-                                        const options: any = {
-                                            '2.02.02': 'Manutenção de Frota',
-                                            '2.02.03': 'IPVA / Taxas / Seguros',
-                                            '2.02.04': 'Pneus / Rodagem'
-                                        };
-                                        setNewMaint({ ...newMaint, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
-                                    }}
-                                >
-                                    <option value="2.02.02">2.02.02 - Manutenção de Frota</option>
-                                    <option value="2.02.03">2.02.03 - IPVA / Taxas / Seguros</option>
-                                    <option value="2.02.04">2.02.04 - Pneus / Rodagem</option>
-                                </select>
-                            </div>
-
-                            {/* Attachments Section */}
-                            <div className="pt-6 border-t border-slate-50 dark:border-slate-700">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
-                                    <Paperclip size={14} className="text-teal-600" /> Comprovantes & Notas
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-teal-400 transition-colors relative">
-                                        <input
-                                            type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
-                                                    setNewMaint({ ...newMaint, attachments: [...(newMaint.attachments || []), at] });
-                                                }
-                                            }}
-                                        />
-                                        <Upload size={20} className="text-slate-300 mb-1" />
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Anexar Nota/Recibo</span>
-                                    </div>
-
-                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                                        {newMaint.attachments?.map((at: any) => (
-                                            <div key={at.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl group border border-transparent hover:border-teal-100">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <File size={14} className="text-teal-600 shrink-0" />
-                                                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate uppercase">{at.name}</span>
-                                                </div>
-                                                <button type="button" onClick={() => setNewMaint({ ...newMaint, attachments: newMaint.attachments?.filter((a: any) => a.id !== at.id) })} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
-                                                    <XCircle size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {(!newMaint.attachments || newMaint.attachments.length === 0) && (
-                                            <div className="h-full flex flex-col items-center justify-center py-4 opacity-40">
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase italic">Sem anexos</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Lançar Manutenção</button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Fuel Modal */}
-            {isFuelModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Lançar Abastecimento</h3>
-                            <button onClick={() => setIsFuelModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                        </div>
-                        <form onSubmit={handleSaveFuel} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
-                                <select
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                    value={selectedVehicleId}
-                                    onChange={e => setSelectedVehicleId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">Selecione o veículo...</option>
-                                    {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Combustível</label>
-                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newFuel.fuelType} onChange={e => setNewFuel({ ...newFuel, fuelType: e.target.value as any })} required>
-                                        <option value="Diesel">Diesel</option>
-                                        <option value="Gasolina">Gasolina</option>
-                                        <option value="Etanol">Etanol</option>
-                                        <option value="Arla 32">Arla 32</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
-                                    <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newFuel.date} onChange={e => setNewFuel({ ...newFuel, date: e.target.value })} required />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Litros</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0.00" value={newFuel.liters || ''} onChange={e => setNewFuel({ ...newFuel, liters: Number(e.target.value) })} required />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Total Pago</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="R$" value={newFuel.cost || ''} onChange={e => setNewFuel({ ...newFuel, cost: Number(e.target.value) })} required />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0" value={newFuel.km || ''} onChange={e => setNewFuel({ ...newFuel, km: Number(e.target.value) })} required />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Plano de Contas</label>
-                                <select
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                    value={newFuel.ledgerCode}
-                                    onChange={e => {
-                                        const options: any = {
-                                            '2.02.01': 'Combustível',
-                                            '2.02.05': 'Arla 32 / Aditivos'
-                                        };
-                                        setNewFuel({ ...newFuel, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
-                                    }}
-                                >
-                                    <option value="2.02.01">2.02.01 - Combustível</option>
-                                    <option value="2.02.05">2.02.05 - Arla 32 / Aditivos</option>
-                                </select>
-                            </div>
-
-                            {/* Attachments Section */}
-                            <div className="pt-6 border-t border-slate-50 dark:border-slate-700">
-                                <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
-                                    <Paperclip size={14} className="text-emerald-600" /> Comprovantes & Anexos
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-emerald-400 transition-colors relative">
-                                        <input
-                                            type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
-                                                    setNewFuel({ ...newFuel, attachments: [...(newFuel.attachments || []), at] });
-                                                }
-                                            }}
-                                        />
-                                        <Upload size={20} className="text-slate-300 mb-1" />
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Anexar Cupom Fiscal</span>
-                                    </div>
-
-                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                                        {newFuel.attachments?.map((at: any) => (
-                                            <div key={at.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl group border border-transparent hover:border-emerald-100">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <File size={14} className="text-emerald-600 shrink-0" />
-                                                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate uppercase">{at.name}</span>
-                                                </div>
-                                                <button type="button" onClick={() => setNewFuel({ ...newFuel, attachments: newFuel.attachments?.filter((a: any) => a.id !== at.id) })} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
-                                                    <XCircle size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {(!newFuel.attachments || newFuel.attachments.length === 0) && (
-                                            <div className="h-full flex flex-col items-center justify-center py-4 opacity-40">
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase italic">Nenhum cupom</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Confirmar Registro</button>
-                        </form>
-                    </div>
-                </div>
-            )}
-            {/* Fuel Modal ... already exists ... */}
-
-            {/* New/Edit Vehicle Modal */}
-            {isVehicleModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl border dark:border-slate-700 animate-in zoom-in duration-300 my-8 overflow-hidden">
-                        <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                            <div>
-                                <h3 className="font-black text-2xl text-slate-900 dark:text-white uppercase tracking-tighter leading-tight">
-                                    {editingVehicleId ? 'Editar Veículo' : 'Novo Ativo de Frota'}
-                                </h3>
-                                <p className="text-xs font-bold text-teal-600 uppercase tracking-widest mt-1">Sincronização em tempo real</p>
-                            </div>
-                            <button onClick={() => setIsVehicleModalOpen(false)} className="p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-2xl shadow-sm transition-all"><X size={24} /></button>
-                        </div>
-
-                        <form onSubmit={handleSaveVehicle} className="p-10 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Modelo / Nome do Ativo</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm focus:ring-2 focus:ring-teal-500 transition-all shadow-inner"
-                                            placeholder="Ex: Volvo FH 540"
-                                            value={vehicleForm.name || ''}
-                                            onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Placa / ID</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" placeholder="ABC-1234" value={vehicleForm.plate || ''} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} required />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Tipo</label>
-                                            <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.type} onChange={e => setVehicleForm({ ...vehicleForm, type: e.target.value as any })}>
-                                                <option value="Toco">Caminhão Toco (6 Pneus)</option>
-                                                <option value="Truck">Caminhão Truck (10 Pneus)</option>
-                                                <option value="Carreta LS">Carreta LS (12 Pneus)</option>
-                                                <option value="Máquina">Máquina</option>
-                                                <option value="Utilitário">Utilitário</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Odômetro (KM)</label>
-                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.km || ''} onChange={e => setVehicleForm({ ...vehicleForm, km: Number(e.target.value) })} required />
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição do Serviço</label>
+                                            <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Ex: Troca de óleo, filtros, pastilhas..." value={newMaint.description} onChange={e => setNewMaint({ ...newMaint, description: e.target.value })} required rows={4}></textarea>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Combustível (%)</label>
-                                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.fuelLevel || ''} onChange={e => setVehicleForm({ ...vehicleForm, fuelLevel: Number(e.target.value) })} max="100" min="0" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Status Operacional</label>
-                                        <div className="flex gap-2">
-                                            {['Operacional', 'Manutenção', 'Parado'].map((st) => (
-                                                <button
-                                                    key={st}
-                                                    type="button"
-                                                    onClick={() => setVehicleForm({ ...vehicleForm, status: st as any })}
-                                                    className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${vehicleForm.status === st ? 'bg-teal-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
-                                                >
-                                                    {st}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="pt-8 border-t dark:border-slate-700 flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsVehicleModalOpen(false)}
-                                    className="flex-1 py-5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-3xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
-                                >
-                                    Descartar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-[2] py-5 bg-teal-600 text-white font-black rounded-3xl uppercase tracking-widest text-[10px] shadow-2xl shadow-teal-600/30 hover:bg-teal-500 transition-all flex items-center justify-center gap-3"
-                                >
-                                    <Save size={18} /> {editingVehicleId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-            {/* Tire Modal */}
-            {isTireModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                            <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">
-                                {selectedTireId ? 'Editar Pneu' : 'Novo Pneu'}
-                            </h3>
-                            <button onClick={() => setIsTireModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                        </div>
-
-                        {!selectedTireId && !tireForm.brand ? (
-                            // Mode Selection for New Tire
-                            <div className="p-8 grid grid-cols-2 gap-6">
-                                <button
-                                    onClick={() => setTireForm({ ...tireForm, brand: ' ' })} // Hack to bypass check, will reset
-                                    className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all group"
-                                >
-                                    <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-teal-600 shadow-sm"><PenTool size={32} /></div>
-                                    <div className="text-center">
-                                        <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Cadastro Manual</h4>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Pneus já existentes ou sem estoque</p>
-                                    </div>
-                                </button>
-
-                                <button
-                                    onClick={() => setTireForm({ ...tireForm, brand: 'STOCK_MODE' })}
-                                    className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
-                                >
-                                    <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-blue-600 shadow-sm"><Package size={32} /></div>
-                                    <div className="text-center">
-                                        <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Baixar do Estoque</h4>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Consumir item do Almoxarifado</p>
-                                    </div>
-                                </button>
-                            </div>
-                        ) : (
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                // Intercept for stock deduction logic
-                                if (tireForm.brand === 'STOCK_MODE' && tireForm.model) { // model holds itemId here momentarily
-                                    const itemId = tireForm.model;
-                                    const item = inventory.find(i => i.id === itemId);
-                                    if (item) {
-                                        // Deduct from stock
-                                        // We need access to updateStock, but it's in context. 
-                                        // We'll rely on global updateStock from props/context if available or simple logic
-                                        // Since we can't easily call updateStock here without it being in scope (it is in Fleet component),
-                                        // we will assume Fleet component has updateStock in scope? YES.
-                                        // WAIT: updateStock is NOTdestructured in Fleet. We need to add it.
-                                    }
-                                    // Correct the form data before saving
-                                    // Actually, let handleSaveTire handle the logic if we pass a special flag or handle it here
-                                }
-                                handleSaveTire(e);
-                            }} className="p-6 space-y-4">
-                                {tireForm.brand === 'STOCK_MODE' ? (
-                                    <div className="space-y-4">
-                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex items-start gap-3">
-                                            <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
-                                            <div>
-                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-200 uppercase">Conciliação de Estoque</p>
-                                                <p className="text-[10px] text-blue-600/80 dark:text-blue-300">Ao selecionar um pneu, uma unidade será removida do estoque automaticamente e o pneu será cadastrado na frota.</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Selecione o Pneu em Estoque</label>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Conta de Débito</label>
                                             <select
-                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                                onChange={(e) => {
-                                                    const item = inventory.find(i => i.id === e.target.value);
-                                                    if (item) {
-                                                        // Pre-fill form with item data
-                                                        setTireForm({
-                                                            ...tireForm,
-                                                            brand: item.name.split(' ')[0], // Guess brand
-                                                            model: item.name, // Use full name as model for now or split
-                                                            size: '295/80 R22.5', // Default or parse from description
-                                                            stockItemId: item.id, // Store ref
-                                                            maxKm: 100000,
-                                                            currentKm: 0,
-                                                            status: 'Novo'
-                                                        });
-                                                    }
-                                                }}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                                value={newMaint.debitAccountId || ''}
+                                                onChange={e => setNewMaint({ ...newMaint, debitAccountId: e.target.value })}
+                                                required
                                             >
-                                                <option value="">Selecione...</option>
-                                                {inventory.filter(i =>
-                                                    i.category.toLowerCase().includes('pneu') && i.quantity > 0
-                                                ).map(i => (
-                                                    <option key={i.id} value={i.id}>{i.name} - (Disp: {i.quantity})</option>
+                                                <option value="">Selecione a conta...</option>
+                                                {financialAccounts.map(acc => (
+                                                    <option key={acc.id} value={acc.id}>{acc.name} ({formatBRL(acc.balance)})</option>
                                                 ))}
                                             </select>
                                         </div>
-                                        {tireForm.stockItemId && (
-                                            <div className="space-y-4 pt-4 border-t dark:border-slate-800 animate-in fade-in">
-                                                <div>
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
-                                                        placeholder="Ex: PN-102030"
-                                                        value={tireForm.serialNumber || ''}
-                                                        onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
-                                                        required
-                                                    />
-                                                </div>
-                                                <button
-                                                    type="submit"
-                                                    className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs hover:bg-blue-500 transition-all"
-                                                >
-                                                    <Download size={16} className="inline mr-2" /> Baixar e Cadastrar
-                                                </button>
-                                            </div>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 })}
-                                            className="w-full py-3 text-slate-400 text-xs font-bold uppercase hover:text-slate-600"
-                                        >
-                                            Cancelar
-                                        </button>
                                     </div>
-                                ) : (
-                                    <>
+
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Custo Mão de Obra (R$)</label>
+                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={newMaint.cost || ''} onChange={e => setNewMaint({ ...newMaint, cost: Number(e.target.value) })} required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
+                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0" value={newMaint.km || ''} onChange={e => setNewMaint({ ...newMaint, km: Number(e.target.value) })} required />
+                                            </div>
+                                        </div>
+
+                                        <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                            <h4 className="text-xs font-black text-teal-600 uppercase mb-4">Peças e Insumos</h4>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto (Filtro: Peças/Manutenção)</label>
+                                                    <select
+                                                        className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm"
+                                                        value={newMaint.productId}
+                                                        onChange={e => {
+                                                            const prod = inventory.find(i => i.id === e.target.value);
+                                                            // Add product cost to total cost logic would be here, but simplified for now
+                                                            setNewMaint({ ...newMaint, productId: e.target.value, productQuantity: 1 });
+                                                        }}
+                                                    >
+                                                        <option value="">Nenhum produto...</option>
+                                                        {inventory
+                                                            .filter(item => {
+                                                                const cat = (item.category || '').toLowerCase();
+                                                                return cat.includes('peça') || cat.includes('peca') || cat.includes('manutenção') || cat.includes('manutencao');
+                                                            })
+                                                            .map(item => (
+                                                                <option key={item.id} value={item.id}>{item.name} (Disp: {item.quantity} {item.unit}) - {formatBRL(item.price)}</option>
+                                                            ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Quantidade</label>
+                                                    <input type="number" className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm" value={newMaint.productQuantity || 0} onChange={e => setNewMaint({ ...newMaint, productQuantity: Number(e.target.value) })} min="0" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Plano de Contas</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                        value={newMaint.ledgerCode}
+                                        onChange={e => {
+                                            const options: any = {
+                                                '2.02.02': 'Manutenção de Frota',
+                                                '2.02.03': 'IPVA / Taxas / Seguros',
+                                                '2.02.04': 'Pneus / Rodagem'
+                                            };
+                                            setNewMaint({ ...newMaint, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
+                                        }}
+                                    >
+                                        <option value="2.02.02">2.02.02 - Manutenção de Frota</option>
+                                        <option value="2.02.03">2.02.03 - IPVA / Taxas / Seguros</option>
+                                        <option value="2.02.04">2.02.04 - Pneus / Rodagem</option>
+                                    </select>
+                                </div>
+
+                                {/* Attachments Section */}
+                                <div className="pt-6 border-t border-slate-50 dark:border-slate-700">
+                                    <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                                        <Paperclip size={14} className="text-teal-600" /> Comprovantes & Notas
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-teal-400 transition-colors relative">
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
+                                                        setNewMaint({ ...newMaint, attachments: [...(newMaint.attachments || []), at] });
+                                                    }
+                                                }}
+                                            />
+                                            <Upload size={20} className="text-slate-300 mb-1" />
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Anexar Nota/Recibo</span>
+                                        </div>
+
+                                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                                            {newMaint.attachments?.map((at: any) => (
+                                                <div key={at.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl group border border-transparent hover:border-teal-100">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <File size={14} className="text-teal-600 shrink-0" />
+                                                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate uppercase">{at.name}</span>
+                                                    </div>
+                                                    <button type="button" onClick={() => setNewMaint({ ...newMaint, attachments: newMaint.attachments?.filter((a: any) => a.id !== at.id) })} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(!newMaint.attachments || newMaint.attachments.length === 0) && (
+                                                <div className="h-full flex flex-col items-center justify-center py-4 opacity-40">
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase italic">Sem anexos</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Lançar Manutenção</button>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Fuel Modal */}
+            {
+                isFuelModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
+                            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Lançar Abastecimento</h3>
+                                <button onClick={() => setIsFuelModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            </div>
+                            <form onSubmit={handleSaveFuel} className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                        value={selectedVehicleId}
+                                        onChange={e => setSelectedVehicleId(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Selecione o veículo...</option>
+                                        {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Combustível</label>
+                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newFuel.fuelType} onChange={e => setNewFuel({ ...newFuel, fuelType: e.target.value as any })} required>
+                                            <option value="Diesel">Diesel</option>
+                                            <option value="Gasolina">Gasolina</option>
+                                            <option value="Etanol">Etanol</option>
+                                            <option value="Arla 32">Arla 32</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
+                                        <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={newFuel.date} onChange={e => setNewFuel({ ...newFuel, date: e.target.value })} required />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Litros</label>
+                                        <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0.00" value={newFuel.liters || ''} onChange={e => setNewFuel({ ...newFuel, liters: Number(e.target.value) })} required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Total Pago</label>
+                                        <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="R$" value={newFuel.cost || ''} onChange={e => setNewFuel({ ...newFuel, cost: Number(e.target.value) })} required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
+                                        <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" placeholder="0" value={newFuel.km || ''} onChange={e => setNewFuel({ ...newFuel, km: Number(e.target.value) })} required />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Plano de Contas</label>
+                                    <select
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                        value={newFuel.ledgerCode}
+                                        onChange={e => {
+                                            const options: any = {
+                                                '2.02.01': 'Combustível',
+                                                '2.02.05': 'Arla 32 / Aditivos'
+                                            };
+                                            setNewFuel({ ...newFuel, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
+                                        }}
+                                    >
+                                        <option value="2.02.01">2.02.01 - Combustível</option>
+                                        <option value="2.02.05">2.02.05 - Arla 32 / Aditivos</option>
+                                    </select>
+                                </div>
+
+                                {/* Attachments Section */}
+                                <div className="pt-6 border-t border-slate-50 dark:border-slate-700">
+                                    <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                                        <Paperclip size={14} className="text-emerald-600" /> Comprovantes & Anexos
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-emerald-400 transition-colors relative">
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
+                                                        setNewFuel({ ...newFuel, attachments: [...(newFuel.attachments || []), at] });
+                                                    }
+                                                }}
+                                            />
+                                            <Upload size={20} className="text-slate-300 mb-1" />
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Anexar Cupom Fiscal</span>
+                                        </div>
+
+                                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                                            {newFuel.attachments?.map((at: any) => (
+                                                <div key={at.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl group border border-transparent hover:border-emerald-100">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <File size={14} className="text-emerald-600 shrink-0" />
+                                                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate uppercase">{at.name}</span>
+                                                    </div>
+                                                    <button type="button" onClick={() => setNewFuel({ ...newFuel, attachments: newFuel.attachments?.filter((a: any) => a.id !== at.id) })} className="p-1 text-slate-300 hover:text-rose-500 transition-colors">
+                                                        <XCircle size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(!newFuel.attachments || newFuel.attachments.length === 0) && (
+                                                <div className="h-full flex flex-col items-center justify-center py-4 opacity-40">
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase italic">Nenhum cupom</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Confirmar Registro</button>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Fuel Modal ... already exists ... */}
+
+            {/* New/Edit Vehicle Modal */}
+            {
+                isVehicleModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                        <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl border dark:border-slate-700 animate-in zoom-in duration-300 my-8 overflow-hidden">
+                            <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                                <div>
+                                    <h3 className="font-black text-2xl text-slate-900 dark:text-white uppercase tracking-tighter leading-tight">
+                                        {editingVehicleId ? 'Editar Veículo' : 'Novo Ativo de Frota'}
+                                    </h3>
+                                    <p className="text-xs font-bold text-teal-600 uppercase tracking-widest mt-1">Sincronização em tempo real</p>
+                                </div>
+                                <button onClick={() => setIsVehicleModalOpen(false)} className="p-3 bg-white dark:bg-slate-700 text-slate-400 hover:text-rose-500 rounded-2xl shadow-sm transition-all"><X size={24} /></button>
+                            </div>
+
+                            <form onSubmit={handleSaveVehicle} className="p-10 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-6">
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Modelo / Nome do Ativo</label>
                                             <input
                                                 type="text"
-                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
-                                                placeholder="Ex: PN-102030"
-                                                value={tireForm.serialNumber || ''}
-                                                onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm focus:ring-2 focus:ring-teal-500 transition-all shadow-inner"
+                                                placeholder="Ex: Volvo FH 540"
+                                                value={vehicleForm.name || ''}
+                                                onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })}
                                                 required
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Marca</label>
-                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.brand} onChange={e => setTireForm({ ...tireForm, brand: e.target.value })} required />
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Placa / ID</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" placeholder="ABC-1234" value={vehicleForm.plate || ''} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} required />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Modelo</label>
-                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.model} onChange={e => setTireForm({ ...tireForm, model: e.target.value })} required />
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Tipo</label>
+                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.type} onChange={e => setVehicleForm({ ...vehicleForm, type: e.target.value as any })}>
+                                                    <option value="Toco">Caminhão Toco (6 Pneus)</option>
+                                                    <option value="Truck">Caminhão Truck (10 Pneus)</option>
+                                                    <option value="Carreta LS">Carreta LS (12 Pneus)</option>
+                                                    <option value="Máquina">Máquina</option>
+                                                    <option value="Utilitário">Utilitário</option>
+                                                </select>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <div className="space-y-6">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Medida</label>
-                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.size} onChange={e => setTireForm({ ...tireForm, size: e.target.value })} required />
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Odômetro (KM)</label>
+                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.km || ''} onChange={e => setVehicleForm({ ...vehicleForm, km: Number(e.target.value) })} required />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Estimado (Vida Útil)</label>
-                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.maxKm} onChange={e => setTireForm({ ...tireForm, maxKm: Number(e.target.value) })} required />
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Combustível (%)</label>
+                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 font-bold text-sm" value={vehicleForm.fuelLevel || ''} onChange={e => setVehicleForm({ ...vehicleForm, fuelLevel: Number(e.target.value) })} max="100" min="0" />
                                             </div>
                                         </div>
-                                        <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Salvar Alterações</button>
-                                    </>
-                                )}
-                            </form>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Tire History/Rotation Modal */}
-            {isTireHistoryModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Movimentação / Histórico</h3>
-                            <button onClick={() => setIsTireHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                        </div>
-                        <form onSubmit={handleSaveTireHistory} className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
-                                    <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={historyEntry.date} onChange={e => setHistoryEntry({ ...historyEntry, date: e.target.value })} required />
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-3">Status Operacional</label>
+                                            <div className="flex gap-2">
+                                                {['Operacional', 'Manutenção', 'Parado'].map((st) => (
+                                                    <button
+                                                        key={st}
+                                                        type="button"
+                                                        onClick={() => setVehicleForm({ ...vehicleForm, status: st as any })}
+                                                        className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${vehicleForm.status === st ? 'bg-teal-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                                                    >
+                                                        {st}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Evento</label>
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                        value={historyEntry.type}
-                                        onChange={e => setHistoryEntry({ ...historyEntry, type: e.target.value as any })}
-                                        required
+
+                                <div className="pt-8 border-t dark:border-slate-700 flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsVehicleModalOpen(false)}
+                                        className="flex-1 py-5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-3xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
                                     >
-                                        <option value="Instalação">Instalação</option>
-                                        <option value="Rodízio">Rodízio</option>
-                                        <option value="Retirada">Retirada (Estoque)</option>
-                                        <option value="Recapagem">Recapagem</option>
-                                        <option value="Inspeção">Inspeção</option>
-                                    </select>
+                                        Descartar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-[2] py-5 bg-teal-600 text-white font-black rounded-3xl uppercase tracking-widest text-[10px] shadow-2xl shadow-teal-600/30 hover:bg-teal-500 transition-all flex items-center justify-center gap-3"
+                                    >
+                                        <Save size={18} /> {editingVehicleId ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+                                    </button>
                                 </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Tire Modal */}
+            {
+                isTireModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
+                            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">
+                                    {selectedTireId ? 'Editar Pneu' : 'Novo Pneu'}
+                                </h3>
+                                <button onClick={() => setIsTireModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                             </div>
 
-                            {(historyEntry.type === 'Instalação' || historyEntry.type === 'Rodízio') && (
-                                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
-                                        <select
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                            value={historyEntry.vehicleId}
-                                            onChange={e => setHistoryEntry({ ...historyEntry, vehicleId: e.target.value })}
-                                            required
-                                        >
-                                            <option value="">Selecione...</option>
-                                            {fleet.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Posição</label>
-                                        <select
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
-                                            value={historyEntry.position}
-                                            onChange={e => setHistoryEntry({ ...historyEntry, position: e.target.value })}
-                                            required
-                                        >
-                                            <option value="DI">Dianteiro Esq.</option>
-                                            <option value="DD">Dianteiro Dir.</option>
-                                            <option value="T1E">Tração 1 Esq. Ext.</option>
-                                            <option value="T1EI">Tração 1 Esq. Int.</option>
-                                            <option value="T1D">Tração 1 Dir. Ext.</option>
-                                            <option value="T1DI">Tração 1 Dir. Int.</option>
-                                        </select>
-                                    </div>
+                            {!selectedTireId && !tireForm.brand ? (
+                                // Mode Selection for New Tire
+                                <div className="p-8 grid grid-cols-2 gap-6">
+                                    <button
+                                        onClick={() => setTireForm({ ...tireForm, brand: ' ' })} // Hack to bypass check, will reset
+                                        className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all group"
+                                    >
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-teal-600 shadow-sm"><PenTool size={32} /></div>
+                                        <div className="text-center">
+                                            <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Cadastro Manual</h4>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Pneus já existentes ou sem estoque</p>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setTireForm({ ...tireForm, brand: 'STOCK_MODE' })}
+                                        className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                                    >
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-blue-600 shadow-sm"><Package size={32} /></div>
+                                        <div className="text-center">
+                                            <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Baixar do Estoque</h4>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Consumir item do Almoxarifado</p>
+                                        </div>
+                                    </button>
                                 </div>
-                            )}
-
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM no Evento</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={historyEntry.km} onChange={e => setHistoryEntry({ ...historyEntry, km: Number(e.target.value) })} required />
-                            </div>
-
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Observações</label>
-                                <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" placeholder="Ex: Pressão, profundidade do sulco..." value={historyEntry.notes} onChange={e => setHistoryEntry({ ...historyEntry, notes: e.target.value })} rows={2}></textarea>
-                            </div>
-
-                            <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-2 uppercase tracking-widest text-xs">Registrar Evento</button>
-
-                            {selectedTireId && (
-                                <div className="mt-6 pt-6 border-t dark:border-slate-700">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Histórico Recente</h4>
-                                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                                        {tires.find(t => t.id === selectedTireId)?.history.map(h => (
-                                            <div key={h.id} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl relative group">
-                                                <div className="flex justify-between items-start">
+                            ) : (
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    // Intercept for stock deduction logic
+                                    if (tireForm.brand === 'STOCK_MODE' && tireForm.model) { // model holds itemId here momentarily
+                                        const itemId = tireForm.model;
+                                        const item = inventory.find(i => i.id === itemId);
+                                        if (item) {
+                                            // Deduct from stock
+                                            // We need access to updateStock, but it's in context. 
+                                            // We'll rely on global updateStock from props/context if available or simple logic
+                                            // Since we can't easily call updateStock here without it being in scope (it is in Fleet component),
+                                            // we will assume Fleet component has updateStock in scope? YES.
+                                            // WAIT: updateStock is NOTdestructured in Fleet. We need to add it.
+                                        }
+                                        // Correct the form data before saving
+                                        // Actually, let handleSaveTire handle the logic if we pass a special flag or handle it here
+                                    }
+                                    handleSaveTire(e);
+                                }} className="p-6 space-y-4">
+                                    {tireForm.brand === 'STOCK_MODE' ? (
+                                        <div className="space-y-4">
+                                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex items-start gap-3">
+                                                <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                                                <div>
+                                                    <p className="text-xs font-bold text-blue-800 dark:text-blue-200 uppercase">Conciliação de Estoque</p>
+                                                    <p className="text-[10px] text-blue-600/80 dark:text-blue-300">Ao selecionar um pneu, uma unidade será removida do estoque automaticamente e o pneu será cadastrado na frota.</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Selecione o Pneu em Estoque</label>
+                                                <select
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                                    onChange={(e) => {
+                                                        const item = inventory.find(i => i.id === e.target.value);
+                                                        if (item) {
+                                                            // Pre-fill form with item data
+                                                            setTireForm({
+                                                                ...tireForm,
+                                                                brand: item.name.split(' ')[0], // Guess brand
+                                                                model: item.name, // Use full name as model for now or split
+                                                                size: '295/80 R22.5', // Default or parse from description
+                                                                stockItemId: item.id, // Store ref
+                                                                maxKm: 100000,
+                                                                currentKm: 0,
+                                                                status: 'Novo'
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {inventory.filter(i =>
+                                                        i.category.toLowerCase().includes('pneu') && i.quantity > 0
+                                                    ).map(i => (
+                                                        <option key={i.id} value={i.id}>{i.name} - (Disp: {i.quantity})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            {tireForm.stockItemId && (
+                                                <div className="space-y-4 pt-4 border-t dark:border-slate-800 animate-in fade-in">
                                                     <div>
-                                                        <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{h.type}</p>
-                                                        <p className="text-[9px] font-bold text-teal-600">{h.date} • {h.km.toLocaleString()} KM</p>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                                            placeholder="Ex: PN-102030"
+                                                            value={tireForm.serialNumber || ''}
+                                                            onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                                                            required
+                                                        />
                                                     </div>
                                                     <button
-                                                        type="button"
-                                                        onClick={() => deleteTireHistory(selectedTireId, h.id)}
-                                                        className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                        type="submit"
+                                                        className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs hover:bg-blue-500 transition-all"
                                                     >
-                                                        <Trash2 size={12} />
+                                                        <Download size={16} className="inline mr-2" /> Baixar e Cadastrar
                                                     </button>
                                                 </div>
-                                                {h.notes && <p className="text-[9px] text-slate-400 mt-1 italic leading-tight">"{h.notes}"</p>}
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 })}
+                                                className="w-full py-3 text-slate-400 text-xs font-bold uppercase hover:text-slate-600"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                                    placeholder="Ex: PN-102030"
+                                                    value={tireForm.serialNumber || ''}
+                                                    onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                                                    required
+                                                />
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </form>
-                    </div>
-                </div>
-            )}
-            {/* Tire Layout Manager Modal */}
-            {isTireLayoutOpen && layoutVehicle && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl border dark:border-slate-700 h-[80vh] flex flex-col">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gestão de Rodado</h3>
-                                <p className="text-xs text-slate-400 font-bold uppercase">{layoutVehicle.name} • {layoutVehicle.plate}</p>
-                            </div>
-                            <button onClick={() => setIsTireLayoutOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-8 flex justify-center items-center bg-slate-50 dark:bg-slate-900/50">
-                            {/* Vehicle Schematic */}
-                            <div className="relative w-64 h-[500px] bg-slate-200 dark:bg-slate-700 rounded-[3rem] shadow-2xl border-4 border-slate-300 dark:border-slate-600">
-                                {/* Cabin Area */}
-                                <div className="absolute top-6 left-6 right-6 h-32 bg-slate-300 dark:bg-slate-600 rounded-2xl border-4 border-slate-400/30 flex items-center justify-center">
-                                    <span className="text-slate-400 font-black text-xs uppercase opacity-50">Cabine</span>
-                                </div>
-
-                                {/* Axle Lines */}
-                                <div className="absolute top-48 left-0 right-0 h-1 bg-slate-400/30"></div>
-                                <div className="absolute bottom-32 left-0 right-0 h-1 bg-slate-400/30"></div>
-                                <div className="absolute bottom-16 left-0 right-0 h-1 bg-slate-400/30"></div>
-
-                                {/* Tire Slots */}
-                                {[/* Logic handled below */].length === 0 ? [] : []}
-                                {(() => {
-                                    // Dynamic Slots based on Type
-                                    const getSlots = (type: string) => {
-                                        const slots: any[] = [];
-
-                                        // Configs
-                                        const isToco = type === 'Toco' || type === 'Caminhão'; // 2 Axles (2 + 4)
-                                        const isTruck = type === 'Truck'; // 3 Axles (2 + 4 + 4)
-                                        const isCarreta = type === 'Carreta LS'; // 3 Axles (4 + 4 + 4) - Trailer
-
-                                        // Front Axle (E1)
-                                        if (isCarreta) {
-                                            // 3 Rear Axles Dual
-                                            [1, 2, 3].forEach((axle, idx) => {
-                                                const baseTop = 130 + (idx * 110);
-                                                slots.push(
-                                                    { id: `E${axle}_LE_EXT`, label: `E${axle} LE EXT`, style: { top: `${baseTop}px`, left: '-20px' } },
-                                                    { id: `E${axle}_LE_INT`, label: `E${axle} LE INT`, style: { top: `${baseTop}px`, left: '30px' } },
-                                                    { id: `E${axle}_LD_INT`, label: `E${axle} LD INT`, style: { top: `${baseTop}px`, right: '30px' } },
-                                                    { id: `E${axle}_LD_EXT`, label: `E${axle} LD EXT`, style: { top: `${baseTop}px`, right: '-20px' } }
-                                                );
-                                            });
-                                        } else {
-                                            // Toco or Truck - Front Single
-                                            slots.push(
-                                                { id: 'E1_LE', label: 'E1 LE', style: { top: '80px', left: '-20px' } },
-                                                { id: 'E1_LD', label: 'E1 LD', style: { top: '80px', right: '-20px' } }
-                                            );
-
-                                            // Axle 2: Dual (Drive)
-                                            const a2Top = isTruck ? 280 : 350;
-                                            slots.push(
-                                                { id: 'E2_LE_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, left: '-20px' } },
-                                                { id: 'E2_LE_INT', label: 'E2 INT', style: { top: `${a2Top}px`, left: '30px' } },
-                                                { id: 'E2_LD_INT', label: 'E2 INT', style: { top: `${a2Top}px`, right: '30px' } },
-                                                { id: 'E2_LD_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, right: '-20px' } }
-                                            );
-
-                                            if (isTruck) {
-                                                // Axle 3: Dual (Trailing/Tag)
-                                                const a3Top = 380;
-                                                slots.push(
-                                                    { id: 'E3_LE_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, left: '-20px' } },
-                                                    { id: 'E3_LE_INT', label: 'E3 INT', style: { top: `${a3Top}px`, left: '30px' } },
-                                                    { id: 'E3_LD_INT', label: 'E3 INT', style: { top: `${a3Top}px`, right: '30px' } },
-                                                    { id: 'E3_LD_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, right: '-20px' } }
-                                                );
-                                            }
-                                        }
-
-                                        return slots;
-                                    };
-
-                                    return getSlots(layoutVehicle.type).map(slot => {
-                                        const mountedTire = tires.find(t => t.currentVehicleId === layoutVehicle.id && t.position === slot.id);
-
-                                        return (
-                                            <div key={slot.id} className="absolute flex flex-col items-center z-10" style={slot.style}>
-                                                <div className="relative group/slot">
-                                                    <div className={`w-10 h-16 rounded-lg border-2 shadow-lg transition-all flex flex-col items-center justify-center cursor-pointer ${mountedTire
-                                                        ? 'bg-slate-800 border-slate-900 text-white hover:scale-110 shadow-slate-900/50'
-                                                        : 'bg-white/50 border-dashed border-slate-400 hover:border-teal-500 hover:bg-teal-50'
-                                                        }`}>
-                                                        {mountedTire ? (
-                                                            <span className="text-[8px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber}</span>
-                                                        ) : (
-                                                            <Plus size={12} className="text-slate-400" />
-                                                        )}
-                                                    </div>
-
-                                                    {/* Tooltip / Selector */}
-                                                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/slot:block w-48 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-xl z-50 border border-slate-100 dark:border-slate-600">
-                                                        <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{slot.label}</p>
-                                                        <select
-                                                            className="w-full text-xs p-1 border rounded"
-                                                            value={mountedTire?.id || ''}
-                                                            onChange={(e) => handleTireChange(layoutVehicle.id, slot.id, e.target.value)}
-                                                        >
-                                                            <option value="">Vazio (Desmontar)</option>
-                                                            {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
-                                                                <option key={t.id} value={t.id}>
-                                                                    {t.serialNumber} - {t.brand} {t.position ? `(${t.position})` : ''}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Marca</label>
+                                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.brand} onChange={e => setTireForm({ ...tireForm, brand: e.target.value })} required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Modelo</label>
+                                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.model} onChange={e => setTireForm({ ...tireForm, model: e.target.value })} required />
                                                 </div>
                                             </div>
-                                        );
-                                    });
-                                })()}
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-center">
-                            <p className="text-xs text-slate-400">Passe o mouse sobre os pneus para montar/desmontar</p>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Medida</label>
+                                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.size} onChange={e => setTireForm({ ...tireForm, size: e.target.value })} required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Estimado (Vida Útil)</label>
+                                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.maxKm} onChange={e => setTireForm({ ...tireForm, maxKm: Number(e.target.value) })} required />
+                                                </div>
+                                            </div>
+                                            <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Salvar Alterações</button>
+                                        </>
+                                    )}
+                                </form>
+                            )}
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* Tire History/Rotation Modal */}
+            {
+                isTireHistoryModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
+                            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Movimentação / Histórico</h3>
+                                <button onClick={() => setIsTireHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            </div>
+                            <form onSubmit={handleSaveTireHistory} className="p-6 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
+                                        <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={historyEntry.date} onChange={e => setHistoryEntry({ ...historyEntry, date: e.target.value })} required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Evento</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                            value={historyEntry.type}
+                                            onChange={e => setHistoryEntry({ ...historyEntry, type: e.target.value as any })}
+                                            required
+                                        >
+                                            <option value="Instalação">Instalação</option>
+                                            <option value="Rodízio">Rodízio</option>
+                                            <option value="Retirada">Retirada (Estoque)</option>
+                                            <option value="Recapagem">Recapagem</option>
+                                            <option value="Inspeção">Inspeção</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {(historyEntry.type === 'Instalação' || historyEntry.type === 'Rodízio') && (
+                                    <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                                value={historyEntry.vehicleId}
+                                                onChange={e => setHistoryEntry({ ...historyEntry, vehicleId: e.target.value })}
+                                                required
+                                            >
+                                                <option value="">Selecione...</option>
+                                                {fleet.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Posição</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                                value={historyEntry.position}
+                                                onChange={e => setHistoryEntry({ ...historyEntry, position: e.target.value })}
+                                                required
+                                            >
+                                                <option value="DI">Dianteiro Esq.</option>
+                                                <option value="DD">Dianteiro Dir.</option>
+                                                <option value="T1E">Tração 1 Esq. Ext.</option>
+                                                <option value="T1EI">Tração 1 Esq. Int.</option>
+                                                <option value="T1D">Tração 1 Dir. Ext.</option>
+                                                <option value="T1DI">Tração 1 Dir. Int.</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM no Evento</label>
+                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={historyEntry.km} onChange={e => setHistoryEntry({ ...historyEntry, km: Number(e.target.value) })} required />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Observações</label>
+                                    <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" placeholder="Ex: Pressão, profundidade do sulco..." value={historyEntry.notes} onChange={e => setHistoryEntry({ ...historyEntry, notes: e.target.value })} rows={2}></textarea>
+                                </div>
+
+                                <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-2 uppercase tracking-widest text-xs">Registrar Evento</button>
+
+                                {selectedTireId && (
+                                    <div className="mt-6 pt-6 border-t dark:border-slate-700">
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Histórico Recente</h4>
+                                        <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                            {tires.find(t => t.id === selectedTireId)?.history.map(h => (
+                                                <div key={h.id} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl relative group">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{h.type}</p>
+                                                            <p className="text-[9px] font-bold text-teal-600">{h.date} • {h.km.toLocaleString()} KM</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => deleteTireHistory(selectedTireId, h.id)}
+                                                            className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </div>
+                                                    {h.notes && <p className="text-[9px] text-slate-400 mt-1 italic leading-tight">"{h.notes}"</p>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+            {/* Tire Layout Manager Modal */}
+            {
+                isTireLayoutOpen && layoutVehicle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl border dark:border-slate-700 h-[80vh] flex flex-col">
+                            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gestão de Rodado</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase">{layoutVehicle.name} • {layoutVehicle.plate}</p>
+                                </div>
+                                <button onClick={() => setIsTireLayoutOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 flex justify-center items-center bg-slate-50 dark:bg-slate-900/50">
+                                {/* Vehicle Schematic */}
+                                <div className="relative w-64 h-[500px] bg-slate-200 dark:bg-slate-700 rounded-[3rem] shadow-2xl border-4 border-slate-300 dark:border-slate-600">
+                                    {/* Cabin Area */}
+                                    <div className="absolute top-6 left-6 right-6 h-32 bg-slate-300 dark:bg-slate-600 rounded-2xl border-4 border-slate-400/30 flex items-center justify-center">
+                                        <span className="text-slate-400 font-black text-xs uppercase opacity-50">Cabine</span>
+                                    </div>
+
+                                    {/* Axle Lines */}
+                                    <div className="absolute top-48 left-0 right-0 h-1 bg-slate-400/30"></div>
+                                    <div className="absolute bottom-32 left-0 right-0 h-1 bg-slate-400/30"></div>
+                                    <div className="absolute bottom-16 left-0 right-0 h-1 bg-slate-400/30"></div>
+
+                                    {/* Tire Slots */}
+                                    {[/* Logic handled below */].length === 0 ? [] : []}
+                                    {(() => {
+                                        // Dynamic Slots based on Type
+                                        const getSlots = (type: string) => {
+                                            const slots: any[] = [];
+
+                                            // Configs
+                                            const isToco = type === 'Toco' || type === 'Caminhão'; // 2 Axles (2 + 4)
+                                            const isTruck = type === 'Truck'; // 3 Axles (2 + 4 + 4)
+                                            const isCarreta = type === 'Carreta LS'; // 3 Axles (4 + 4 + 4) - Trailer
+
+                                            // Front Axle (E1)
+                                            if (isCarreta) {
+                                                // 3 Rear Axles Dual
+                                                [1, 2, 3].forEach((axle, idx) => {
+                                                    const baseTop = 130 + (idx * 110);
+                                                    slots.push(
+                                                        { id: `E${axle}_LE_EXT`, label: `E${axle} LE EXT`, style: { top: `${baseTop}px`, left: '-20px' } },
+                                                        { id: `E${axle}_LE_INT`, label: `E${axle} LE INT`, style: { top: `${baseTop}px`, left: '30px' } },
+                                                        { id: `E${axle}_LD_INT`, label: `E${axle} LD INT`, style: { top: `${baseTop}px`, right: '30px' } },
+                                                        { id: `E${axle}_LD_EXT`, label: `E${axle} LD EXT`, style: { top: `${baseTop}px`, right: '-20px' } }
+                                                    );
+                                                });
+                                            } else {
+                                                // Toco or Truck - Front Single
+                                                slots.push(
+                                                    { id: 'E1_LE', label: 'E1 LE', style: { top: '80px', left: '-20px' } },
+                                                    { id: 'E1_LD', label: 'E1 LD', style: { top: '80px', right: '-20px' } }
+                                                );
+
+                                                // Axle 2: Dual (Drive)
+                                                const a2Top = isTruck ? 280 : 350;
+                                                slots.push(
+                                                    { id: 'E2_LE_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, left: '-20px' } },
+                                                    { id: 'E2_LE_INT', label: 'E2 INT', style: { top: `${a2Top}px`, left: '30px' } },
+                                                    { id: 'E2_LD_INT', label: 'E2 INT', style: { top: `${a2Top}px`, right: '30px' } },
+                                                    { id: 'E2_LD_EXT', label: 'E2 EXT', style: { top: `${a2Top}px`, right: '-20px' } }
+                                                );
+
+                                                if (isTruck) {
+                                                    // Axle 3: Dual (Trailing/Tag)
+                                                    const a3Top = 380;
+                                                    slots.push(
+                                                        { id: 'E3_LE_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, left: '-20px' } },
+                                                        { id: 'E3_LE_INT', label: 'E3 INT', style: { top: `${a3Top}px`, left: '30px' } },
+                                                        { id: 'E3_LD_INT', label: 'E3 INT', style: { top: `${a3Top}px`, right: '30px' } },
+                                                        { id: 'E3_LD_EXT', label: 'E3 EXT', style: { top: `${a3Top}px`, right: '-20px' } }
+                                                    );
+                                                }
+                                            }
+
+                                            return slots;
+                                        };
+
+                                        return getSlots(layoutVehicle.type).map(slot => {
+                                            const mountedTire = tires.find(t => t.currentVehicleId === layoutVehicle.id && t.position === slot.id);
+
+                                            return (
+                                                <div key={slot.id} className="absolute flex flex-col items-center z-10" style={slot.style}>
+                                                    <div className="relative group/slot">
+                                                        <div className={`w-10 h-16 rounded-lg border-2 shadow-lg transition-all flex flex-col items-center justify-center cursor-pointer ${mountedTire
+                                                            ? 'bg-slate-800 border-slate-900 text-white hover:scale-110 shadow-slate-900/50'
+                                                            : 'bg-white/50 border-dashed border-slate-400 hover:border-teal-500 hover:bg-teal-50'
+                                                            }`}>
+                                                            {mountedTire ? (
+                                                                <span className="text-[8px] font-bold rotate-90 whitespace-nowrap">{mountedTire.serialNumber}</span>
+                                                            ) : (
+                                                                <Plus size={12} className="text-slate-400" />
+                                                            )}
+                                                        </div>
+
+                                                        {/* Tooltip / Selector */}
+                                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/slot:block w-48 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-xl z-50 border border-slate-100 dark:border-slate-600">
+                                                            <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{slot.label}</p>
+                                                            <select
+                                                                className="w-full text-xs p-1 border rounded"
+                                                                value={mountedTire?.id || ''}
+                                                                onChange={(e) => handleTireChange(layoutVehicle.id, slot.id, e.target.value)}
+                                                            >
+                                                                <option value="">Vazio (Desmontar)</option>
+                                                                {tires.filter(t => t.status === 'Novo' || t.status === 'Estoque' || t.status === 'Recapagem' || t.id === mountedTire?.id).map(t => (
+                                                                    <option key={t.id} value={t.id}>
+                                                                        {t.serialNumber} - {t.brand} {t.position ? `(${t.position})` : ''}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-center">
+                                <p className="text-xs text-slate-400">Passe o mouse sobre os pneus para montar/desmontar</p>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

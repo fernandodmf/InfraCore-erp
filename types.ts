@@ -156,6 +156,7 @@ export interface Sale extends Transaction {
   tareWeight?: number; // Peso Entrada / Tara
   grossWeight?: number; // Peso Saída / Bruto
   netWeight?: number; // Peso Líquido
+  weightNotes?: string;
 }
 
 export interface PurchaseItem {
@@ -311,6 +312,8 @@ export interface Budget {
   tareWeight?: number;
   grossWeight?: number;
   netWeight?: number;
+  weightNotes?: string;
+  paymentMethod?: string;
 }
 
 export interface Tire {
@@ -379,6 +382,13 @@ export interface AppSettings {
   email: string;
   phone: string;
   address: string;
+  bankDetails?: {
+    bankName: string;
+    agency: string;
+    account: string;
+    pixKey: string;
+    pixType: string;
+  };
   currency: string;
   language: string;
   theme: 'light' | 'dark' | 'system';
@@ -387,6 +397,7 @@ export interface AppSettings {
     overdueFinance: boolean;
     productionUpdates: boolean;
     fleetMaintenance: boolean;
+    [key: string]: boolean;
   };
   technical: {
     taxRegime: string;
@@ -399,6 +410,72 @@ export interface AppSettings {
     autoBackup: boolean;
     frequency: 'daily' | 'weekly' | 'monthly';
     lastBackup?: string;
+  };
+  // New Enhanced Sections
+  operational: {
+    [key: string]: number | string | boolean;
+  };
+  integrations: {
+    [key: string]: {
+      name: string;
+      status: 'Ativo' | 'Inativo';
+      category: string;
+      config?: any;
+    };
+  };
+  emailConfig: {
+    smtpProvider?: string;
+    smtpServer: string;
+    smtpPort: number;
+    smtpSecurity?: string;
+    senderEmail: string;
+    senderPassword?: string;
+    smtpPassword?: string;
+    templates?: Record<string, string>;
+  };
+  documents: {
+    printerMain: string;
+    printerThermal: string;
+    margins: number;
+    copies: number;
+    showLogo: boolean;
+    watermarkDraft: boolean;
+    qrCode: boolean;
+    autoNumbering: boolean;
+    digitalSignature: boolean;
+    customFooter: boolean;
+    barcode: boolean;
+    authSeal: boolean;
+  };
+  performance: {
+    cacheSize: number; // in MB (simulated)
+    dbOptimizationLastDate?: string;
+    imageQuality: number; // 0-100
+    autoCompression: boolean;
+    lazyLoading: boolean;
+    preloading: boolean;
+    gzip: boolean;
+    autoIndexing: boolean;
+    queryCache: boolean;
+    minifyAssets: boolean;
+    cdn: boolean;
+    dbPooling: boolean;
+  };
+  // Data Security & Compliance
+  dataSecurity?: {
+    backupEnabled: boolean;
+    backupFrequency: '6h' | 'daily' | 'weekly' | 'monthly';
+    backupRetention: number; // days
+    backupTime?: string;
+    lastBackupDate?: string;
+    encryptionEnabled: boolean;
+    lgpdConsent: boolean;
+    auditLogs: boolean;
+    dataRetentionDays: number;
+    twoFactorAuth: boolean;
+    sessionTimeout: number; // minutes
+    passwordPolicy: 'basic' | 'medium' | 'strong';
+    ipWhitelist?: string[];
   };
 }
 

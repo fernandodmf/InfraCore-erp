@@ -127,9 +127,57 @@ const INITIAL_PRODUCTION_UNITS: ProductionUnit[] = [
 ];
 
 const INITIAL_ROLES: AppRole[] = [
-  { id: 'admin', name: 'Administrador', description: 'Acesso total ao sistema', permissions: ['all'] },
-  { id: 'manager', name: 'Gerente', description: 'Gestão de módulos operacionais', permissions: ['sales.view', 'sales.create', 'purchases.view', 'inventory.view'] },
-  { id: 'operator', name: 'Operador', description: 'Operação de campo e produção', permissions: ['production.view', 'fleet.view'] },
+  {
+    id: 'admin',
+    name: 'Administrador',
+    description: 'Acesso total e irrestrito ao sistema.',
+    permissions: ['all']
+  },
+  {
+    id: 'manager_com',
+    name: 'Gerente Comercial',
+    description: 'Gestão completa de vendas, clientes e equipe comercial.',
+    permissions: [
+      'sales.view', 'sales.view_all', 'sales.create', 'sales.edit', 'sales.cancel', 'sales.approve', 'sales.discount',
+      'clients.view', 'clients.manage', 'clients.credit',
+      'crm.leads', 'reports.basic', 'reports.advanced'
+    ]
+  },
+  {
+    id: 'salesperson',
+    name: 'Vendedor',
+    description: 'Acesso padrão para força de vendas.',
+    permissions: [
+      'sales.view', 'sales.create', 'clients.view', 'crm.leads'
+    ]
+  },
+  {
+    id: 'manager_stock',
+    name: 'Gestor de Estoque',
+    description: 'Controle total de inventário e compras.',
+    permissions: [
+      'inventory.view', 'inventory.move', 'inventory.adjust', 'inventory.cost_view',
+      'purchases.view', 'purchases.create', 'purchases.approve_level1',
+      'suppliers.view', 'suppliers.manage'
+    ]
+  },
+  {
+    id: 'operator',
+    name: 'Operador de Campo',
+    description: 'Focado em execução de ordens e manutenção.',
+    permissions: [
+      'production.execute', 'maintenance.create', 'fuel.log', 'fleet.view'
+    ]
+  },
+  {
+    id: 'financial',
+    name: 'Analista Financeiro',
+    description: 'Contas a pagar/receber e fluxo de caixa.',
+    permissions: [
+      'finance.dashboard', 'finance.payables', 'finance.receivables', 'finance.transact', 'finance.reconcile',
+      'reports.basic', 'reports.advanced', 'finance.reports'
+    ]
+  }
 ];
 
 const INITIAL_USERS: User[] = [
@@ -144,6 +192,13 @@ const INITIAL_SETTINGS: AppSettings = {
   email: 'contato@infracore.com',
   phone: '(11) 4002-8922',
   address: 'Rua da Tecnologia, 100 - Industrial, SP',
+  bankDetails: {
+    bankName: 'Banco do Brasil',
+    agency: '0041-X',
+    account: '44.021-X',
+    pixKey: 'contato@infracore.com',
+    pixType: 'E-mail'
+  },
   currency: 'BRL',
   language: 'pt-BR',
   theme: 'dark',
@@ -164,6 +219,110 @@ const INITIAL_SETTINGS: AppSettings = {
     autoBackup: true,
     frequency: 'daily',
     lastBackup: '22/12/2025 23:00'
+  },
+  // Expanded Defaults
+  operational: {
+    maxDiscount: 15,
+    minMargin: 20,
+    defaultPaymentTerm: 30,
+    budgetValidity: 7,
+    maxInstallments: 12,
+    minInstallmentValue: 100,
+    creditLimit: 5000,
+    overdueGracePeriod: 5,
+    autoApprovalLimit: 10000,
+    commissionRate: 3,
+    priceTableCount: 3,
+    quotaRenewalDays: 30,
+    leadFollowupDays: 3,
+    contractMinDuration: 12,
+    warrantyPeriod: 12,
+    safetyStock: 10,
+    reorderPoint: 20,
+    maxStockLevel: 90,
+    inventoryCountFrequency: 90,
+    batchTrackingDays: 180,
+    wastePercentage: 2,
+    productionLeadTime: 5,
+    setupTime: 30,
+    qualityControlSampling: 10,
+    maintenanceInterval: 500,
+    batchSize: 100,
+    workShiftHours: 8,
+    overtimeLimit: 20,
+    scrapReworkLimit: 5,
+    capacityUtilization: 85,
+    purchaseApprovalLevel1: 5000,
+    purchaseApprovalLevel2: 20000,
+    minQuotations: 3,
+    supplierEvaluationPeriod: 6,
+    deliveryToleranceDays: 2,
+    minOrderValue: 500,
+    paymentTermNegotiation: 45,
+    qualityInspectionRate: 20,
+    returnPeriod: 7,
+    contractRenewalAlert: 30,
+    interestRate: 1,
+    lateFee: 2,
+    earlyPaymentDiscount: 3,
+    cashFlowProjectionDays: 90,
+    bankReconciliationFrequency: 7,
+    minimumCashReserve: 10000,
+    budgetVarianceAlert: 10,
+    invoiceReminderDays: 3,
+    creditCardProcessingFee: 3.5,
+    fiscalYearStart: 1
+  },
+  integrations: {
+    nfe: { name: 'Nota Fiscal Eletrônica (NF-e)', status: 'Ativo', category: 'Fiscal' },
+    nfse: { name: 'Nota Fiscal de Serviço (NFS-e)', status: 'Ativo', category: 'Fiscal' },
+    sefaz: { name: 'Consulta SEFAZ', status: 'Ativo', category: 'Fiscal' },
+    mdfe: { name: 'Manifesto Eletrônico (MDF-e)', status: 'Ativo', category: 'Fiscal' },
+    pagseguro: { name: 'Gateway PagSeguro', status: 'Ativo', category: 'Financeiro' },
+    boleto: { name: 'Boleto Bancário', status: 'Ativo', category: 'Financeiro' },
+    pix: { name: 'PIX', status: 'Ativo', category: 'Financeiro' },
+    ofx: { name: 'Conciliação OFX', status: 'Ativo', category: 'Financeiro' },
+    whatsapp: { name: 'WhatsApp Business API', status: 'Ativo', category: 'Comunicação' },
+    sendgrid: { name: 'E-mail Marketing (SendGrid)', status: 'Ativo', category: 'Comunicação' },
+    googlemaps: { name: 'Google Maps API', status: 'Ativo', category: 'Logística' },
+    sinapi: { name: 'SINAPI', status: 'Ativo', category: 'Engenharia' },
+    sicro: { name: 'SICRO', status: 'Ativo', category: 'Engenharia' }
+  },
+  emailConfig: {
+    smtpServer: 'smtp.gmail.com',
+    smtpPort: 587,
+    senderEmail: 'noreply@infracore.com',
+    templates: {
+      budget: 'Olá, segue anexo o orçamento...',
+      invoice: 'Prezado cliente, sua nota fiscal foi emitida...'
+    }
+  },
+  documents: {
+    printerMain: 'HP LaserJet Pro',
+    printerThermal: 'Zebra ZD220',
+    margins: 10,
+    copies: 2,
+    showLogo: true,
+    watermarkDraft: true,
+    qrCode: false,
+    autoNumbering: true,
+    digitalSignature: false,
+    customFooter: true,
+    barcode: true,
+    authSeal: false
+  },
+  performance: {
+    cacheSize: 245,
+    imageQuality: 85,
+    autoCompression: true,
+    lazyLoading: true,
+    preloading: false,
+    gzip: true,
+    autoIndexing: true,
+    queryCache: true,
+    minifyAssets: true,
+    cdn: false,
+    dbPooling: true
   }
 };
 

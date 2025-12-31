@@ -896,66 +896,92 @@ const Purchases = () => {
                </div>
 
                {/* Inventory List */}
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {inventory.map(item => (
-                     <div key={item.id} className="bg-white dark:bg-gray-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-cyan-200 transition-all group relative overflow-hidden">
-                        {/* Status Badge Background */}
-                        <div className={`absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 rounded-full opacity-10 transition-transform group-hover:scale-110 ${item.quantity < item.minStock ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
-
-                        <div className="flex justify-between items-start mb-6 relative z-10">
-                           <div className="w-14 h-14 bg-slate-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-cyan-50 group-hover:text-cyan-600 transition-colors shadow-sm">
-                              <Package size={28} />
-                           </div>
-                           <div className="text-right">
-                              <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${item.quantity < item.minStock ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-                                 {item.quantity < item.minStock ? 'Reposição' : 'Disponível'}
-                              </span>
-                              <p className="text-[10px] font-bold text-slate-400 mt-2 tracking-widest uppercase">{item.id}</p>
-                           </div>
-                        </div>
-
-                        <div className="relative z-10 mb-6">
-                           <h4 className="font-black text-slate-900 dark:text-white text-lg leading-tight uppercase italic tracking-tighter">{item.name}</h4>
-                           <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-50 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
-                           <div className="bg-slate-50 dark:bg-gray-900/50 p-3 rounded-2xl">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Qtd. Atual</p>
-                              <p className={`text-xl font-black ${item.quantity < item.minStock ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{item.quantity} <span className="text-[10px] font-bold opacity-60 uppercase">{item.unit}</span></p>
-                           </div>
-                           <div className="bg-slate-50 dark:bg-gray-900/50 p-3 rounded-2xl">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Estq. Mínimo</p>
-                              <p className="text-xl font-black text-slate-900 dark:text-white">{item.minStock} <span className="text-[10px] font-bold opacity-60 uppercase">{item.unit}</span></p>
-                           </div>
-                        </div>
-
-                        <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-gray-700 relative z-10">
-                           <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-black text-slate-400 uppercase">Preço Médio</span>
-                              <span className="font-bold text-sm text-emerald-600">{formatCurrency(item.price)}</span>
-                           </div>
-                           <div className="flex gap-2">
-                              <button onClick={() => {
-                                 addItemToOrder(item);
-                                 setActiveTab('new-order');
-                              }} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95 transition-all">Pedir Reposição</button>
-                              <button
-                                 onClick={() => { setEditingItem(item); setStockForm(item); setIsStockModalOpen(true); }}
-                                 className="p-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm"
-                              >
-                                 <Edit2 size={18} />
-                              </button>
-                              <button
-                                 onClick={() => { if (confirm('Remover este item do catálogo?')) deleteStockItem(item.id); }}
-                                 className="p-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-400 hover:text-rose-600 rounded-xl transition-all shadow-sm"
-                              >
-                                 <Trash2 size={18} />
-                              </button>
-                           </div>
-                        </div>
-                     </div>
-                  ))}
+               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-slate-200 dark:border-gray-700 overflow-hidden">
+                  <div className="overflow-x-auto">
+                     <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 dark:bg-gray-700/50 text-slate-600 dark:text-gray-300 font-bold text-xs uppercase border-b border-slate-200 dark:border-gray-700">
+                           <tr>
+                              <th className="px-6 py-4">Item / Categoria</th>
+                              <th className="px-6 py-4 text-center">Status</th>
+                              <th className="px-6 py-4 text-center">Quantidade</th>
+                              <th className="px-6 py-4 text-right">Preço Médio</th>
+                              <th className="px-6 py-4 text-right">Ações</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                           {inventory.map(item => (
+                              <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-gray-700/50 transition-colors group">
+                                 <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                       <div className={`p-2 rounded-lg ${item.category === 'Insumos' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                          <Package size={20} />
+                                       </div>
+                                       <div>
+                                          <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
+                                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{item.category}</p>
+                                       </div>
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 text-center">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
+                                       item.quantity < item.minStock
+                                          ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                          : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    }`}>
+                                       {item.quantity < item.minStock ? 'REPOSIÇÃO' : 'DISPONÍVEL'}
+                                    </span>
+                                 </td>
+                                 <td className="px-6 py-4 text-center">
+                                    <div className="flex flex-col items-center">
+                                       <span className={`font-bold ${item.quantity < item.minStock ? 'text-rose-600' : 'text-slate-700 dark:text-white'}`}>
+                                          {item.quantity} {item.unit}
+                                       </span>
+                                       <span className="text-[10px] text-slate-400">Mín: {item.minStock}</span>
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 text-right font-mono font-medium text-slate-600 dark:text-gray-300">
+                                    {formatCurrency(item.price)}
+                                 </td>
+                                 <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                       <button
+                                          onClick={() => {
+                                             addItemToOrder(item);
+                                             setActiveTab('new-order');
+                                          }}
+                                          className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors border border-transparent hover:border-cyan-100"
+                                          title="Solicitar Reposição"
+                                       >
+                                          <ShoppingBag size={18} />
+                                       </button>
+                                       <button
+                                          onClick={() => { setEditingItem(item); setStockForm(item); setIsStockModalOpen(true); }}
+                                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                          title="Editar"
+                                       >
+                                          <Edit2 size={18} />
+                                       </button>
+                                       <button
+                                          onClick={() => { if (confirm('Remover este item do catálogo?')) deleteStockItem(item.id); }}
+                                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                          title="Excluir"
+                                       >
+                                          <Trash2 size={18} />
+                                       </button>
+                                    </div>
+                                 </td>
+                              </tr>
+                           ))}
+                           {inventory.length === 0 && (
+                              <tr>
+                                 <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
+                                    Nenhum item cadastrado no estoque.
+                                 </td>
+                              </tr>
+                           )}
+                        </tbody>
+                     </table>
+                  </div>
                </div>
             </div>
          )}

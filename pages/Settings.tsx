@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Settings as SettingsIcon,
     Users,
@@ -30,11 +30,1280 @@ import {
     Scale,
     Calendar,
     Wifi,
-    BarChart3
+    BarChart3,
+    Search,
+    Filter,
+    AlertTriangle,
+    CheckCircle,
+    Info,
+    ChevronDown,
+    ChevronUp,
+    LogOut,
+    FileText,
+    Printer,
+    Download,
+    Upload,
+    RefreshCw,
+    HardDrive,
+    Key,
+    Eye,
+    EyeOff,
+    Copy,
+    ExternalLink,
+    Settings as SettingsGear,
+    Sliders,
+    Package,
+    TrendingUp,
+    DollarSign,
+    Percent,
+    Clock,
+    Target,
+    Layers,
+    Link,
+    Smartphone,
+    Landmark
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User, AppRole, AppSettings, AuditLog } from '../types';
 import { APP_PERMISSIONS } from '../permission_constants';
+
+// Internal Toast Component
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void }) => {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    const bgColors = {
+        success: 'bg-emerald-500',
+        error: 'bg-rose-500',
+        info: 'bg-indigo-500'
+    };
+
+    return (
+        <div className={`${bgColors[type]} text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
+            {type === 'success' && <CheckCircle size={18} />}
+            {type === 'error' && <AlertTriangle size={18} />}
+            {type === 'info' && <Info size={18} />}
+            <span className="font-bold text-xs uppercase tracking-wide">{message}</span>
+        </div>
+    );
+};
+
+// ============================================================================
+// EXTENDED COMPONENTS START
+// ============================================================================
+
+// 3. PARÂMETROS OPERACIONAIS
+const OperationalParametersSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
+    const operationalParams = [
+        // VENDAS & COMERCIAL (15 parâmetros)
+        { id: 'maxDiscount', label: 'Desconto Máximo Permitido (%)', min: 0, max: 100, category: 'Vendas', icon: 'Percent' },
+        { id: 'minMargin', label: 'Margem Mínima de Lucro (%)', min: 0, max: 100, category: 'Vendas', icon: 'TrendingUp' },
+        { id: 'defaultPaymentTerm', label: 'Prazo Padrão de Pagamento (dias)', min: 0, max: 365, category: 'Vendas', icon: 'Calendar' },
+        { id: 'budgetValidity', label: 'Validade de Orçamentos (dias)', min: 1, max: 90, category: 'Vendas', icon: 'Clock' },
+        { id: 'maxInstallments', label: 'Máximo de Parcelas', min: 1, max: 48, category: 'Vendas', icon: 'Layers' },
+        { id: 'minInstallmentValue', label: 'Valor Mínimo por Parcela (R$)', min: 10, max: 10000, category: 'Vendas', icon: 'DollarSign' },
+        { id: 'creditLimit', label: 'Limite de Crédito Padrão (R$)', min: 0, max: 1000000, category: 'Vendas', icon: 'Target' },
+        { id: 'overdueGracePeriod', label: 'Período de Tolerância Inadimplência (dias)', min: 0, max: 30, category: 'Vendas', icon: 'Clock' },
+        { id: 'autoApprovalLimit', label: 'Limite Auto-Aprovação Vendas (R$)', min: 0, max: 100000, category: 'Vendas', icon: 'Check' },
+        { id: 'commissionRate', label: 'Taxa de Comissão Padrão (%)', min: 0, max: 20, category: 'Vendas', icon: 'Percent' },
+        { id: 'priceTableCount', label: 'Número de Tabelas de Preço', min: 1, max: 10, category: 'Vendas', icon: 'BarChart3' },
+        { id: 'quotaRenewalDays', label: 'Renovação de Cotas (dias)', min: 1, max: 365, category: 'Vendas', icon: 'RefreshCw' },
+        { id: 'leadFollowupDays', label: 'Dias para Follow-up de Leads', min: 1, max: 30, category: 'Vendas', icon: 'Users' },
+        { id: 'contractMinDuration', label: 'Duração Mínima Contrato (meses)', min: 1, max: 60, category: 'Vendas', icon: 'FileText' },
+        { id: 'warrantyPeriod', label: 'Período de Garantia Padrão (meses)', min: 0, max: 60, category: 'Vendas', icon: 'Shield' },
+
+        // ESTOQUE & PRODUÇÃO
+        { id: 'safetyStock', label: 'Estoque de Segurança (%)', min: 0, max: 50, category: 'Estoque', icon: 'Package' },
+        { id: 'reorderPoint', label: 'Ponto de Reposição (%)', min: 5, max: 50, category: 'Estoque', icon: 'TrendingDown' },
+        { id: 'maxStockLevel', label: 'Nível Máximo de Estoque (%)', min: 50, max: 100, category: 'Estoque', icon: 'TrendingUp' },
+        { id: 'inventoryCountFrequency', label: 'Frequência de Inventário (dias)', min: 30, max: 365, category: 'Estoque', icon: 'Calendar' },
+        { id: 'batchTrackingDays', label: 'Rastreamento de Lote (dias)', min: 30, max: 1825, category: 'Estoque', icon: 'Search' },
+        { id: 'wastePercentage', label: 'Percentual de Perda Aceitável (%)', min: 0, max: 10, category: 'Estoque', icon: 'AlertTriangle' },
+        { id: 'productionLeadTime', label: 'Lead Time de Produção (dias)', min: 1, max: 90, category: 'Produção', icon: 'Clock' },
+        { id: 'setupTime', label: 'Tempo de Setup Máquinas (min)', min: 5, max: 480, category: 'Produção', icon: 'Settings' },
+        { id: 'qualityControlSampling', label: 'Amostragem Controle Qualidade (%)', min: 1, max: 100, category: 'Produção', icon: 'CheckCircle' },
+        { id: 'maintenanceInterval', label: 'Intervalo Manutenção Preventiva (horas)', min: 100, max: 5000, category: 'Produção', icon: 'Tool' },
+        { id: 'batchSize', label: 'Tamanho de Lote Padrão', min: 1, max: 10000, category: 'Produção', icon: 'Layers' },
+        { id: 'workShiftHours', label: 'Horas por Turno', min: 4, max: 12, category: 'Produção', icon: 'Clock' },
+        { id: 'overtimeLimit', label: 'Limite de Horas Extras (h/mês)', min: 0, max: 100, category: 'Produção', icon: 'AlertCircle' },
+        { id: 'scrapReworkLimit', label: 'Limite de Retrabalho (%)', min: 0, max: 20, category: 'Produção', icon: 'RefreshCw' },
+        { id: 'capacityUtilization', label: 'Meta Utilização Capacidade (%)', min: 50, max: 100, category: 'Produção', icon: 'Target' },
+
+        // COMPRAS & FORNECEDORES
+        { id: 'purchaseApprovalLevel1', label: 'Aprovação Nível 1 - Limite (R$)', min: 0, max: 50000, category: 'Compras', icon: 'DollarSign' },
+        { id: 'purchaseApprovalLevel2', label: 'Aprovação Nível 2 - Limite (R$)', min: 5000, max: 200000, category: 'Compras', icon: 'DollarSign' },
+        { id: 'minQuotations', label: 'Mínimo de Cotações Obrigatórias', min: 1, max: 10, category: 'Compras', icon: 'FileText' },
+        { id: 'supplierEvaluationPeriod', label: 'Período Avaliação Fornecedores (meses)', min: 1, max: 24, category: 'Compras', icon: 'Star' },
+        { id: 'deliveryToleranceDays', label: 'Tolerância Atraso Entrega (dias)', min: 0, max: 15, category: 'Compras', icon: 'Truck' },
+        { id: 'minOrderValue', label: 'Valor Mínimo de Pedido (R$)', min: 0, max: 10000, category: 'Compras', icon: 'ShoppingCart' },
+        { id: 'paymentTermNegotiation', label: 'Prazo Negociação Pagamento (dias)', min: 0, max: 180, category: 'Compras', icon: 'Calendar' },
+        { id: 'qualityInspectionRate', label: 'Taxa Inspeção Recebimento (%)', min: 0, max: 100, category: 'Compras', icon: 'Search' },
+        { id: 'returnPeriod', label: 'Prazo para Devolução (dias)', min: 1, max: 30, category: 'Compras', icon: 'RotateCcw' },
+        { id: 'contractRenewalAlert', label: 'Alerta Renovação Contrato (dias)', min: 7, max: 90, category: 'Compras', icon: 'Bell' },
+
+        // FINANCEIRO
+        { id: 'interestRate', label: 'Taxa de Juros Mora (% a.m.)', min: 0, max: 10, category: 'Financeiro', icon: 'Percent' },
+        { id: 'lateFee', label: 'Multa por Atraso (%)', min: 0, max: 10, category: 'Financeiro', icon: 'AlertTriangle' },
+        { id: 'earlyPaymentDiscount', label: 'Desconto Pagamento Antecipado (%)', min: 0, max: 15, category: 'Financeiro', icon: 'TrendingDown' },
+        { id: 'cashFlowProjectionDays', label: 'Projeção Fluxo de Caixa (dias)', min: 30, max: 365, category: 'Financeiro', icon: 'TrendingUp' },
+        { id: 'bankReconciliationFrequency', label: 'Frequência Conciliação Bancária (dias)', min: 1, max: 30, category: 'Financeiro', icon: 'RefreshCw' },
+        { id: 'minimumCashReserve', label: 'Reserva Mínima de Caixa (R$)', min: 0, max: 1000000, category: 'Financeiro', icon: 'DollarSign' },
+        { id: 'budgetVarianceAlert', label: 'Alerta Variação Orçamentária (%)', min: 0, max: 50, category: 'Financeiro', icon: 'AlertCircle' },
+        { id: 'invoiceReminderDays', label: 'Lembrete Vencimento Fatura (dias)', min: 1, max: 15, category: 'Financeiro', icon: 'Bell' },
+        { id: 'creditCardProcessingFee', label: 'Taxa Processamento Cartão (%)', min: 0, max: 10, category: 'Financeiro', icon: 'CreditCard' },
+        { id: 'fiscalYearStart', label: 'Início Ano Fiscal (Mês)', min: 1, max: 12, category: 'Financeiro', icon: 'Calendar' },
+    ];
+
+    const [filterCategory, setFilterCategory] = useState('Todos');
+
+    const filteredParams = filterCategory === 'Todos'
+        ? operationalParams
+        : operationalParams.filter(p => p.category === filterCategory);
+
+    const handleParamChange = (id: string, value: string) => {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue)) {
+            onUpdate({
+                ...settings,
+                operational: {
+                    ...settings.operational,
+                    [id]: numValue
+                }
+            });
+        }
+    };
+
+    // Helper to identify icon component
+    const getIcon = (iconName: string) => {
+        // Simple map or returning a default. For brevity, assuming we pass the component or map it.
+        // Since we are inside Settings.tsx, we have access to Lucide icons.
+        // But for mapping strings to components we need a switch or map.
+        // For now, let's just use Sliders as generic if not mapped, or rely on imports.
+        // To save space, let's just assume we render a generic icon or map a few.
+        return Sliders;
+    };
+
+    return (
+        <section className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-8 rounded-[32px] border border-amber-100 dark:border-amber-900/30">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-amber-500 rounded-xl text-white">
+                    <Sliders size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Parâmetros Operacionais Avançados</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">50+ configurações detalhadas para regras de negócio</p>
+                </div>
+            </div>
+
+            {/* Filtro por Categoria */}
+            <div className="mb-6 flex gap-2 flex-wrap">
+                {['Todos', 'Vendas', 'Estoque', 'Produção', 'Compras', 'Financeiro'].map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setFilterCategory(cat)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-colors ${filterCategory === cat
+                            ? 'bg-amber-500 text-white shadow-lg'
+                            : 'bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900/50 hover:bg-amber-50'
+                            }`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Grid de Parâmetros */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+                {filteredParams.map(param => (
+                    <div key={param.id} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-amber-100 dark:border-amber-900/30 hover:shadow-md transition-all">
+                        <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-slate-900 dark:text-white block mb-1">{param.label}</label>
+                                <span className="text-[9px] font-black text-amber-600 uppercase px-2 py-0.5 bg-amber-50 dark:bg-amber-900/20 rounded-md">{param.category}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="number"
+                                min={param.min}
+                                max={param.max}
+                                value={settings.operational?.[param.id] ?? 0}
+                                onChange={(e) => handleParamChange(param.id, e.target.value)}
+                                className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm text-center"
+                            />
+                        </div>
+                        <div className="mt-2 flex justify-between text-[9px] text-slate-400">
+                            <span>Min: {param.min}</span>
+                            <span>Max: {param.max}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {/* Actions removed from here, should be global Save/Revert in main Settings */}
+        </section>
+    );
+};
+
+// 4. INTEGRAÇÕES
+const IntegrationsSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
+    const integrations = [
+        // Fiscais e Contábeis
+        { id: 'nfe', name: 'Nota Fiscal Eletrônica (NF-e)', icon: '📄', color: 'emerald', category: 'Fiscal', description: 'Emissão automática de notas fiscais' },
+        { id: 'nfse', name: 'Nota Fiscal de Serviço (NFS-e)', icon: '📋', color: 'emerald', category: 'Fiscal', description: 'NFS-e para serviços de construção' },
+        { id: 'sefaz', name: 'Consulta SEFAZ', icon: '🏛️', color: 'blue', category: 'Fiscal', description: 'Validação de documentos fiscais' },
+        { id: 'mdfe', name: 'Manifesto Eletrônico de Documentos (MDF-e)', icon: '🚛', color: 'amber', category: 'Fiscal', description: 'Transporte de cargas' },
+        { id: 'cte', name: 'Conhecimento de Transporte Eletrônico (CT-e)', icon: '📦', color: 'slate', category: 'Fiscal', description: 'Documentação de transporte' },
+
+        // Pagamentos e Financeiro
+        { id: 'pagseguro', name: 'Gateway de Pagamento (PagSeguro)', icon: '💳', color: 'green', category: 'Financeiro', description: 'Processamento de pagamentos online' },
+        { id: 'boleto', name: 'Boleto Bancário (Itaú/Bradesco)', icon: '🏦', color: 'blue', category: 'Financeiro', description: 'Geração automática de boletos' },
+        { id: 'pix', name: 'PIX - Pagamento Instantâneo', icon: '⚡', color: 'purple', category: 'Financeiro', description: 'Recebimento via PIX' },
+        { id: 'ofx', name: 'Conciliação Bancária (OFX)', icon: '🔄', color: 'indigo', category: 'Financeiro', description: 'Importação automática de extratos' },
+
+        // Comunicação
+        { id: 'whatsapp', name: 'WhatsApp Business API', icon: '💬', color: 'green', category: 'Comunicação', description: 'Notificações e atendimento' },
+        { id: 'sms', name: 'SMS (Twilio)', icon: '📱', color: 'slate', category: 'Comunicação', description: 'Alertas via SMS' },
+        { id: 'sendgrid', name: 'E-mail Marketing (SendGrid)', icon: '📧', color: 'blue', category: 'Comunicação', description: 'Campanhas e newsletters' },
+
+        // Específicos da Construção Civil
+        { id: 'bim', name: 'BIM 360 - Autodesk', icon: '🏗️', color: 'slate', category: 'Engenharia', description: 'Integração com projetos BIM' },
+        { id: 'sinapi', name: 'SINAPI - Preços de Referência', icon: '📊', color: 'amber', category: 'Engenharia', description: 'Tabela de preços SINAPI/CAIXA' },
+        { id: 'sicro', name: 'SICRO - Sistema de Custos', icon: '💰', color: 'emerald', category: 'Engenharia', description: 'Composições de custos DNIT' },
+        { id: 'googlemaps', name: 'Google Maps API', icon: '🗺️', color: 'red', category: 'Logística', description: 'Roteirização e localização de obras' },
+        { id: 'tracking', name: 'Rastreamento de Frotas', icon: '📍', color: 'blue', category: 'Logística', description: 'Monitoramento de veículos' },
+
+        // Gestão e Produtividade
+        { id: 'task_manager', name: 'Asana / Trello Integration', icon: '✅', color: 'slate', category: 'Gestão', description: 'Gestão de tarefas e projetos' },
+        { id: 'slack', name: 'Slack Notifications', icon: '💼', color: 'slate', category: 'Gestão', description: 'Notificações em tempo real' },
+        { id: 'storage', name: 'Google Drive / Dropbox', icon: '☁️', color: 'blue', category: 'Armazenamento', description: 'Backup de documentos' },
+
+        // Marketplace e E-commerce
+        { id: 'mercadolivre', name: 'Mercado Livre API', icon: '🛒', color: 'slate', category: 'Vendas', description: 'Venda de materiais online' },
+        { id: 'catalog', name: 'Catálogo Digital de Produtos', icon: '📱', color: 'purple', category: 'Vendas', description: 'App para vendedores' },
+    ];
+
+    const [filterCategory, setFilterCategory] = useState('Todas');
+
+    const filteredIntegrations = filterCategory === 'Todas'
+        ? integrations
+        : integrations.filter(i => i.category === filterCategory);
+
+    const toggleIntegration = (id: string, item: any) => {
+        const currentStatus = settings.integrations?.[id]?.status ?? 'Inativo';
+        const newStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+
+        // Ensure integrations object exists
+        const currentIntegrations = settings.integrations || {};
+
+        onUpdate({
+            ...settings,
+            integrations: {
+                ...currentIntegrations,
+                [id]: {
+                    ...currentIntegrations[id],
+                    name: item.name,
+                    category: item.category,
+                    status: newStatus
+                }
+            }
+        });
+    };
+
+    return (
+        <section className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-8 rounded-[32px] border border-purple-100 dark:border-purple-900/30">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-purple-500 rounded-xl text-white">
+                    <Link size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Integrações & APIs Especializadas</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Conecte o ERP com serviços específicos para construção civil</p>
+                </div>
+            </div>
+
+            {/* Filtro por Categoria */}
+            <div className="mb-6 flex gap-2 flex-wrap">
+                {['Todas', 'Fiscal', 'Financeiro', 'Comunicação', 'Engenharia', 'Logística', 'Gestão', 'Vendas'].map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setFilterCategory(cat)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-colors ${filterCategory === cat
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-900/50 hover:bg-purple-50'
+                            }`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Grid de Integrações */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredIntegrations.map(integration => {
+                    const status = settings.integrations?.[integration.id]?.status ?? 'Inativo';
+                    const isActive = status === 'Ativo';
+                    return (
+                        <div key={integration.id} className={`p-5 rounded-2xl border transition-all group ${isActive
+                            ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900/50 shadow-lg'
+                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100'
+                            }`}>
+                            <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-2xl">{integration.icon}</div>
+                                    <div>
+                                        <h5 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{integration.name}</h5>
+                                        <div onClick={() => toggleIntegration(integration.id, integration)} className={`mt-2 flex items-center gap-2 cursor-pointer`}>
+                                            <div className={`w-8 h-4 rounded-full relative transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all ${isActive ? 'right-0.5' : 'left-0.5'}`}></div>
+                                            </div>
+                                            <span className="text-[9px] font-bold uppercase text-slate-500">{status}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mb-3 min-h-[30px]">{integration.description}</p>
+                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                <button className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-purple-50 hover:text-purple-600 transition-colors flex items-center justify-center gap-1">
+                                    <Settings size={12} /> Configurar
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Adicionar Nova Integração */}
+            <div className="mt-6 p-6 bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-purple-200 dark:border-purple-900/50 text-center hover:bg-purple-50 transition-colors cursor-pointer group">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-purple-200 transition-colors">
+                    <Plus size={24} className="text-purple-600 dark:text-purple-400" />
+                </div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Conectar Nova Integração</h4>
+                <p className="text-xs text-slate-500 mt-1">Adicione uma API personalizada ou webhook</p>
+            </div>
+        </section>
+    );
+};
+
+
+// 5. E-MAIL & COMUNICAÇÃO
+const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
+    settings: import('../types').AppSettings,
+    onUpdate: (s: import('../types').AppSettings) => void,
+    addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+}) => {
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [testingConnection, setTestingConnection] = useState(false);
+    const [sendingTest, setSendingTest] = useState(false);
+
+    const updateEmailConfig = (key: string, value: any) => {
+        onUpdate({
+            ...settings,
+            emailConfig: {
+                ...settings.emailConfig,
+                [key]: value
+            }
+        });
+    };
+
+    const handleTestConnection = async () => {
+        setTestingConnection(true);
+        // Simulate SMTP connection test
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const success = settings.emailConfig?.senderEmail && settings.emailConfig?.smtpPort;
+        setTestingConnection(false);
+        if (success) {
+            addToast?.('Conexão SMTP estabelecida com sucesso!', 'success');
+        } else {
+            addToast?.('Falha na conexão. Verifique as configurações.', 'error');
+        }
+    };
+
+    const handleSendTestEmail = async () => {
+        setSendingTest(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setSendingTest(false);
+        addToast?.('E-mail de teste enviado para ' + (settings.emailConfig?.senderEmail || 'admin@infracore.com'), 'success');
+    };
+
+    const handleExportConfig = () => {
+        const config = {
+            provider: settings.emailConfig?.smtpProvider,
+            port: settings.emailConfig?.smtpPort,
+            security: settings.emailConfig?.smtpSecurity,
+            sender: settings.emailConfig?.senderEmail,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'email_config_export.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        addToast?.('Configuração exportada com sucesso!', 'success');
+    };
+
+    return (
+        <section className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 p-8 rounded-[32px] border border-blue-100 dark:border-blue-900/30">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-500 rounded-xl text-white">
+                    <Mail size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">E-mail & Comunicação Avançada</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Configuração SMTP, templates e automações de comunicação</p>
+                </div>
+            </div>
+
+            {/* Configuração SMTP */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="space-y-3">
+                    <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">Servidor SMTP</h4>
+                    <div className="space-y-2">
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Provedor</label>
+                            <select
+                                value={settings.emailConfig?.smtpProvider || 'Gmail (smtp.gmail.com)'}
+                                onChange={(e) => updateEmailConfig('smtpProvider', e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                            >
+                                <option>Gmail (smtp.gmail.com)</option>
+                                <option>Outlook (smtp-mail.outlook.com)</option>
+                                <option>SendGrid</option>
+                                <option>Amazon SES</option>
+                                <option>Personalizado</option>
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Porta</label>
+                                <input
+                                    type="number"
+                                    value={settings.emailConfig?.smtpPort ?? 587}
+                                    onChange={(e) => updateEmailConfig('smtpPort', Number(e.target.value))}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                />
+                            </div>
+                            <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Segurança</label>
+                                <select
+                                    value={settings.emailConfig?.smtpSecurity || 'TLS'}
+                                    onChange={(e) => updateEmailConfig('smtpSecurity', e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                >
+                                    <option>TLS</option>
+                                    <option>SSL</option>
+                                    <option>Nenhuma</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">E-mail Remetente</label>
+                            <input
+                                type="email"
+                                value={settings.emailConfig?.senderEmail || ''}
+                                onChange={(e) => updateEmailConfig('senderEmail', e.target.value)}
+                                placeholder="noreply@infracore.com"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block flex items-center justify-between">
+                                <span>Senha / App Password</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="text-blue-500 hover:text-blue-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                            </label>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={settings.emailConfig?.smtpPassword || ''}
+                                onChange={(e) => updateEmailConfig('smtpPassword', e.target.value)}
+                                placeholder="••••••••••••"
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                            />
+                        </div>
+                    </div>
+                </div>
+                {/* Templates de E-mail */}
+                <div className="space-y-3">
+                    <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">Templates de E-mail</h4>
+                    <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                        {[
+                            { name: 'Boas-vindas Novo Cliente', status: 'Ativo', lastEdit: '15/12/2024' },
+                            { name: 'Confirmação de Pedido', status: 'Ativo', lastEdit: '10/12/2024' },
+                            { name: 'Lembrete de Pagamento', status: 'Ativo', lastEdit: '08/12/2024' },
+                            { name: 'Nota Fiscal Emitida', status: 'Ativo', lastEdit: '05/12/2024' },
+                            { name: 'Orçamento Aprovado', status: 'Ativo', lastEdit: '01/12/2024' },
+                            { name: 'Aviso de Vencimento', status: 'Ativo', lastEdit: '28/11/2024' },
+                            { name: 'Agradecimento Pós-Venda', status: 'Inativo', lastEdit: '20/11/2024' },
+                            { name: 'Pesquisa de Satisfação', status: 'Ativo', lastEdit: '15/11/2024' },
+                        ].map(template => (
+                            <div key={template.name} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h5 className="font-bold text-sm text-slate-900 dark:text-white">{template.name}</h5>
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${template.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                        {template.status}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-500">Editado: {template.lastEdit}</span>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
+                                            <Edit2 size={12} className="text-blue-500" />
+                                        </button>
+                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
+                                            <Copy size={12} className="text-slate-400" />
+                                        </button>
+                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
+                                            <Eye size={12} className="text-slate-400" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button className="w-full py-3 bg-blue-500 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                        <Plus size={14} /> Criar Novo Template
+                    </button>
+                </div>
+            </div>
+
+            {/* Automações de E-mail */}
+            <div className="mt-6 pt-6 border-t border-blue-200 dark:border-blue-900/30">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4">Automações de Comunicação</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                        { trigger: 'Novo Cliente Cadastrado', action: 'Enviar e-mail de boas-vindas', enabled: true },
+                        { trigger: 'Pedido Confirmado', action: 'Enviar confirmação com detalhes', enabled: true },
+                        { trigger: '3 dias antes do vencimento', action: 'Lembrete de pagamento', enabled: true },
+                        { trigger: 'Pagamento Recebido', action: 'Agradecimento e recibo', enabled: true },
+                        { trigger: 'Orçamento sem resposta (7 dias)', action: 'Follow-up automático', enabled: false },
+                        { trigger: 'Aniversário do Cliente', action: 'Mensagem personalizada', enabled: false },
+                    ].map(automation => (
+                        <div key={automation.trigger} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                            <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white mb-1">{automation.trigger}</p>
+                                    <p className="text-[10px] text-slate-500">{automation.action}</p>
+                                </div>
+                                <div className={`w-10 h-5 rounded-full relative transition-colors ${automation.enabled ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${automation.enabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Teste de Conexão */}
+            <div className="mt-6 flex gap-3 flex-wrap">
+                <button
+                    onClick={handleTestConnection}
+                    disabled={testingConnection}
+                    className="px-6 py-3 bg-blue-500 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 disabled:opacity-50 disabled:cursor-wait transition-colors shadow-lg flex items-center gap-2"
+                >
+                    {testingConnection ? (
+                        <><RefreshCw size={14} className="animate-spin" /> Testando...</>
+                    ) : (
+                        <><Zap size={14} /> Testar Conexão SMTP</>
+                    )}
+                </button>
+                <button
+                    onClick={handleSendTestEmail}
+                    disabled={sendingTest}
+                    className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-blue-200 dark:border-blue-900/50 rounded-xl text-xs font-black uppercase hover:bg-blue-50 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center gap-2"
+                >
+                    {sendingTest ? (
+                        <><RefreshCw size={14} className="animate-spin" /> Enviando...</>
+                    ) : (
+                        <><Mail size={14} /> Enviar E-mail de Teste</>
+                    )}
+                </button>
+                <button
+                    onClick={handleExportConfig}
+                    className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-blue-200 dark:border-blue-900/50 rounded-xl text-xs font-black uppercase hover:bg-blue-50 transition-colors flex items-center gap-2"
+                >
+                    <Download size={14} /> Exportar Configuração
+                </button>
+            </div>
+        </section>
+    );
+};
+
+// 8. DADOS & SEGURANÇA
+const DataSecuritySection = ({ settings, onUpdate, addToast }: {
+    settings: import('../types').AppSettings,
+    onUpdate: (s: import('../types').AppSettings) => void,
+    addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+}) => {
+
+    const [runningBackup, setRunningBackup] = useState(false);
+    const [exportingData, setExportingData] = useState(false);
+    const [generatingReport, setGeneratingReport] = useState(false);
+
+    const updateSecurityConfig = (key: string, value: any) => {
+        onUpdate({
+            ...settings,
+            dataSecurity: {
+                ...settings.dataSecurity,
+                [key]: value
+            }
+        });
+    };
+
+    const handleRunBackup = async () => {
+        setRunningBackup(true);
+        // Simulate backup process
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        updateSecurityConfig('lastBackupDate', new Date().toLocaleString('pt-BR'));
+        setRunningBackup(false);
+        addToast?.('Backup executado com sucesso!', 'success');
+    };
+
+    const handleExportLGPDData = async () => {
+        setExportingData(true);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const lgpdData = {
+            exportDate: new Date().toISOString(),
+            company: settings.companyName,
+            securitySettings: settings.dataSecurity,
+            dataRetention: {
+                auditLogs: '12 meses',
+                financialRecords: 'Permanente',
+                clientData: 'Conforme solicitação'
+            },
+            compliance: {
+                lgpdConsent: settings.dataSecurity?.lgpdConsent,
+                encryptionEnabled: settings.dataSecurity?.encryptionEnabled,
+                backupEnabled: settings.dataSecurity?.backupEnabled
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(lgpdData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lgpd_export_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        setExportingData(false);
+        addToast?.('Dados LGPD exportados com sucesso!', 'success');
+    };
+
+    const handleGenerateComplianceReport = async () => {
+        setGeneratingReport(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setGeneratingReport(false);
+        addToast?.('Relatório de conformidade gerado!', 'success');
+    };
+
+    return (
+        <section className="bg-gradient-to-br from-slate-50 to-zinc-100 dark:from-slate-900/50 dark:to-zinc-900/30 p-8 rounded-[32px] border border-slate-200 dark:border-slate-700/50">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-slate-700 rounded-xl text-white">
+                    <ShieldCheck size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Dados, Segurança & Compliance</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Backup, criptografia, LGPD e políticas de retenção</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Backup Automático */}
+                <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <Cloud size={24} className="text-blue-500" />
+                            <div>
+                                <h4 className="font-black text-sm text-slate-900 dark:text-white">Backup Automático</h4>
+                                <p className="text-[10px] text-slate-500">
+                                    Última: {settings.dataSecurity?.lastBackupDate || 'Nunca executado'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold uppercase text-slate-500">{settings.dataSecurity?.backupEnabled ? 'Ativo' : 'Inativo'}</span>
+                            <div
+                                onClick={() => updateSecurityConfig('backupEnabled', !settings.dataSecurity?.backupEnabled)}
+                                className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.dataSecurity?.backupEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${settings.dataSecurity?.backupEnabled ? 'right-1' : 'left-1'}`}></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Frequência</label>
+                            <select
+                                value={settings.dataSecurity?.backupFrequency || 'daily'}
+                                onChange={(e) => updateSecurityConfig('backupFrequency', e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm"
+                            >
+                                <option value="6h">A cada 6 horas</option>
+                                <option value="daily">Diário (Recomendado)</option>
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Retenção de Backups</label>
+                            <select
+                                value={settings.dataSecurity?.backupRetention || 30}
+                                onChange={(e) => updateSecurityConfig('backupRetention', Number(e.target.value))}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm"
+                            >
+                                <option value={7}>7 dias</option>
+                                <option value={30}>30 dias (Recomendado)</option>
+                                <option value={90}>90 dias</option>
+                                <option value={365}>1 ano</option>
+                                <option value={0}>Permanente</option>
+                            </select>
+                        </div>
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex justify-between text-xs mb-2">
+                                <span className="text-slate-600 dark:text-slate-400">Espaço Utilizado</span>
+                                <span className="font-black text-blue-600">2.4 GB / 50 GB</span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '4.8%' }}></div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleRunBackup}
+                            disabled={runningBackup}
+                            className="w-full mt-3 py-3 bg-blue-500 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center justify-center gap-2"
+                        >
+                            {runningBackup ? (
+                                <><RefreshCw size={14} className="animate-spin" /> Executando...</>
+                            ) : (
+                                <><Download size={14} /> Executar Backup Agora</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Criptografia */}
+                <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Lock size={24} className="text-amber-500" />
+                        <div>
+                            <h4 className="font-black text-sm text-slate-900 dark:text-white">Criptografia de Dados</h4>
+                            <p className="text-[10px] text-slate-500">Proteção end-to-end</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        {[
+                            { label: 'Dados em Trânsito (TLS 1.3)', enabled: true, level: 'Máxima' },
+                            { label: 'Dados em Repouso (AES-256)', enabled: true, level: 'Máxima' },
+                            { label: 'Senhas (bcrypt)', enabled: true, level: 'Alta' },
+                        ].map(item => (
+                            <div key={item.label} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <div className="flex-1">
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white">{item.label}</p>
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md mt-1 inline-block ${item.level === 'Máxima' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                                        }`}>
+                                        {item.level}
+                                    </span>
+                                </div>
+                                <CheckCircle size={18} className="text-emerald-500" />
+                            </div>
+                        ))}
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Criptografia Global Ativa</span>
+                                <div
+                                    onClick={() => updateSecurityConfig('encryptionEnabled', !settings.dataSecurity?.encryptionEnabled)}
+                                    className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${settings.dataSecurity?.encryptionEnabled ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${settings.dataSecurity?.encryptionEnabled ? 'right-1' : 'left-1'}`}></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* LGPD & Compliance */}
+                <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Scale size={24} className="text-purple-500" />
+                        <div>
+                            <h4 className="font-black text-sm text-slate-900 dark:text-white">LGPD & Compliance</h4>
+                            <p className="text-[10px] text-slate-500">Conformidade legal</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">Coleta de Consentimento</span>
+                            <div
+                                onClick={() => updateSecurityConfig('lgpdConsent', !settings.dataSecurity?.lgpdConsent)}
+                                className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${settings.dataSecurity?.lgpdConsent ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            >
+                                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${settings.dataSecurity?.lgpdConsent ? 'right-0.5' : 'left-0.5'}`}></div>
+                            </div>
+                        </div>
+                        {[
+                            { label: 'Política de Privacidade', status: 'Atualizada' },
+                            { label: 'Direito ao Esquecimento', status: 'Ativo' },
+                        ].map(item => (
+                            <div key={item.label} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <span className="text-xs font-bold text-slate-900 dark:text-white">{item.label}</span>
+                                <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md">
+                                    {item.status}
+                                </span>
+                            </div>
+                        ))}
+                        <button className="w-full mt-3 py-2 bg-purple-500 text-white rounded-xl text-xs font-black uppercase hover:bg-purple-600 transition-colors">
+                            Gerar Relatório LGPD
+                        </button>
+                        <button className="w-full py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors">
+                            Central de Privacidade
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Ações de Segurança */}
+            <div className="mt-6 flex gap-3 flex-wrap">
+                <button
+                    onClick={handleExportLGPDData}
+                    disabled={exportingData}
+                    className="px-6 py-3 bg-slate-700 text-white rounded-xl text-xs font-black uppercase hover:bg-slate-800 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center gap-2"
+                >
+                    {exportingData ? (
+                        <><RefreshCw size={14} className="animate-spin" /> Exportando...</>
+                    ) : (
+                        <><Download size={14} /> Exportar Dados (LGPD)</>
+                    )}
+                </button>
+                <button
+                    onClick={handleGenerateComplianceReport}
+                    disabled={generatingReport}
+                    className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center gap-2"
+                >
+                    {generatingReport ? (
+                        <><RefreshCw size={14} className="animate-spin" /> Gerando...</>
+                    ) : (
+                        <><FileText size={14} /> Relatório de Conformidade</>
+                    )}
+                </button>
+                <button className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors flex items-center gap-2">
+                    <Key size={14} /> Gerenciar Chaves de Criptografia
+                </button>
+            </div>
+        </section>
+    );
+};
+
+// 10. DOCUMENTOS & IMPRESSÃO
+const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
+
+    const updateDocumentConfig = (key: string, value: any) => {
+        onUpdate({
+            ...settings,
+            documents: {
+                ...settings.documents,
+                [key]: value
+            }
+        });
+    };
+
+    return (
+        <section className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/20 dark:to-teal-950/20 p-8 rounded-[32px] border border-cyan-100 dark:border-cyan-900/30">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-cyan-500 rounded-xl text-white">
+                    <Printer size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Documentos, Impressão & Relatórios</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Configuração de layouts, impressoras e geração de documentos</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Templates de Documentos */}
+                <div className="space-y-4">
+                    <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">Templates de Documentos Fiscais e Comerciais</h4>
+                    {[
+                        { name: 'DANFE - Nota Fiscal Eletrônica', format: 'A4 Retrato', status: 'Ativo', version: 'v4.0' },
+                        { name: 'Orçamento Comercial Detalhado', format: 'A4 Retrato', status: 'Ativo', version: 'v2.1' },
+                        { name: 'Pedido de Compra', format: 'A4 Paisagem', status: 'Ativo', version: 'v1.5' },
+                        { name: 'Romaneio de Carga / Manifesto', format: 'A4 Retrato', status: 'Ativo', version: 'v1.2' },
+                        { name: 'Ordem de Serviço (OS)', format: 'A4 Retrato', status: 'Ativo', version: 'v3.0' },
+                        { name: 'Contrato de Prestação de Serviços', format: 'A4 Retrato', status: 'Ativo', version: 'v2.0' },
+                        { name: 'Recibo de Pagamento', format: 'A5 Retrato', status: 'Ativo', version: 'v1.0' },
+                        { name: 'Relatório de Medição de Obra', format: 'A4 Paisagem', status: 'Inativo', version: 'v1.0' },
+                    ].map(doc => (
+                        <div key={doc.name} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-cyan-100 dark:border-cyan-900/30 hover:shadow-md transition-all group">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FileText size={16} className="text-cyan-500" />
+                                    <p className="font-bold text-sm text-slate-900 dark:text-white">{doc.name}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-[10px] text-slate-500">{doc.format}</p>
+                                    <span className="text-[9px] font-mono text-slate-400">{doc.version}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 rounded-md text-[9px] font-black ${doc.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                    {doc.status}
+                                </span>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
+                                        <Edit2 size={14} className="text-slate-400" />
+                                    </button>
+                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
+                                        <Eye size={14} className="text-slate-400" />
+                                    </button>
+                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
+                                        <Printer size={14} className="text-slate-400" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Configurações de Impressora */}
+                <div className="space-y-4">
+                    <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">Configurações de Impressoras</h4>
+                    <div className="space-y-3">
+                        {/* Impressora Principal */}
+                        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-cyan-100 dark:border-cyan-900/30">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Printer size={18} className="text-cyan-600" />
+                                <h5 className="font-black text-sm text-slate-900 dark:text-white">Impressora Principal (Documentos)</h5>
+                            </div>
+                            <div className="space-y-2">
+                                <select
+                                    value={settings.documents?.printerMain || 'HP LaserJet Pro'}
+                                    onChange={(e) => updateDocumentConfig('printerMain', e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-3 px-4 font-bold text-sm"
+                                >
+                                    <option>HP LaserJet Pro</option>
+                                    <option>Epson L3150 - Colorida</option>
+                                    <option>Brother HL-L2350DW</option>
+                                    <option>Microsoft Print to PDF</option>
+                                </select>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Qualidade</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
+                                            <option>Rascunho</option>
+                                            <option>Normal</option>
+                                            <option>Alta</option>
+                                        </select>
+                                    </div>
+                                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Cor</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
+                                            <option>P&B</option>
+                                            <option>Colorido</option>
+                                        </select>
+                                    </div>
+                                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Duplex</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
+                                            <option value="false">Não</option>
+                                            <option value="true">Sim</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Impressora Térmica */}
+                        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-cyan-100 dark:border-cyan-900/30">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Package size={18} className="text-amber-600" />
+                                <h5 className="font-black text-sm text-slate-900 dark:text-white">Impressora Térmica (Etiquetas)</h5>
+                            </div>
+                            <div className="space-y-2">
+                                <select
+                                    value={settings.documents?.printerThermal || 'Zebra ZD220'}
+                                    onChange={(e) => updateDocumentConfig('printerThermal', e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-3 px-4 font-bold text-sm"
+                                >
+                                    <option>Zebra ZD220</option>
+                                    <option>Argox OS-214 Plus</option>
+                                    <option>Elgin L42 PRO</option>
+                                    <option>Não configurada</option>
+                                </select>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Largura (mm)</label>
+                                        <input type="number" defaultValue="100" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold" />
+                                    </div>
+                                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Altura (mm)</label>
+                                        <input type="number" defaultValue="100" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Configurações Gerais */}
+                        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-cyan-100 dark:border-cyan-900/30">
+                            <h5 className="font-black text-sm text-slate-900 dark:text-white mb-3">Configurações Gerais</h5>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Margens (mm)</label>
+                                    <input
+                                        type="number"
+                                        value={settings.documents?.margins ?? 10}
+                                        onChange={(e) => updateDocumentConfig('margins', Number(e.target.value))}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Cópias Padrão</label>
+                                    <input
+                                        type="number"
+                                        value={settings.documents?.copies ?? 2}
+                                        onChange={(e) => updateDocumentConfig('copies', Number(e.target.value))}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Marca D'água e Personalização */}
+            <div className="mt-6 pt-6 border-t border-cyan-200 dark:border-cyan-900/30">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4">Personalização de Documentos</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                        { id: 'showLogo', label: 'Exibir Logo no Cabeçalho' },
+                        { id: 'watermarkDraft', label: 'Marca D\'água em Rascunhos' },
+                        { id: 'qrCode', label: 'QR Code em Documentos' },
+                        { id: 'autoNumbering', label: 'Numeração Automática' },
+                        { id: 'digitalSignature', label: 'Assinatura Digital' },
+                        { id: 'customFooter', label: 'Rodapé Personalizado' },
+                        { id: 'barcode', label: 'Código de Barras' },
+                        { id: 'authSeal', label: 'Selo de Autenticidade' },
+                    ].map(option => {
+                        const isEnabled = settings.documents?.[option.id as keyof typeof settings.documents] === true;
+                        return (
+                            <div key={option.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-cyan-100 dark:border-cyan-900/30">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-tight">{option.label}</span>
+                                <div
+                                    onClick={() => updateDocumentConfig(option.id, !isEnabled)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${isEnabled ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isEnabled ? 'right-1' : 'left-1'}`}></div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// 11. PERFORMANCE & OTIMIZAÇÃO
+const PerformanceOptimizationSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
+    const updatePerfConfig = (key: string, value: any) => {
+        onUpdate({
+            ...settings,
+            performance: {
+                ...settings.performance,
+                [key]: value
+            }
+        });
+    };
+
+    const optimizations = [
+        { id: 'dataCompression', label: 'Compressão de Dados (Modo Econômico)', impact: 'Alto' },
+        { id: 'prefetch', label: 'Pré-carregamento Inteligente', impact: 'Médio' },
+        { id: 'lazyLoading', label: 'Lazy Loading de Imagens', impact: 'Alto' },
+        { id: 'animations', label: 'Animações de Interface', impact: 'Baixo' },
+        { id: 'serviceWorker', label: 'Modo Offline (Service Worker)', impact: 'Muito Alto' }
+    ];
+
+    return (
+        <section className="bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950/20 dark:to-green-950/20 p-8 rounded-[32px] border border-lime-100 dark:border-lime-900/30">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-lime-500 rounded-xl text-white">
+                    <Zap size={20} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Performance, Otimização & Manutenção</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Ajustes avançados de velocidade, cache e uso de recursos</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Cache do Sistema */}
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-lime-100 dark:border-lime-900/30">
+                    <div className="flex items-center gap-2 mb-4">
+                        <HardDrive size={20} className="text-lime-600" />
+                        <h4 className="font-black text-sm text-slate-900 dark:text-white">Cache do Sistema</h4>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Tamanho Atual</span>
+                            <span className="text-xs font-black text-lime-600">245 MB</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5">
+                            <div className="bg-lime-500 h-2.5 rounded-full" style={{ width: '24%' }}></div>
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                            <p>Limite: 1 GB</p>
+                            <p>Última limpeza: Há 3 dias</p>
+                        </div>
+                        <button className="w-full py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-lime-50 hover:text-lime-600 transition-colors flex items-center justify-center gap-2">
+                            <RefreshCw size={12} /> Limpar Cache
+                        </button>
+                    </div>
+                </div>
+
+                {/* Banco de Dados */}
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-lime-100 dark:border-lime-900/30">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Database size={20} className="text-lime-600" />
+                        <h4 className="font-black text-sm text-slate-900 dark:text-white">Banco de Dados</h4>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Tamanho Total</span>
+                            <span className="text-xs font-black text-blue-600">3.8 GB</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Fragmentação</span>
+                            <span className="text-xs font-black text-amber-600">12%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Última Otimização</span>
+                            <span className="text-xs font-black text-slate-500">Há 3 dias</span>
+                        </div>
+                        <button className="w-full py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-lime-50 hover:text-lime-600 transition-colors">
+                            Otimizar Agora
+                        </button>
+                    </div>
+                </div>
+
+                {/* Compressão de Imagens */}
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-lime-100 dark:border-lime-900/30">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Package size={20} className="text-lime-600" />
+                        <h4 className="font-black text-sm text-slate-900 dark:text-white">Compressão</h4>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Qualidade de Imagens</label>
+                            <input type="range" min="50" max="100" defaultValue="85" className="w-full accent-lime-500" />
+                            <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                                <span>Menor</span>
+                                <span className="font-black text-lime-600">85%</span>
+                                <span>Máxima</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Auto-compressão</span>
+                            <div className="w-10 h-5 bg-lime-500 rounded-full relative">
+                                <div className="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">Economia: ~40% de espaço</p>
+                    </div>
+                </div>
+
+                {/* Índices e Consultas */}
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-lime-100 dark:border-lime-900/30">
+                    <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp size={20} className="text-lime-600" />
+                        <h4 className="font-black text-sm text-slate-900 dark:text-white">Consultas SQL</h4>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Tempo Médio</span>
+                            <span className="text-xs font-black text-emerald-600">45ms</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Consultas Lentas</span>
+                            <span className="text-xs font-black text-amber-600">3</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Índices Ativos</span>
+                            <span className="text-xs font-black text-blue-600">47</span>
+                        </div>
+                        <button className="w-full py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-lime-50 hover:text-lime-600 transition-colors">
+                            Analisar Consultas
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Opções Avançadas de Performance */}
+            <div className="mt-6 pt-6 border-t border-lime-200 dark:border-lime-900/30">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4">Otimizações Avançadas</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {optimizations.map(opt => {
+                        const isEnabled = settings.performance?.[opt.id] === true;
+                        return (
+                            <div key={opt.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-lime-100 dark:border-lime-900/30">
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight mb-1">{opt.label}</p>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${opt.impact === 'Muito Alto' ? 'bg-emerald-100 text-emerald-700' :
+                                            opt.impact === 'Alto' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-amber-100 text-amber-700'
+                                            }`}>
+                                            Impacto: {opt.impact}
+                                        </span>
+                                    </div>
+                                    <div
+                                        onClick={() => updatePerfConfig(opt.id, !isEnabled)}
+                                        className={`w-10 h-5 rounded-full relative transition-colors ml-2 cursor-pointer ${isEnabled ? 'bg-lime-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Monitoramento de Performance */}
+            <div className="mt-6 pt-6 border-t border-lime-200 dark:border-lime-900/30">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4">Métricas de Performance em Tempo Real</h4>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {[
+                        { label: 'Tempo de Resposta', value: '120ms', status: 'good', icon: 'Clock' },
+                        { label: 'Requisições/seg', value: '45', status: 'good', icon: 'Activity' },
+                        { label: 'Taxa de Erro', value: '0.02%', status: 'good', icon: 'AlertTriangle' },
+                        { label: 'Uptime', value: '99.98%', status: 'excellent', icon: 'CheckCircle' },
+                        { label: 'Usuários Online', value: '23', status: 'normal', icon: 'Users' },
+                    ].map(metric => (
+                        <div key={metric.label} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-lime-100 dark:border-lime-900/30 text-center">
+                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2">{metric.label}</p>
+                            <p className={`text-2xl font-black mb-1 ${metric.status === 'excellent' ? 'text-emerald-600' :
+                                metric.status === 'good' ? 'text-blue-600' :
+                                    'text-slate-600'
+                                }`}>{metric.value}</p>
+                            <div className={`w-2 h-2 rounded-full mx-auto ${metric.status === 'excellent' ? 'bg-emerald-500' :
+                                metric.status === 'good' ? 'bg-blue-500' :
+                                    'bg-amber-500'
+                                } animate-pulse`}></div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
 
 const Settings = () => {
     const {
@@ -45,33 +1314,71 @@ const Settings = () => {
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'company' | 'security' | 'system' | 'audit'>('company');
-    const [activeSubTab, setActiveSubTab] = useState<'users' | 'roles' | 'technical' | 'preferences'>('users');
+    const [subTab, setSubTab] = useState<string>('general'); // Generic subtab state
+
+    // Local State for floating save bar detection
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Toasts
+    const [toasts, setToasts] = useState<Array<{ id: number, message: string, type: 'success' | 'error' | 'info' }>>([]);
+    const addToast = (message: string, type: 'success' | 'error' | 'info') => {
+        setToasts(prev => [...prev, { id: Date.now(), message, type }]);
+    };
+    const removeToast = (id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     // Modals
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+
+    // Editing States
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editingRole, setEditingRole] = useState<AppRole | null>(null);
-
-    // Form States
     const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
 
-    const handleSaveSettings = (e: React.FormEvent) => {
-        e.preventDefault();
+    // Audit Filters
+    const [auditSearch, setAuditSearch] = useState('');
+    const [auditModuleFilter, setAuditModuleFilter] = useState('Todos');
+
+    // Sync temp settings on mount/update (only if not dirty, strategy can vary)
+    // For this simple app, we'll just track changes.
+    useEffect(() => {
+        const isDifferent = JSON.stringify(tempSettings) !== JSON.stringify(settings);
+        setHasChanges(isDifferent);
+    }, [tempSettings, settings]);
+
+    const handleSaveSettings = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         updateSettings(tempSettings);
-        alert('Configurações salvas com sucesso!');
+        addToast('Configurações salvas com sucesso!', 'success');
+        setHasChanges(false);
+    };
+
+    const handleRevert = () => {
+        setTempSettings(settings);
+        setHasChanges(false);
+        addToast('Alterações descartadas.', 'info');
     };
 
     const handleSaveUser = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingUser) {
-            if (users.some(u => u.id === editingUser.id)) {
-                updateUser(editingUser);
-            } else {
-                addUser({ ...editingUser, id: Date.now().toString(), registeredAt: new Date().toLocaleDateString('pt-BR') });
+            try {
+                if (users.some(u => u.id === editingUser.id)) {
+                    updateUser(editingUser);
+                    addToast('Usuário atualizado!', 'success');
+                } else {
+                    // Simple validation
+                    if (!editingUser.password) editingUser.password = '123456'; // Default password for demo
+                    addUser({ ...editingUser, id: Date.now().toString(), registeredAt: new Date().toLocaleDateString('pt-BR') });
+                    addToast('Novo usuário criado!', 'success');
+                }
+                setIsUserModalOpen(false);
+                setEditingUser(null);
+            } catch (error) {
+                addToast('Erro ao salvar usuário.', 'error');
             }
-            setIsUserModalOpen(false);
-            setEditingUser(null);
         }
     };
 
@@ -80,453 +1387,842 @@ const Settings = () => {
         if (editingRole) {
             if (roles.some(r => r.id === editingRole.id)) {
                 updateRole(editingRole);
+                addToast('Perfil de acesso atualizado!', 'success');
             } else {
                 addRole({ ...editingRole, id: Date.now().toString() });
+                addToast('Novo perfil criado!', 'success');
             }
             setIsRoleModalOpen(false);
             setEditingRole(null);
         }
     };
 
-    // Permission logic moved to permission_constants.ts
+    // Filter Logic for Audit Log
+    const filteredAuditLogs = useMemo(() => {
+        return auditLogs.filter(log => {
+            const matchesSearch = log.details.toLowerCase().includes(auditSearch.toLowerCase()) ||
+                log.userName.toLowerCase().includes(auditSearch.toLowerCase()) ||
+                log.action.toLowerCase().includes(auditSearch.toLowerCase());
+            const matchesModule = auditModuleFilter === 'Todos' || log.module === auditModuleFilter;
+            return matchesSearch && matchesModule;
+        });
+    }, [auditLogs, auditSearch, auditModuleFilter]);
 
-    const getSeverityColor = (severity: string) => {
-        switch (severity) {
-            case 'critical': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
-            case 'warning': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-            default: return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-        }
-    };
+    // UI Helpers
+    const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
+        <button
+            onClick={() => { setActiveTab(id); setSubTab(id === 'security' ? 'users' : 'general'); }}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap border-2 ${activeTab === id
+                ? 'bg-slate-900 border-slate-900 text-white shadow-lg scale-105'
+                : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+        >
+            <Icon size={16} className={activeTab === id ? 'animate-pulse' : ''} />
+            {label}
+        </button>
+    );
 
     return (
-        <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10 h-full overflow-hidden">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0 px-2 leading-none">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tighter uppercase italic">
-                        <div className="p-2.5 bg-slate-900 dark:bg-indigo-600 rounded-2xl text-white shadow-xl rotate-3">
-                            <Cpu size={28} />
-                        </div>
-                        Painel de Controle
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs mt-2 font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Activity size={12} className="text-emerald-500 animate-pulse" /> Status do Sistema: <span className="text-emerald-500 underline decoration-emerald-500/30 underline-offset-4">Operacional</span>
-                    </p>
-                </div>
-
-                <div className="flex gap-2">
-                    <button
-                        onClick={handleSaveSettings}
-                        className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all"
-                    >
-                        <Save size={16} /> Salvar Alterações
-                    </button>
-                </div>
+        <div className="flex flex-col h-full relative">
+            {/* Toast Container */}
+            <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[110]">
+                {toasts.map(t => (
+                    <Toast key={t.id} message={t.message} type={t.type} onClose={() => removeToast(t.id)} />
+                ))}
             </div>
 
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 p-1.5 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-x-auto no-scrollbar shrink-0">
-                <button
-                    onClick={() => setActiveTab('company')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'company' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    <Building size={16} /> Empresa
-                </button>
-                {hasPermission('users.manage') && (
-                    <button
-                        onClick={() => setActiveTab('security')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'security' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                    >
-                        <ShieldCheck size={16} /> Segurança
-                    </button>
-                )}
-                <button
-                    onClick={() => setActiveTab('system')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'system' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    <SettingsIcon size={16} /> Parâmetros
-                </button>
-                <button
-                    onClick={() => setActiveTab('audit')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'audit' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    <History size={16} /> Auditoria
-                </button>
-            </div>
-
-            {/* Main Workspace */}
-            <div className="flex-1 bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700 p-8 overflow-y-auto custom-scrollbar">
-
-                {/* COMPANY TAB */}
-                {activeTab === 'company' && (
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-10">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                            <div className="lg:col-span-8 space-y-8">
-                                <section>
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                        <Building size={14} className="text-indigo-500" /> Identidade Visual & Jurídica
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Razão Social</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.companyName} onChange={e => setTempSettings({ ...tempSettings, companyName: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Fantasia</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.tradeName} onChange={e => setTempSettings({ ...tempSettings, tradeName: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ / Documento</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.document} onChange={e => setTempSettings({ ...tempSettings, document: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
-                                            <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.email} onChange={e => setTempSettings({ ...tempSettings, email: e.target.value })} />
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section>
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                        <MapPin size={14} className="text-indigo-500" /> Canais & Localização
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone Principal</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.phone} onChange={e => setTempSettings({ ...tempSettings, phone: e.target.value })} />
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Sede</label>
-                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm focus:ring-2 ring-indigo-500/20 transition-all outline-none" value={tempSettings.address} onChange={e => setTempSettings({ ...tempSettings, address: e.target.value })} />
-                                        </div>
-                                    </div>
-                                </section>
+            {/* Top Navigation Bar */}
+            <div className="shrink-0 pb-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tighter uppercase italic">
+                            <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-600/20 rotate-3">
+                                <SettingsIcon size={24} />
                             </div>
-
-                            <div className="lg:col-span-4 space-y-6">
-                                <div className="p-8 bg-slate-900 text-white rounded-[40px] shadow-2xl relative overflow-hidden group">
-                                    <Zap size={120} className="absolute -right-10 -bottom-10 text-indigo-500/20 group-hover:rotate-12 transition-transform duration-500" />
-                                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Plano InfraCore</h4>
-                                    <div className="space-y-4 relative z-10">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-bold text-slate-400">Status do Plano</span>
-                                            <span className="font-black text-emerald-400 uppercase">Enterprise</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-bold text-slate-400">Usuários</span>
-                                            <span className="font-black">{users.length} / Ilimitado</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-bold text-slate-400">Armazenamento</span>
-                                            <span className="font-black">1.2 GB / 50 GB</span>
-                                        </div>
-                                        <div className="pt-4">
-                                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-500 w-[12%]"></div>
-                                            </div>
-                                        </div>
-                                        <button className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">Upgrade de Plano</button>
-                                    </div>
-                                </div>
-
-                                <div className="p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[40px] border border-slate-100 dark:border-slate-700">
-                                    <h4 className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Suporte Dedicado</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-6">Precisa de ajuda avançada ou treinamento personalizado? Nossa equipe está pronta.</p>
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                                            <Phone size={14} className="text-indigo-500" /> 0800 123 4567
-                                        </div>
-                                        <div className="flex items-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                                            <Mail size={14} className="text-indigo-500" /> vip@infracore.com
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            Configurações
+                        </h1>
+                        <p className="text-slate-500 dark:text-gray-400 text-xs mt-2 font-bold flex items-center gap-2 ml-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Sistema Operacional v2.4.0
+                        </p>
                     </div>
-                )}
+                </div>
 
-                {/* SECURITY TAB */}
-                {activeTab === 'security' && (
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-10">
-                        <div className="flex items-center gap-2 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-2xl w-fit">
-                            <button onClick={() => setActiveSubTab('users')} className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'users' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}>Gerir Usuários</button>
-                            <button onClick={() => setActiveSubTab('roles')} className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeSubTab === 'roles' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}>Perfis de Acesso</button>
-                        </div>
+                <div className="p-1.5 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 w-full overflow-x-auto no-scrollbar flex items-center gap-2">
+                    <TabButton id="company" label="Empresa" icon={Building} />
+                    {hasPermission('users.manage') && <TabButton id="security" label="Segurança & Acesso" icon={ShieldCheck} />}
+                    <TabButton id="system" label="Parâmetros" icon={Cpu} />
+                    <TabButton id="audit" label="Auditoria" icon={History} />
+                </div>
+            </div>
 
-                        {activeSubTab === 'users' && (
-                            <div className="space-y-6 animate-in fade-in duration-300">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <Users size={14} /> Ativos no Sistema ({users.length})
-                                    </h3>
-                                    <button onClick={() => { setEditingUser({ id: '', name: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '', employeeId: '' }); setIsUserModalOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><UserPlus size={24} /></button>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {users.map(user => (
-                                        <div key={user.id} className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-[32px] border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all group">
-                                            <div className="flex items-start justify-between mb-4">
-                                                <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center font-black text-xl text-slate-300 border border-slate-100 dark:border-slate-700 shadow-sm">
-                                                    {user.name.charAt(0)}
-                                                </div>
-                                                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-white dark:bg-slate-800 rounded-lg shadow-sm transition-colors border border-slate-100 dark:border-slate-700"><Edit2 size={12} /></button>
-                                                    <button onClick={() => { if (confirm('Excluir acesso?')) deleteUser(user.id); }} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 rounded-lg shadow-sm transition-colors border border-slate-100 dark:border-slate-700"><Trash2 size={12} /></button>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{user.name}</p>
-                                                <p className="text-xs text-slate-400 font-medium mb-4">{user.email}</p>
-                                                {user.employeeId && (
-                                                    <div className="mb-4 flex items-center gap-1.5 text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg w-fit">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                                        {employees.find(e => e.id === user.employeeId)?.name || 'Vínculo Inválido'}
-                                                    </div>
-                                                )}
-                                                <div className="flex flex-wrap gap-2">
-                                                    <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 uppercase">{roles.find(r => r.id === user.roleId)?.name || 'N/A'}</span>
-                                                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg uppercase ${user.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{user.status}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+            {/* Main Content Area */}
+            <div className="flex-1 bg-white dark:bg-slate-800 rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative">
+                <div className="h-full overflow-y-auto custom-scrollbar p-8 pb-32">
 
-                        {activeSubTab === 'roles' && (
-                            <div className="animate-in fade-in duration-300 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {roles.map(role => (
-                                    <div key={role.id} className="p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[40px] border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30 transition-all flex flex-col">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100 dark:border-slate-700">
-                                                <Shield size={24} />
+                    {/* COMPANY SETTINGS */}
+                    {activeTab === 'company' && (
+                        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                                {/* Left Column: Identity */}
+                                <div className="xl:col-span-2 space-y-8">
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-700/50">
+                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                            <Building size={16} className="text-indigo-500" /> Identidade Corporativa
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Fantasia</label>
+                                                <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.tradeName} onChange={e => setTempSettings({ ...tempSettings, tradeName: e.target.value })} />
                                             </div>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{role.permissions.length} Funções</span>
-                                        </div>
-                                        <h4 className="font-black text-slate-900 dark:text-white uppercase text-base mb-2 tracking-tighter">{role.name}</h4>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed flex-1">{role.description}</p>
-                                        <div className="mt-8 flex gap-3">
-                                            <button onClick={() => { setEditingRole(role); setIsRoleModalOpen(true); }} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:bg-slate-900 hover:text-white transition-all">Configurar</button>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Razão Social</label>
+                                                <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.companyName} onChange={e => setTempSettings({ ...tempSettings, companyName: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ / Documento</label>
+                                                <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.document} onChange={e => setTempSettings({ ...tempSettings, document: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Principal</label>
+                                                <input type="email" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.email} onChange={e => setTempSettings({ ...tempSettings, email: e.target.value })} />
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
+
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-700/50">
+                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                            <MapPin size={16} className="text-pink-500" /> Localização & Contato
+                                        </h3>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
+                                                <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.address} onChange={e => setTempSettings({ ...tempSettings, address: e.target.value })} />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone / WhatsApp</label>
+                                                    <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" value={tempSettings.phone} onChange={e => setTempSettings({ ...tempSettings, phone: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Website</label>
+                                                    <input type="text" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none" placeholder="https://..." />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-700/50">
+                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                            <Landmark size={16} className="text-emerald-500" /> Dados Bancários
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banco</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.bankName || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, bankName: e.target.value } as any })}
+                                                    placeholder="Ex: Banco do Brasil"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agência</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.agency || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, agency: e.target.value } as any })}
+                                                    placeholder="Ex: 0001-X"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Conta Corrente</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.account || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, account: e.target.value } as any })}
+                                                    placeholder="Ex: 12345-6"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chave PIX</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.pixKey || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixKey: e.target.value } as any })}
+                                                    placeholder="CPF/CNPJ/Email/Aleatória"
+                                                />
+                                            </div>
+                                            <div className="space-y-2 md:col-span-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Chave</label>
+                                                <select
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.pixType || 'CNPJ'}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixType: e.target.value } as any })}
+                                                >
+                                                    <option>CNPJ</option>
+                                                    <option>CPF</option>
+                                                    <option>E-mail</option>
+                                                    <option>Telefone</option>
+                                                    <option>Chave Aleatória</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Plan & Info */}
+                                <div className="space-y-6">
+                                    <div className="p-8 bg-slate-900 text-white rounded-[40px] shadow-2xl relative overflow-hidden group">
+                                        <Zap size={140} className="absolute -right-8 -bottom-8 text-white/5 group-hover:scale-110 transition-transform duration-700 rotate-12" />
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="p-2 bg-indigo-500 rounded-lg">
+                                                    <Cloud size={20} className="text-white" />
+                                                </div>
+                                                <span className="font-black text-sm text-indigo-300 uppercase tracking-widest">Plano Atual</span>
+                                            </div>
+                                            <h4 className="text-3xl font-black italic tracking-tighter mb-2">ENTERPRISE</h4>
+                                            <p className="text-slate-400 text-xs font-medium mb-8 max-w-[200px]">Acesso ilimitado a todos os módulos e recursos avançados.</p>
+
+                                            <div className="space-y-4 mb-8">
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
+                                                        <span>Armazenamento</span>
+                                                        <span>25% Uso</span>
+                                                    </div>
+                                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-indigo-500 w-[25%] rounded-full"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
+                                                        <span>Usuários</span>
+                                                        <span>{users.length} Ativos</span>
+                                                    </div>
+                                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-500 w-[12%] rounded-full"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <button className="w-full py-4 bg-white text-slate-900 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-colors">
+                                                Gerenciar Assinatura
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-700/50 rounded-3xl text-center">
+                                        <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <Server size={24} />
+                                        </div>
+                                        <h4 className="font-black text-slate-900 dark:text-white text-sm mb-1">Backup na Nuvem</h4>
+                                        <p className="text-xs text-slate-400 mb-4">Seus dados estão seguros e sincronizados.</p>
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                                            <CheckCircle size={10} /> Ativo e Protegido
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SECURITY SETTINGS */}
+                    {activeTab === 'security' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-full flex flex-col">
+                            <div className="flex items-center gap-2 mb-8 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl w-fit">
                                 <button
-                                    onClick={() => { setEditingRole({ id: '', name: '', description: '', permissions: [] }); setIsRoleModalOpen(true); }}
-                                    className="p-8 border-4 border-dashed border-slate-100 dark:border-slate-800 bg-transparent rounded-[40px] flex flex-col items-center justify-center gap-4 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
+                                    onClick={() => setSubTab('users')}
+                                    className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${subTab === 'users' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
-                                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-full"><Plus size={32} /></div>
-                                    <span className="font-black uppercase text-[10px] tracking-widest">Novo Perfil</span>
+                                    Gerenciar Usuários
+                                </button>
+                                <button
+                                    onClick={() => setSubTab('roles')}
+                                    className={`px-6 py-2 rounded-xl text-xs font-bold transition-all ${subTab === 'roles' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Perfis & Permissões
                                 </button>
                             </div>
-                        )}
-                    </div>
-                )}
 
-                {/* SYSTEM TAB */}
-                {activeTab === 'system' && (
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-12">
-                        <section className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                            <div className="space-y-8">
-                                <div>
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8 border-b border-slate-100 dark:border-slate-700 pb-4">Parâmetros Técnicos</h3>
-                                    <div className="space-y-6">
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Regime Tributário</label>
-                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.technical.taxRegime} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, taxRegime: e.target.value } })}>
-                                                    <option value="Simples Nacional">Simples Nacional</option>
-                                                    <option value="Lucro Presumido">Lucro Presumido</option>
-                                                    <option value="Lucro Real">Lucro Real</option>
-                                                </select>
+                            {subTab === 'users' ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[24px] border border-indigo-100 dark:border-indigo-900/30">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/30">
+                                                <Users size={24} />
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alíquota Padrão (%)</label>
-                                                <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.technical.defaultTaxRate} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, defaultTaxRate: parseFloat(e.target.value) } })} />
+                                            <div>
+                                                <h3 className="font-black text-slate-900 dark:text-white text-lg">Diretório de Usuários</h3>
+                                                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Gerencie quem tem acesso à plataforma.</p>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Início Ano Fiscal</label>
-                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.technical.financialYearStart} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, financialYearStart: e.target.value } })} />
+                                        <button
+                                            onClick={() => { setEditingUser({ id: '', name: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '', employeeId: '' }); setIsUserModalOpen(true); }}
+                                            className="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl"
+                                        >
+                                            <UserPlus size={16} /> Novo Usuário
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                        {users.map(user => (
+                                            <div key={user.id} className="group relative bg-white dark:bg-slate-800 p-6 rounded-[24px] border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all hover:shadow-lg">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center text-slate-500 font-extrabold text-lg">
+                                                        {user.name.charAt(0)}
+                                                    </div>
+                                                    <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide ${user.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                        {user.status}
+                                                    </span>
+                                                </div>
+                                                <h4 className="font-bold text-slate-900 dark:text-white truncate">{user.name}</h4>
+                                                <p className="text-xs text-slate-500 truncate mb-4">{user.email}</p>
+
+                                                <div className="flex items-center gap-2 mb-6">
+                                                    <Shield size={12} className="text-indigo-500" />
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{roles.find(r => r.id === user.roleId)?.name || 'Sem Cargo'}</span>
+                                                </div>
+
+                                                <div className="flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-6 right-6 lg:static justify-end mt-4">
+                                                    <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-900 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => { if (confirm('Remover usuário?')) deleteUser(user.id); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 dark:bg-slate-900 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fuso Horário</label>
-                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.technical.timezone} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, timezone: e.target.value } })}>
-                                                    <option value="America/Sao_Paulo">São Paulo (-3 BRT)</option>
-                                                    <option value="America/Manaus">Manaus (-4 AMT)</option>
-                                                    <option value="UTC">UTC (Universal)</option>
-                                                </select>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[24px] border border-indigo-100 dark:border-indigo-900/30">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-purple-500 text-white rounded-xl shadow-lg shadow-purple-500/30">
+                                                <ShieldCheck size={24} />
                                             </div>
+                                            <div>
+                                                <h3 className="font-black text-slate-900 dark:text-white text-lg">Perfis de Acesso (Roles)</h3>
+                                                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Controle granular de permissões por cargo.</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => { setEditingRole({ id: '', name: '', description: '', permissions: [] }); setIsRoleModalOpen(true); }}
+                                            className="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl"
+                                        >
+                                            <Plus size={16} /> Novo Perfil
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                        {roles.map(role => (
+                                            <div key={role.id} className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-200 dark:border-slate-700 flex flex-col hover:border-purple-300 transition-all shadow-sm">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <Shield size={32} className="text-purple-500" />
+                                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full font-black text-slate-500 uppercase">{role.permissions.length} Permissões</span>
+                                                </div>
+                                                <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">{role.name}</h4>
+                                                <p className="text-sm text-slate-500 mb-8 leading-relaxed flex-1">{role.description}</p>
+                                                <button
+                                                    onClick={() => { setEditingRole(role); setIsRoleModalOpen(true); }}
+                                                    className="w-full py-3 bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 transition-all"
+                                                >
+                                                    Editar Acessos
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* SYSTEM PARAMETERS */}
+                    {activeTab === 'system' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+                            {/* Fiscal & Tax Configuration */}
+                            <section className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/30 p-8 rounded-[32px] border border-slate-200 dark:border-slate-700/50">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-emerald-500 rounded-xl text-white">
+                                            <Scale size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Configuração Fiscal & Tributária</h3>
+                                            <p className="text-[10px] text-slate-500 font-medium">Parâmetros para cálculos e conformidade fiscal</p>
+                                        </div>
+                                    </div>
+                                    {/* Toggle para ativar/desativar módulo fiscal */}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Módulo Fiscal</span>
+                                        <div className="w-14 h-7 bg-emerald-500 rounded-full relative cursor-pointer shadow-inner">
+                                            <div className="absolute top-1 right-1 w-5 h-5 bg-white rounded-full shadow-md"></div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="space-y-8">
-                                <div>
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8 border-b border-slate-100 dark:border-slate-700 pb-4">Interface & UX</h3>
-                                    <div className="space-y-8">
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Palette size={14} /> Tema do Sistema</label>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                {['light', 'dark', 'system'].map(t => (
-                                                    <button key={t} onClick={() => setTempSettings({ ...tempSettings, theme: t as any })} className={`py-4 rounded-2xl font-black text-[9px] uppercase tracking-widest border-2 transition-all ${tempSettings.theme === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800'}`}>
-                                                        {t === 'light' ? 'Claro' : t === 'dark' ? 'Escuro' : 'Auto'}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            Regime Tributário
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                className="w-full bg-white dark:bg-slate-800 appearance-none border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none cursor-pointer hover:border-emerald-400 transition-all focus:ring-2 ring-emerald-500/20"
+                                                value={tempSettings.technical.taxRegime}
+                                                onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, taxRegime: e.target.value } })}
+                                            >
+                                                <option value="Simples Nacional">Simples Nacional</option>
+                                                <option value="Lucro Presumido">Lucro Presumido</option>
+                                                <option value="Lucro Real">Lucro Real</option>
+                                                <option value="MEI">MEI - Microempreendedor Individual</option>
+                                            </select>
+                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            Alíquota Padrão (%)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            max="100"
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-emerald-500/20 hover:border-emerald-400 transition-all"
+                                            value={tempSettings.technical.defaultTaxRate}
+                                            onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, defaultTaxRate: parseFloat(e.target.value) || 0 } })}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            Início Ano Fiscal
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="DD/MM"
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-emerald-500/20 hover:border-emerald-400 transition-all"
+                                            value={tempSettings.technical.financialYearStart}
+                                            onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, financialYearStart: e.target.value } })}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                            CNAE Principal
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="0000-0/00"
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                            Inscrição Estadual
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="000.000.000.000"
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                            Inscrição Municipal
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="000000000"
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Additional Fiscal Details - NF-e Configuration */}
+                                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700/50">
+                                    <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4 flex items-center gap-2">
+                                        <FileText size={14} className="text-emerald-500" />
+                                        Configurações Avançadas de Nota Fiscal Eletrônica
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Série NF-e</label>
+                                            <input type="text" defaultValue="1" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm" />
+                                        </div>
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Próximo Número</label>
+                                            <input type="number" defaultValue="10001" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm" />
+                                        </div>
+                                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Ambiente</label>
+                                            <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm">
+                                                <option value="homologacao">Homologação</option>
+                                                <option value="producao">Produção</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Certificate Management */}
+                                <div className="mt-4 p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Key size={18} className="text-amber-500" />
+                                            <h5 className="font-black text-sm text-slate-900 dark:text-white">Certificado Digital (A1)</h5>
+                                        </div>
+                                        <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase">Válido até 15/08/2025</span>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2">
+                                            <Upload size={14} /> Atualizar Certificado
+                                        </button>
+                                        <button className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2">
+                                            <Eye size={14} /> Ver Detalhes
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Regional & Localization */}
+                            <section className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 p-8 rounded-[32px] border border-indigo-100 dark:border-indigo-900/30">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2.5 bg-indigo-500 rounded-xl text-white">
+                                        <Globe size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Regionalização & Formato</h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">Configurações de idioma, moeda e fuso horário</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Idioma do Sistema</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl py-4 px-5 font-bold text-sm outline-none cursor-pointer hover:border-indigo-400 transition-all" value={tempSettings.language} onChange={e => setTempSettings({ ...tempSettings, language: e.target.value })}>
+                                            <option value="pt-BR">🇧🇷 Português (Brasil)</option>
+                                            <option value="en-US">🇺🇸 English (US)</option>
+                                            <option value="es-ES">🇪🇸 Español</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Moeda Padrão</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl py-4 px-5 font-bold text-sm outline-none cursor-pointer hover:border-indigo-400 transition-all" value={tempSettings.currency} onChange={e => setTempSettings({ ...tempSettings, currency: e.target.value })}>
+                                            <option value="BRL">R$ Real Brasileiro</option>
+                                            <option value="USD">$ Dólar Americano</option>
+                                            <option value="EUR">€ Euro</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fuso Horário</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl py-4 px-5 font-bold text-sm outline-none cursor-pointer hover:border-indigo-400 transition-all" value={tempSettings.technical.timezone} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, timezone: e.target.value } })}>
+                                            <option value="America/Sao_Paulo">São Paulo (UTC-3)</option>
+                                            <option value="America/Manaus">Manaus (UTC-4)</option>
+                                            <option value="America/Rio_Branco">Rio Branco (UTC-5)</option>
+                                            <option value="UTC">UTC (Universal)</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Formato de Data</label>
+                                        <select className="w-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl py-4 px-5 font-bold text-sm outline-none cursor-pointer hover:border-indigo-400 transition-all" value={tempSettings.technical.dateFormat} onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, dateFormat: e.target.value } })}>
+                                            <option value="DD/MM/YYYY">DD/MM/YYYY (BR)</option>
+                                            <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                                            <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Operational Parameters */}
+                            <OperationalParametersSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Integrations & APIs */}
+                            <IntegrationsSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Email & Communication */}
+                            <EmailCommunicationSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Notification Preferences */}
+                            <section className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 p-8 rounded-[32px] border border-rose-100 dark:border-rose-900/30">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2.5 bg-rose-500 rounded-xl text-white">
+                                        <Bell size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Preferências de Notificação</h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">Controle de alertas e avisos do sistema</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {[
+                                        { key: 'stockAlerts', label: 'Estoque Baixo', desc: 'Alertas de reposição', icon: '📦' },
+                                        { key: 'overdueFinance', label: 'Financeiro', desc: 'Contas a pagar/receber', icon: '💰' },
+                                        { key: 'productionUpdates', label: 'Produção', desc: 'Status de ordens', icon: '⚙️' },
+                                        { key: 'fleetMaintenance', label: 'Frota', desc: 'Manutenção preventiva', icon: '🚛' },
+                                    ].map(n => {
+                                        const isActive = tempSettings.notifications[n.key as keyof typeof tempSettings.notifications];
+                                        return (
+                                            <div
+                                                key={n.key}
+                                                onClick={() => setTempSettings({ ...tempSettings, notifications: { ...tempSettings.notifications, [n.key]: !isActive } })}
+                                                className={`cursor-pointer p-5 rounded-2xl border-2 transition-all flex flex-col gap-3 group hover:scale-105 ${isActive
+                                                    ? 'bg-white dark:bg-slate-800 border-rose-400 shadow-lg shadow-rose-500/10'
+                                                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60 hover:opacity-100'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-2xl">{n.icon}</span>
+                                                    <div className={`w-11 h-6 rounded-full relative transition-all ${isActive ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${isActive ? 'left-5' : 'left-0.5'}`}></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className={`text-xs font-black uppercase mb-1 ${isActive ? 'text-rose-900 dark:text-rose-200' : 'text-slate-500'}`}>{n.label}</p>
+                                                    <p className="text-[10px] text-slate-400 leading-tight">{n.desc}</p>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </section>
+
+                            {/* Interface & UX */}
+                            <section className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/20 dark:to-fuchsia-950/20 p-8 rounded-[32px] border border-violet-100 dark:border-violet-900/30">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2.5 bg-violet-500 rounded-xl text-white">
+                                        <Palette size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Interface & Experiência</h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">Personalização visual do sistema</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-4 block">Tema da Interface</label>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            {[
+                                                { id: 'light', label: 'Claro', icon: '☀️', preview: 'bg-white border-slate-200' },
+                                                { id: 'dark', label: 'Escuro', icon: '🌙', preview: 'bg-slate-900 border-slate-700' },
+                                                { id: 'system', label: 'Automático', icon: '💻', preview: 'bg-gradient-to-br from-white to-slate-900' }
+                                            ].map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => setTempSettings({ ...tempSettings, theme: t.id as any })}
+                                                    className={`p-6 rounded-2xl flex flex-col items-center gap-3 border-2 transition-all hover:scale-105 ${tempSettings.theme === t.id
+                                                        ? 'bg-violet-100 dark:bg-violet-900/20 border-violet-500 shadow-lg shadow-violet-500/20'
+                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-violet-300'
+                                                        }`}
+                                                >
+                                                    <div className={`w-full h-16 ${t.preview} rounded-xl border-2 shadow-inner`}></div>
+                                                    <span className="text-2xl">{t.icon}</span>
+                                                    <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">{t.label}</span>
+                                                    {tempSettings.theme === t.id && (
+                                                        <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse"></div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-violet-100 dark:border-violet-900/30">
+                                            <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-3 block">Densidade da Interface</label>
+                                            <div className="flex gap-2">
+                                                {['Compacta', 'Padrão', 'Confortável'].map(density => (
+                                                    <button key={density} className="flex-1 py-2 px-3 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-violet-50 hover:text-violet-600 transition-colors">
+                                                        {density}
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Idioma Principal</label>
-                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.language} onChange={e => setTempSettings({ ...tempSettings, language: e.target.value })}>
-                                                    <option value="pt-BR">Português (Brasil)</option>
-                                                    <option value="en-US">English (US)</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moeda</label>
-                                                <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={tempSettings.currency} onChange={e => setTempSettings({ ...tempSettings, currency: e.target.value })}>
-                                                    <option value="BRL">Real (R$)</option>
-                                                    <option value="USD">Dólar ($)</option>
-                                                </select>
+                                        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-violet-100 dark:border-violet-900/30">
+                                            <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-3 block">Animações</label>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-slate-500">Transições e efeitos visuais</span>
+                                                <div className="w-12 h-6 bg-violet-500 rounded-full relative cursor-pointer">
+                                                    <div className="absolute top-1 right-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </section>
+                            </section>
 
-                        <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 border-t border-slate-100 dark:border-slate-700 pt-10">
-                            <div className="space-y-6">
-                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                                    <Bell size={14} className="text-amber-500" /> Gatilhos de Notificação
-                                </h3>
-                                <div className="space-y-3">
-                                    {[
-                                        { key: 'stockAlerts', label: 'Ruptura de Estoque' },
-                                        { key: 'overdueFinance', label: 'Contas Fora do Prazo' },
-                                        { key: 'productionUpdates', label: 'Eventos de Produção' },
-                                        { key: 'fleetMaintenance', label: 'Agenda de Manutenção' },
-                                    ].map(n => (
-                                        <div key={n.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all">
-                                            <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">{n.label}</span>
-                                            <button
-                                                onClick={() => setTempSettings({ ...tempSettings, notifications: { ...tempSettings.notifications, [n.key]: !tempSettings.notifications[n.key as keyof typeof tempSettings.notifications] } })}
-                                                className={`w-12 h-6 rounded-full transition-all relative ${tempSettings.notifications[n.key as keyof typeof tempSettings.notifications] ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                            >
-                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-md ${tempSettings.notifications[n.key as keyof typeof tempSettings.notifications] ? 'left-7' : 'left-1'}`}></div>
-                                            </button>
+                            {/* Operational Parameters */}
+                            <OperationalParametersSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Integrations */}
+                            <IntegrationsSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* E-mail & Communication */}
+                            <EmailCommunicationSection settings={tempSettings} onUpdate={setTempSettings} addToast={addToast} />
+
+                            {/* Documents & Printing */}
+                            <DocumentsPrintingSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Performance & Optimization */}
+                            <PerformanceOptimizationSection settings={tempSettings} onUpdate={setTempSettings} />
+
+                            {/* Data & Security */}
+                            <DataSecuritySection settings={tempSettings} onUpdate={setTempSettings} addToast={addToast} />
+
+                            {/* Danger Zone */}
+                            <section className="mt-8 pt-8 border-t-2 border-dashed border-slate-200 dark:border-slate-700">
+                                <div className="bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/20 dark:to-red-950/20 border-2 border-rose-200 dark:border-rose-900/50 p-8 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3 bg-rose-500 text-white rounded-2xl shadow-lg shadow-rose-500/30">
+                                            <AlertTriangle size={28} />
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                                    <Cloud size={14} className="text-blue-500" /> Backup e Segurança de Dados
-                                </h3>
-                                <div className="p-8 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900/50 dark:to-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-700 space-y-6">
-                                    <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Backup Automático</p>
-                                            <p className="text-xs font-bold text-slate-900 dark:text-white mt-1">Nuvem InfraCore Ativada</p>
-                                        </div>
-                                        <div className="bg-emerald-500/10 p-3 rounded-2xl">
-                                            <Wifi size={24} className="text-emerald-500 animate-pulse" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
-                                            <span>Próximo Ciclo</span>
-                                            <span>Hoje às 23:59</span>
-                                        </div>
-                                        <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="h-full bg-emerald-500 w-[65%]"></div>
+                                            <h4 className="font-black text-lg text-rose-900 dark:text-rose-400 uppercase tracking-tight">Zona de Perigo</h4>
+                                            <p className="text-sm text-rose-700 dark:text-rose-300/70 mt-1 font-medium max-w-md">
+                                                Ações irreversíveis de manutenção e limpeza do sistema. Proceda com extrema cautela.
+                                            </p>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <span className="px-2 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 rounded-md text-[10px] font-black uppercase">Sem Desfazer</span>
+                                                <span className="px-2 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 rounded-md text-[10px] font-black uppercase">Requer Confirmação</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button className="w-full py-4 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all">
-                                        <Cloud size={16} /> Forçar Backup Agora
-                                    </button>
+                                    <div className="flex flex-col gap-3">
+                                        <button
+                                            onClick={() => {
+                                                if (confirm("⚠️ ATENÇÃO: Isso apagará TODOS os dados do sistema.\n\nEsta ação é IRREVERSÍVEL e não pode ser desfeita.\n\nTodos os clientes, vendas, estoque e configurações serão perdidos permanentemente.\n\nDeseja realmente continuar?")) {
+                                                    clearAllData();
+                                                    addToast('Sistema resetado. Recarregando...', 'info');
+                                                }
+                                            }}
+                                            className="px-8 py-4 bg-white hover:bg-rose-600 text-rose-600 hover:text-white border-2 border-rose-300 hover:border-rose-600 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-rose-500/30 hover:scale-105 active:scale-95"
+                                        >
+                                            🗑️ Resetar Sistema Completo
+                                        </button>
+                                        <p className="text-[9px] text-rose-600 dark:text-rose-400 text-center font-bold">Esta ação apaga todos os dados permanentemente</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </section>
-
-                        <section className="bg-rose-50 dark:bg-rose-900/10 p-8 rounded-[40px] border border-rose-100 dark:border-rose-800">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                <div>
-                                    <h3 className="text-xl font-black text-rose-900 dark:text-rose-400 uppercase tracking-tighter italic">Zona Crítica</h3>
-                                    <p className="text-xs font-medium text-rose-700 dark:text-rose-500 mt-1">Ações irreversíveis que afetam toda a base de dados do ERP.</p>
-                                </div>
-                                <button
-                                    onClick={() => { if (confirm("ESTA AÇÃO É IRREVERSÍVEL. Todos os dados (clientes, vendas, estoque, finanças) serão removidos permanentemente. Continuar?")) clearAllData(); }}
-                                    className="px-8 py-4 bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl shadow-rose-600/20 hover:bg-rose-700 transition-all flex items-center gap-2"
-                                >
-                                    <Trash2 size={16} /> Limpar Todos os Dados
-                                </button>
-                            </div>
-                        </section>
-                    </div>
-                )}
-
-                {/* AUDIT LOG TAB */}
-                {activeTab === 'audit' && (
-                    <div className="animate-in slide-in-from-bottom duration-500 space-y-8 h-full flex flex-col">
-                        <div className="shrink-0 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">Log de Atividades</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Histórico completo de ações criticas no ERP.</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 border border-slate-100 dark:border-slate-700 transition-all"><Database size={20} /></button>
-                                <button className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-400 hover:text-indigo-600 border border-slate-100 dark:border-slate-700 transition-all"><BarChart3 size={20} /></button>
-                            </div>
+                            </section>
                         </div>
+                    )}
 
-                        <div className="flex-1 overflow-x-auto no-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-700">
-                                        <th className="py-4 px-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">DATA/HORA</th>
-                                        <th className="py-4 px-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">USUÁRIO</th>
-                                        <th className="py-4 px-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">MÓDULO</th>
-                                        <th className="py-4 px-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">AÇÃO / TIPO</th>
-                                        <th className="py-4 px-2 text-[10px] font-black uppercase text-slate-400 tracking-widest">DETALHES</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                                    {auditLogs.map(log => (
-                                        <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors group">
-                                            <td className="py-4 px-2">
-                                                <p className="text-[11px] font-bold text-slate-900 dark:text-white">{log.timestamp}</p>
-                                            </td>
-                                            <td className="py-4 px-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-[10px] flex items-center justify-center font-black text-indigo-600">{log.userName.charAt(0)}</div>
-                                                    <span className="text-[11px] font-black text-slate-700 dark:text-slate-300">{log.userName}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 px-2">
-                                                <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-md tracking-tighter">{log.module}</span>
-                                            </td>
-                                            <td className="py-4 px-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`w-2 h-2 rounded-full ${log.severity === 'critical' ? 'bg-rose-500' : log.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-500'}`}></span>
-                                                    <span className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-tighter">{log.action}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 px-2 max-w-[300px]">
-                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate group-hover:whitespace-normal group-hover:truncate-none transition-all">{log.details}</p>
-                                            </td>
-                                        </tr>
+                    {/* AUDIT LOG */}
+                    {activeTab === 'audit' && (
+                        <div className="h-full flex flex-col animate-in fade-in duration-500">
+                            <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6 shrink-0">
+                                <div className="relative w-full md:w-96">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar logs..."
+                                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 ring-indigo-500/20"
+                                        value={auditSearch}
+                                        onChange={(e) => setAuditSearch(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
+                                    {['Todos', 'Login', 'Vendas', 'Configurações', 'Estoque', 'Financeiro'].map(m => (
+                                        <button
+                                            key={m}
+                                            onClick={() => setAuditModuleFilter(m)}
+                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all ${auditModuleFilter === m
+                                                ? 'bg-slate-900 text-white shadow-md'
+                                                : 'bg-slate-50 dark:bg-slate-900 text-slate-500 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            {m}
+                                        </button>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/30 rounded-[24px] overflow-hidden border border-slate-100 dark:border-slate-700/50">
+                                <div className="overflow-y-auto h-full custom-scrollbar">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-white dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Tempo</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Usuário</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Ação</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Detalhe</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                            {filteredAuditLogs.map(log => (
+                                                <tr key={log.id} className="group hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                                                    <td className="py-4 px-6">
+                                                        <span className="text-[10px] font-mono font-bold text-slate-500">{log.timestamp}</span>
+                                                    </td>
+                                                    <td className="py-4 px-6">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                                                {log.userName.charAt(0)}
+                                                            </div>
+                                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{log.userName}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 px-6">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wide ${log.severity === 'critical' ? 'bg-rose-100 text-rose-700' :
+                                                            log.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-indigo-50 text-indigo-700'
+                                                            }`}>
+                                                            {log.module} • {log.action}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4 px-6">
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs group-hover:whitespace-normal group-hover:overflow-visible group-hover:z-50">{log.details}</p>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredAuditLogs.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={4} className="py-12 text-center text-slate-400 italic text-xs">Nenhum registro encontrado para os filtros atuais.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                        <div className="shrink-0 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-center">
-                            <button className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:underline">Ver Histórico Completo (Auditoria PDF)</button>
+                    )}
+                </div>
+
+                {/* Floating Save Action Bar */}
+                {hasChanges && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white pl-6 pr-2 py-2 rounded-2xl shadow-2xl flex items-center gap-8 animate-in slide-in-from-bottom-6 fade-in duration-300 z-50">
+                        <span className="text-xs font-bold flex items-center gap-2">
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                            Alterações não salvas
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleRevert}
+                                className="px-4 py-2 hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-slate-400 hover:text-white"
+                            >
+                                Descartar
+                            </button>
+                            <button
+                                onClick={handleSaveSettings}
+                                className="px-6 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95"
+                            >
+                                Salvar Mudanças
+                            </button>
                         </div>
                     </div>
                 )}
@@ -535,59 +2231,48 @@ const Settings = () => {
             {/* User Modal */}
             {isUserModalOpen && editingUser && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden">
                         <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
                             <div>
-                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Detalhes do Usuário</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configure o perfil corporativo.</p>
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Editar Usuário</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configurações de acesso e perfil.</p>
                             </div>
-                            <button onClick={() => setIsUserModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            <button onClick={() => setIsUserModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-all"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleSaveUser} className="p-8 space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="col-span-2 space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Geral</label>
-                                    <input type="text" placeholder="Nome Completo" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
                                 </div>
-                                <div className="col-span-2 space-y-2">
-                                    <input type="email" placeholder="E-mail de Acesso" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 font-bold text-sm" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
+                                    <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2 col-span-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador Vinculado (RH)</label>
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm"
-                                        value={editingUser.employeeId || ''}
-                                        onChange={e => setEditingUser({ ...editingUser, employeeId: e.target.value })}
-                                    >
-                                        <option value="">-- Sem Vínculo --</option>
-                                        {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>{emp.name} - {emp.role}</option>
-                                        ))}
-                                    </select>
-                                    <p className="text-[10px] text-slate-400 px-2">Vincular a um cadastro do RH permite sincronização de dados.</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargo / Role</label>
+                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.roleId} onChange={e => setEditingUser({ ...editingUser, roleId: e.target.value })}>
+                                            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.status} onChange={e => setEditingUser({ ...editingUser, status: e.target.value as any })}>
+                                            <option value="Ativo">Ativo</option>
+                                            <option value="Inativo">Inativo</option>
+                                        </select>
+                                    </div>
                                 </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Perfil de Acesso</label>
-                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingUser.roleId} onChange={e => setEditingUser({ ...editingUser, roleId: e.target.value })}>
-                                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status Inicial</label>
-                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingUser.status} onChange={e => setEditingUser({ ...editingUser, status: e.target.value as any })}>
-                                        <option value="Ativo">Ativo</option>
-                                        <option value="Inativo">Inativo</option>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vincular Colaborador (RH)</label>
+                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.employeeId || ''} onChange={e => setEditingUser({ ...editingUser, employeeId: e.target.value })}>
+                                        <option value="">-- Não vinculado --</option>
+                                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                                     </select>
                                 </div>
                             </div>
-
-                            <hr className="border-slate-100 dark:border-slate-700" />
-
-                            <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 transition-all">
+                            <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-[1.02] transition-all">
                                 Salvar Usuário
                             </button>
                         </form>
@@ -598,94 +2283,97 @@ const Settings = () => {
             {/* Role Modal */}
             {isRoleModalOpen && editingRole && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden h-[90vh]">
-                        <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
+                    <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-2xl w-full max-w-5xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden h-[85vh] flex flex-col">
+                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
                             <div>
-                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Definição de Cargo: {editingRole.name}</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configure o que cada cargo pode fazer no sistema.</p>
+                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Editar Perfil de Acesso</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Permissões granulares para {editingRole.name}.</p>
                             </div>
-                            <button onClick={() => setIsRoleModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            <button onClick={() => setIsRoleModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-all"><X size={20} /></button>
                         </div>
-                        <form onSubmit={handleSaveRole} className="flex flex-col h-[calc(100%-100px)]">
-                            <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1">
+
+                        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                            {/* Role Details - Left Panel */}
+                            <div className="w-full md:w-80 p-8 border-r border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto shrink-0 space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Cargo</label>
+                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} required />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
+                                    <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm h-32 resize-none" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} required />
+                                </div>
+                                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                                    <h4 className="flex items-center gap-2 font-bold text-indigo-700 dark:text-indigo-300 text-xs mb-2"><ShieldCheck size={14} /> Resumo</h4>
+                                    <p className="text-[10px] text-indigo-600/70 dark:text-indigo-300/70">Este perfil possui acesso a <strong className="text-indigo-800 dark:text-indigo-200">{editingRole.permissions.length}</strong> funcionalidades do sistema.</p>
+                                </div>
+                            </div>
+
+                            {/* Permissions Matrix - Right Panel */}
+                            <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 p-8 overflow-y-auto custom-scrollbar">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Perfil</label>
-                                        <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm" value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} placeholder="Ex: Financeiro Sênior" required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</label>
-                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-4 font-bold text-sm h-[54px] resize-none pt-4" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} placeholder="Responsabilidades..." required />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <ShieldCheck size={14} className="text-indigo-500" /> Permissões Granulares
-                                        </label>
-                                        <span className="text-[10px] font-bold text-slate-400">{editingRole.permissions.length} Selecionadas</span>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {APP_PERMISSIONS.map(category => (
-                                            <div key={category.category} className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-all">
-                                                <div className="flex justify-between items-center mb-2 px-1">
-                                                    <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">{category.category}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const allIds = category.permissions.map(p => p.id);
-                                                            const hasAll = allIds.every(id => editingRole.permissions.includes(id));
-                                                            if (hasAll) {
-                                                                setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => !allIds.includes(p)) });
-                                                            } else {
-                                                                setEditingRole({ ...editingRole, permissions: [...new Set([...editingRole.permissions, ...allIds])] });
-                                                            }
-                                                        }}
-                                                        className="text-[9px] font-bold text-indigo-500 hover:underline"
-                                                    >
-                                                        Toggle All
-                                                    </button>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    {category.permissions.map(perm => {
-                                                        const isSelected = editingRole.permissions.includes(perm.id);
-                                                        return (
-                                                            <div
-                                                                key={perm.id}
-                                                                onClick={() => {
-                                                                    if (isSelected) {
-                                                                        setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => p !== perm.id) });
-                                                                    } else {
-                                                                        setEditingRole({ ...editingRole, permissions: [...editingRole.permissions, perm.id] });
-                                                                    }
-                                                                }}
-                                                                className={`cursor-pointer group flex items-start gap-3 p-3 rounded-2xl transition-all border ${isSelected ? 'bg-white dark:bg-slate-800 border-indigo-100 dark:border-indigo-900 shadow-sm' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
-                                                            >
-                                                                <div className={`mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-transparent'}`}>
-                                                                    <Check size={12} strokeWidth={4} />
-                                                                </div>
-                                                                <div>
-                                                                    <p className={`text-[11px] font-bold leading-none mb-1 transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{perm.name}</p>
-                                                                    <p className="text-[9px] text-slate-400 font-medium leading-tight">{perm.description}</p>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                    {APP_PERMISSIONS.map(category => (
+                                        <div key={category.category} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h4 className="font-black text-xs uppercase tracking-widest text-slate-800 dark:text-white">{category.category}</h4>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const catIds = category.permissions.map(p => p.id);
+                                                        const allSelected = catIds.every(id => editingRole.permissions.includes(id));
+                                                        if (allSelected) {
+                                                            setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => !catIds.includes(p)) });
+                                                        } else {
+                                                            setEditingRole({ ...editingRole, permissions: [...new Set([...editingRole.permissions, ...catIds])] });
+                                                        }
+                                                    }}
+                                                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg transition-colors"
+                                                >
+                                                    Inverter Seleção
+                                                </button>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="space-y-2">
+                                                {category.permissions.map(perm => {
+                                                    const isSelected = editingRole.permissions.includes(perm.id);
+                                                    return (
+                                                        <div
+                                                            key={perm.id}
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => p !== perm.id) });
+                                                                } else {
+                                                                    setEditingRole({ ...editingRole, permissions: [...editingRole.permissions, perm.id] });
+                                                                }
+                                                            }}
+                                                            className={`cursor-pointer flex items-start gap-3 p-2 rounded-xl transition-all border ${isSelected
+                                                                ? 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30'
+                                                                : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                                                }`}
+                                                        >
+                                                            <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-slate-300'
+                                                                }`}>
+                                                                {isSelected && <Check size={10} strokeWidth={4} />}
+                                                            </div>
+                                                            <div>
+                                                                <p className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{perm.name}</p>
+                                                                <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{perm.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="p-8 border-t dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-                                <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:scale-[1.01] active:scale-95 transition-all">
-                                    Salvar Perfil de Acesso
-                                </button>
-                            </div>
-                        </form>
+                        <div className="p-6 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold text-xs uppercase hover:text-slate-800 transition-colors">Cancelar</button>
+                            <button onClick={handleSaveRole} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all">
+                                Salvar Definições
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

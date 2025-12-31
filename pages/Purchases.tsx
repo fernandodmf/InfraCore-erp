@@ -217,7 +217,7 @@ const Purchases = () => {
       const html = `
          <div class="header">
             <div class="company-info">
-               <h1>CONSTRUSYS ERP</h1>
+               <h1>INFRACORE ERP</h1>
                <p>Sistemas de Gestão para Engenharia e Indústria</p>
             </div>
             <div class="doc-info">

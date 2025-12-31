@@ -39,6 +39,11 @@ import {
     TrendingDown,
     PieChart as PieChartIcon,
     Truck,
+    BookOpen,
+    Calculator,
+    ScrollText,
+    ClipboardList,
+    Landmark,
     User
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -64,7 +69,10 @@ const Reports = () => {
         { id: 'stock_movements', name: 'Movimentação de Estoque', icon: <RefreshCw size={16} /> },
         { id: 'clients', name: 'Base de Clientes', icon: <Circle size={16} /> },
         { id: 'fleet', name: 'Frota e Veículos', icon: <Truck size={16} /> },
-        { id: 'hr', name: 'Recursos Humanos', icon: <User size={16} /> }, // Assuming User icon imported later
+        { id: 'hr', name: 'Recursos Humanos', icon: <User size={16} /> },
+        { id: 'dre', name: 'Contábil: D.R.E.', icon: <Calculator size={16} /> },
+        { id: 'balance_sheet', name: 'Balanço Patrimonial', icon: <Landmark size={16} /> },
+        { id: 'trial_balance', name: 'Balancetes (Trim/Sem)', icon: <ScrollText size={16} /> },
     ];
 
     // Filter Logic
@@ -121,15 +129,19 @@ const Reports = () => {
             case 'stock_movements':
                 data = stockMovements.filter(m => {
                     const mDate = new Date(m.date);
-                    return mDate >= start && mDate <= end;
+                    // Reset time for accurate date range comparison
+                    const compareDate = new Date(mDate.getFullYear(), mDate.getMonth(), mDate.getDate());
+                    return compareDate >= start && compareDate <= end;
                 }).map(m => ({
+                    ID: m.id.substring(0, 8),
                     Data: new Date(m.date).toLocaleDateString('pt-BR'),
-                    Hora: new Date(m.date).toLocaleTimeString('pt-BR'),
-                    Item: m.itemName,
+                    Hora: new Date(m.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    Produto: m.itemName,
                     Tipo: m.type,
-                    Qtd: m.quantity,
-                    Motivo: m.reason,
-                    Usuário: m.userName || '-'
+                    Quantidade: m.quantity,
+                    Motivo: m.reason || '-',
+                    Usuário: m.userName || 'Sistema',
+                    'Documento Origem': m.documentId ? `#${m.documentId.slice(-6).toUpperCase()}` : '-'
                 }));
                 break;
             case 'clients':
@@ -161,6 +173,60 @@ const Reports = () => {
                     Salário: e.salary,
                     Admissão: e.admissionDate,
                     Status: e.status
+                }));
+                break;
+            case 'dre':
+                // Dynamic DRE Calculation
+                const revenue = transactions.filter(t => t.type === 'Receita' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
+                const expenses = transactions.filter(t => t.type === 'Despesa' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
+                const taxes = revenue * 0.06; // Mock 6% tax
+                const netRevenue = revenue - taxes;
+                const grossProfit = netRevenue - (expenses * 0.4); // Assume 40% of expenses are COGS
+                const operatingProfit = grossProfit - (expenses * 0.6); // Remaining 60% are operating expenses
+
+                data = [
+                    { Descrição: '1. RECEITA BRUTA OPERACIONAL', Valor: revenue, Tipo: 'Receita' },
+                    { Descrição: '(-) Deduções da Receita / Impostos (Est.)', Valor: -taxes, Tipo: 'Despesa' },
+                    { Descrição: '2. RECEITA LÍQUIDA', Valor: netRevenue, Tipo: 'Resultado' },
+                    { Descrição: '(-) Custos Produtions / Serviços (CMV/CSP)', Valor: -(expenses * 0.4), Tipo: 'Despesa' },
+                    { Descrição: '3. LUCRO BRUTO', Valor: grossProfit, Tipo: 'Resultado' },
+                    { Descrição: '(-) Despesas Operacionais', Valor: -(expenses * 0.6), Tipo: 'Despesa' },
+                    { Descrição: '4. RESULTADO ANTES DO IR/CSLL', Valor: operatingProfit, Tipo: 'Resultado' },
+                    { Descrição: '(-) Provisão IR/CSLL', Valor: -(operatingProfit > 0 ? operatingProfit * 0.15 : 0), Tipo: 'Despesa' },
+                    { Descrição: '5. LUCRO/PREJUÍZO LÍQUIDO DO EXERCÍCIO', Valor: operatingProfit - (operatingProfit > 0 ? operatingProfit * 0.15 : 0), Tipo: 'Resultado Final' }
+                ];
+                break;
+            case 'balance_sheet':
+                // Simplified Balance Sheet
+                const capex = fleet.length * 45000; // Est. value of vehicles
+                const cash = financials.balance;
+                const inventoryValue = inventory.reduce((acc, i) => acc + (i.price * i.quantity * 0.6), 0); // Cost value estimation
+
+                data = [
+                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Disponibilidades (Caixa/Bancos)', Valor: cash },
+                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Estoques', Valor: inventoryValue },
+                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Clientes a Receber', Valor: 15600 }, // Mock
+                    { Grupo: 'ATIVO NÃO CIRCULANTE', Conta: 'Imobilizado (Frota/Maq.)', Valor: capex },
+                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Fornecedores', Valor: 12400 }, // Mock
+                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Obrigações Trab. e Trib.', Valor: 8900 }, // Mock
+                    { Grupo: 'PATRIMÔNIO LÍQUIDO', Conta: 'Capital Social', Valor: 50000 },
+                    { Grupo: 'PATRIMÔNIO LÍQUIDO', Conta: 'Reservas de Lucros', Valor: (cash + inventoryValue + 15600 + capex) - (12400 + 8900 + 50000) }
+                ];
+                break;
+            case 'trial_balance':
+                // Trial Balance (Sum by Category)
+                const balances: Record<string, number> = {};
+                transactions.filter(t => isInRange(t.date)).forEach(t => {
+                    const key = `${t.category} (${t.type})`;
+                    balances[key] = (balances[key] || 0) + t.amount;
+                });
+
+                data = Object.keys(balances).map(k => ({
+                    Conta: k,
+                    "Saldo Anterior": 0, // Mock
+                    Débitos: k.includes('Despesa') ? balances[k] : 0,
+                    Créditos: k.includes('Receita') ? balances[k] : 0,
+                    "Saldo Atual": balances[k]
                 }));
                 break;
         }

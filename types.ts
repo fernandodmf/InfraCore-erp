@@ -217,6 +217,7 @@ export interface FleetVehicle {
   nextMaintenanceKm?: number;
   insuranceExpiry?: string;
   driverId?: string;
+  chassis?: string;
 }
 
 export interface MaintenanceRecord {
@@ -271,8 +272,10 @@ export interface ProductionFormula {
   id: string;
   name: string;
   category: string;
+  type?: 'Composicao' | 'Britagem'; // 'Composicao' (Standard) or 'Britagem' (Decomposition)
   ingredients: FormulaIngredient[];
-  outputProductId?: string;
+  outputProductId?: string; // For Composicao
+  outputs?: { productId: string; name: string; percentage: number; }[]; // For Britagem (Product + Yield %)
 }
 
 export interface ProductionOrder {
@@ -305,6 +308,9 @@ export interface Budget {
   total: number;
   status: 'Aberto' | 'Aprovado' | 'Rejeitado' | 'Convertido';
   expiryDate: string;
+  tareWeight?: number;
+  grossWeight?: number;
+  netWeight?: number;
 }
 
 export interface Tire {
@@ -321,6 +327,7 @@ export interface Tire {
   maxKm: number;
   recapCount: number;
   history: TireHistory[];
+  stockItemId?: string;
 }
 
 export interface TireHistory {

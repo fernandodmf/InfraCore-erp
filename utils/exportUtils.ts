@@ -163,7 +163,7 @@ export const printDocument = (title: string, htmlContent: string) => {
         <body>
             ${htmlContent}
             <div class="footer">
-                Documento gerado eletronicamente por Construsys ERP - ${new Date().toLocaleString('pt-BR')}
+                Documento gerado eletronicamente por InfraCore ERP - ${new Date().toLocaleString('pt-BR')}
             </div>
             <script>
                 window.onload = () => {

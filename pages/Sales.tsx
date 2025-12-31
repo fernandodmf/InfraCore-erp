@@ -31,17 +31,85 @@ import {
   Download,
   Calendar,
   ChevronRight,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Activity,
+  TrendingUp,
+  Target
 } from 'lucide-react';
 import { SalesItem, Client, Budget, Sale } from '../types';
 import { useApp } from '../context/AppContext';
 import { printDocument, exportToCSV } from '../utils/exportUtils';
 
-const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+const formatMoney = (val: number | undefined | null) => {
+  if (val === undefined || val === null || isNaN(val)) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+};
 
 const Sales = () => {
-  const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus, addTransaction, accounts } = useApp();
-  const [activeTab, setActiveTab] = useState<'new' | 'history' | 'budgets'>('new');
+  const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus, addTransaction, accounts, settings } = useApp();
+
+  // Robust data filtering with extreme safety checks
+  const validSales = useMemo(() => {
+    if (!Array.isArray(sales)) return [];
+    return sales.filter(s => {
+      // Basic Object Check
+      if (!s || typeof s !== 'object') return false;
+      // Required Fields Check
+      if (!s.id || typeof s.amount !== 'number') return false;
+      // Date Integrity Check (Optional but recommended for robust dashboards)
+      // if (!s.date || typeof s.date !== 'string') return false; 
+      return true;
+    });
+  }, [sales]);
+
+  const validBudgets = useMemo(() => {
+    if (!Array.isArray(budgets)) return [];
+    return budgets.filter(b => b && typeof b === 'object' && b.status);
+  }, [budgets]);
+
+  // Dashboard Calculations (Safe Mode)
+  const dashboardStats = useMemo(() => {
+    try {
+      const today = new Date().toLocaleDateString('pt-BR');
+      const totalToday = validSales
+        .filter(s => s.date === today)
+        .reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const monthlyData = validSales.filter(s => {
+        if (!s.date || typeof s.date !== 'string') return false;
+        const parts = s.date.split('/');
+        if (parts.length !== 3) return false;
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        return month === currentMonth && year === currentYear;
+      });
+
+      const monthlyCount = monthlyData.length;
+      const monthlyTotal = monthlyData.reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+      const averageTicket = monthlyCount > 0 ? monthlyTotal / monthlyCount : 0;
+
+      const monthlyTarget = 100000;
+      const targetPercent = Math.min(Math.round((monthlyTotal / monthlyTarget) * 100), 100);
+
+      return {
+        totalToday,
+        monthlyTotal,
+        averageTicket,
+        monthlyTarget,
+        targetPercent,
+        pendingBudgets: validBudgets.filter(b => b.status === 'Aberto').length
+      };
+    } catch (error) {
+      console.error("Dashboard Calc Error:", error);
+      return { totalToday: 0, monthlyTotal: 0, averageTicket: 0, monthlyTarget: 100000, targetPercent: 0, pendingBudgets: 0 };
+    }
+  }, [validSales, validBudgets]);
+
+  const [activeTab, setActiveTab] = useState<'new' | 'history' | 'budgets' | 'dashboard'>('dashboard');
   const [mobileTab, setMobileTab] = useState<'catalog' | 'checkout'>('catalog');
 
   // Modal State
@@ -328,74 +396,113 @@ const Sales = () => {
 
 
   const handlePrintBudget = (budget: Budget) => {
+    // Get absolute latest settings
+    const company = settings || {
+      companyName: 'INFRACORE ERP',
+      tradeName: 'Sistemas de Gestão',
+      document: '00.000.000/0000-00',
+      email: 'contato@infracore.com.br',
+      phone: '(11) 99999-9999',
+      address: 'Endereço Padrão do Sistema'
+    };
+
     const html = `
-      <div class="header">
+      <div class="header" style="border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px;">
         <div class="company-info">
-          <h1>CONSTRUSYS ERP</h1>
-          <p>Sistemas de Gestão para Engenharia e Indústria</p>
+          <h1 style="font-size: 24px; color: #000; margin-bottom: 5px; text-transform: uppercase;">${company.tradeName || company.companyName}</h1>
+          <p style="font-size: 12px; font-weight: bold; margin: 2px 0;">CNPJ: ${company.document}</p>
+          <p style="font-size: 11px; color: #555; margin: 2px 0;">${company.address}</p>
+          <p style="font-size: 11px; color: #555; margin: 2px 0;">${company.phone} | ${company.email}</p>
         </div>
-        <div class="doc-info">
-          <h2>ORÇAMENTO DE VENDA</h2>
-          <p>Nº: <strong>${budget.id}</strong></p>
-          <p>DATA: ${budget.date}</p>
-        </div>
-      </div>
-
-      <div class="details-grid">
-        <div class="detail-box">
-          <h3>DADOS DO CLIENTE</h3>
-          <p>${budget.clientName}</p>
-          <p>Validade: ${budget.expiryDate}</p>
-        </div>
-        <div class="detail-box">
-          <h3>STATUS DO PEDIDO</h3>
-          <p>${budget.status.toUpperCase()}</p>
+        <div class="doc-info" style="text-align: right;">
+          <h2 style="font-size: 18px; color: #f97316; margin-bottom: 5px;">ORÇAMENTO DE VENDA</h2>
+          <p style="font-size: 14px; margin: 2px 0;">Nº: <strong>${budget.id.split('-')[1] || budget.id}</strong></p>
+          <p style="font-size: 12px; margin: 2px 0;">Emissão: ${budget.date}</p>
         </div>
       </div>
 
-      <table>
-        <thead>
+      <div class="details-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <div class="detail-box" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <h3 style="font-size: 11px; color: #94a3b8; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 8px;">DADOS DO CLIENTE</h3>
+          <p style="font-size: 14px; font-weight: bold; margin: 0 0 5px 0;">${budget.clientName}</p>
+          <p style="font-size: 12px; color: #64748b; margin: 0;">Validade da Proposta: <strong>${budget.expiryDate}</strong></p>
+        </div>
+        <div class="detail-box" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <h3 style="font-size: 11px; color: #94a3b8; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 8px;">DETALHES DO PEDIDO</h3>
+          <p style="font-size: 12px; margin: 0 0 4px 0;">Status: <span style="font-weight: bold; text-transform: uppercase; color: ${budget.status === 'Convertido' ? '#16a34a' : '#ea580c'}">${budget.status}</span></p>
+          <p style="font-size: 12px; margin: 0;">Vendedor: Administrador</p>
+        </div>
+      </div>
+
+      ${budget.netWeight ? `
+      <div style="margin-bottom: 20px; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 6px; background: #fff;">
+        <h4 style="margin: 0 0 5px 0; font-size: 10px; color: #64748b; text-transform: uppercase;">Dados de Pesagem (Carga)</h4>
+        <div style="display: flex; gap: 20px; font-size: 12px; font-family: monospace;">
+          <span><strong>Tara:</strong> ${budget.tareWeight} kg</span>
+          <span><strong>Bruto:</strong> ${budget.grossWeight} kg</span>
+          <span><strong>Líquido:</strong> ${budget.netWeight} kg</span>
+        </div>
+      </div>
+      ` : ''}
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead style="background: #f1f5f9; color: #475569; font-size: 10px; text-transform: uppercase;">
           <tr>
-            <th>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
-            <th class="text-right">QTD</th>
-            <th class="text-right">UN</th>
-            <th class="text-right">VALOR UNIT.</th>
-            <th class="text-right">SUBTOTAL</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0;">Descrição do Produto</th>
+            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #e2e8f0;">Qtd</th>
+            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #e2e8f0;">Un</th>
+            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #e2e8f0;">Valor Unit.</th>
+            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #e2e8f0;">Total</th>
           </tr>
         </thead>
-        <tbody>
-          ${budget.items.map(item => `
-            <tr>
-              <td>${item.name}</td>
-              <td class="text-right">${item.quantity}</td>
-              <td class="text-right">${item.unit || 'UN'}</td>
-              <td class="text-right">${formatMoney(item.price)}</td>
-              <td class="text-right">${formatMoney(item.price * item.quantity)}</td>
+        <tbody style="font-size: 12px; color: #1e293b;">
+          ${budget.items.map((item, idx) => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px 10px;">
+                <div style="font-weight: bold;">${item.name}</div>
+                <div style="font-size: 10px; color: #94a3b8;">${item.detail || ''}</div>
+              </td>
+              <td style="padding: 12px 10px; text-align: right;">${item.quantity}</td>
+              <td style="padding: 12px 10px; text-align: center;">${item.unit || 'UN'}</td>
+              <td style="padding: 12px 10px; text-align: right;">${formatMoney(item.price)}</td>
+              <td style="padding: 12px 10px; text-align: right; font-weight: bold;">${formatMoney(item.price * item.quantity)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
-      <div class="totals">
-        <div class="total-row">
+      <div class="totals" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+        <div class="total-row" style="width: 200px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
           <span>Subtotal:</span>
           <span>${formatMoney(budget.subtotal)}</span>
         </div>
-        <div class="total-row">
+        <div class="total-row" style="width: 200px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
           <span>Descontos:</span>
           <span>${formatMoney(budget.discount || 0)}</span>
         </div>
-        <div class="total-row total-final">
-          <span>VALOR TOTAL:</span>
+        <div class="total-row total-final" style="width: 250px; display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: #000; border-top: 2px solid #000; padding-top: 10px; margin-top: 5px;">
+          <span>TOTAL A PAGAR:</span>
           <span>${formatMoney(budget.total)}</span>
         </div>
       </div>
 
-      <div style="margin-top: 50px; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
-        <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">OBSERVAÇÕES E CONDIÇÕES</h4>
-        <p style="font-size: 11px; margin: 0;">* Este orçamento tem validade de 15 dias após a data de emissão.<br>
-        * Preços sujeitos a alteração sem aviso prévio conforme disponibilidade de estoque.<br>
-        * Entrega a combinar conforme cronograma logístico.</p>
+      <div style="margin-top: 60px; border-top: 1px dotted #ccc; padding-top: 30px; display: flex; justify-content: space-between; gap: 40px;">
+        <div style="flex: 1; text-align: center;">
+          <div style="border-bottom: 1px solid #000; margin-bottom: 5px; height: 1px;"></div>
+          <p style="font-size: 10px; text-transform: uppercase;">Assinatura do Responsável</p>
+        </div>
+        <div style="flex: 1; text-align: center;">
+          <div style="border-bottom: 1px solid #000; margin-bottom: 5px; height: 1px;"></div>
+          <p style="font-size: 10px; text-transform: uppercase;">${budget.clientName}</p>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px; background: #f8fafc; padding: 20px; border-radius: 8px; font-size: 10px; color: #64748b; line-height: 1.5;">
+        <strong>Termos e Condições:</strong><br>
+        1. Este orçamento tem validade de 15 dias a partir da data de emissão.<br>
+        2. O pagamento deve ser realizado conforme condições acordadas.<br>
+        3. A entrega dos materiais está condicionada à disponibilidade em estoque no momento do faturamento.<br>
+        4. O recebimento da mercadoria implica na aceitação das condições deste orçamento.
       </div>
     `;
     printDocument(`Orcamento_${budget.id}_${budget.clientName.replace(/\s+/g, '_')}`, html);
@@ -410,17 +517,48 @@ const Sales = () => {
 
     const client = clients.find(c => c.id === selectedClient);
 
+    // Recalculate based on Weight if applicable (Mirroring Finalize Logic)
+    let finalItems = [...cart];
+    let finalSubtotal = subtotal;
+    let finalAmount = total;
+    const calculatedNetWeight = requiresWeighing && grossWeight > tareWeight ? grossWeight - tareWeight : undefined;
+
+    if (isScaleConnected && calculatedNetWeight && calculatedNetWeight > 0) {
+      const bulkIndex = finalItems.findIndex(i => ['ton', 'm³', 'kg'].includes(i.unit.toLowerCase()));
+      if (bulkIndex !== -1) {
+        const item = finalItems[bulkIndex];
+        const netWeightTons = calculatedNetWeight / 1000;
+        let newQty = item.quantity;
+
+        const unitLower = item.unit.toLowerCase();
+        if (unitLower === 'kg') newQty = calculatedNetWeight;
+        else if (unitLower === 'ton') newQty = netWeightTons;
+        else if (['m³', 'm3'].includes(unitLower)) {
+          const density = item.weight ? item.weight / 1000 : 1;
+          newQty = netWeightTons / density;
+        }
+
+        finalItems[bulkIndex] = { ...item, quantity: parseFloat(newQty.toFixed(3)) };
+        finalSubtotal = finalItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+        finalAmount = Math.max(0, finalSubtotal - (parseFloat(discount) || 0));
+      }
+    }
+
     const newBudget: Budget = {
       id: `B-${Date.now()}`,
       clientId: selectedClient,
       clientName: client?.name || 'Cliente Avulso',
       date: new Date().toLocaleDateString('pt-BR'),
-      items: cart,
-      subtotal: subtotal,
+      items: finalItems,
+      subtotal: finalSubtotal,
       discount: parseFloat(discount) || 0,
-      total: total,
+      total: finalAmount,
       status: 'Aberto',
-      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
+      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+      // Include Weighing Data if present
+      tareWeight: requiresWeighing ? tareWeight : undefined,
+      grossWeight: requiresWeighing ? grossWeight : undefined,
+      netWeight: calculatedNetWeight
     };
 
     addBudget(newBudget);
@@ -797,6 +935,13 @@ const Sales = () => {
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white dark:bg-slate-600 shadow-sm text-cyan-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
+          >
+            <Activity size={16} />
+            Painel Gerencial
+          </button>
+          <button
             onClick={() => setActiveTab('new')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'new' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'}`}
           >
@@ -819,6 +964,101 @@ const Sales = () => {
           </button>
         </div>
       </div>
+
+      {activeTab === 'dashboard' ? (
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl text-emerald-600">
+                  <TrendingUp size={24} />
+                </div>
+                <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase">Hoje</span>
+              </div>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Total Vendido</p>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
+                {formatMoney(dashboardStats.totalToday)}
+              </h3>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl text-cyan-600">
+                  <Target size={24} />
+                </div>
+                <span className="bg-cyan-50 text-cyan-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase">Mensal</span>
+              </div>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Ticket Médio</p>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
+                {formatMoney(dashboardStats.averageTicket)}
+              </h3>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-2xl text-amber-600">
+                  <FileText size={24} />
+                </div>
+                <span className="bg-amber-50 text-amber-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase">Pendentes</span>
+              </div>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Orçamentos Abertos</p>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
+                {dashboardStats.pendingBudgets}
+              </h3>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex flex-col">
+              <h4 className="font-black text-lg text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <Activity size={20} className="text-slate-400" /> Fluxo de Vendas Recentes
+              </h4>
+              <div className="overflow-y-auto custom-scrollbar flex-1 pr-2">
+                <div className="space-y-3">
+                  {validSales.slice(0, 8).map(sale => (
+                    <div key={sale.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-transparent hover:border-cyan-200 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-cyan-600 font-black shadow-sm">
+                          {sale.items?.length || 0}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-800 dark:text-white uppercase">{sale.clientName}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">{sale.date} • {sale.paymentMethod}</p>
+                        </div>
+                      </div>
+                      <span className="font-black text-slate-900 dark:text-white">{formatMoney(sale.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 rounded-3xl shadow-xl p-8 text-white relative overflow-hidden flex flex-col justify-between">
+              <div className="relative z-10">
+                <h4 className="text-2xl font-black uppercase tracking-widest mb-2">Meta Mensal</h4>
+                <p className="text-slate-400 text-sm font-medium mb-8">Progresso atual em relação ao objetivo.</p>
+
+                <div className="text-6xl font-black tracking-tighter mb-4">
+                  {dashboardStats.targetPercent}<span className="text-2xl text-cyan-400">%</span>
+                </div>
+
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-2">
+                  <div className="bg-cyan-400 h-full transition-all duration-1000" style={{ width: `${dashboardStats.targetPercent}%` }}></div>
+                </div>
+                <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                  <span>{formatMoney(dashboardStats.monthlyTotal)}</span>
+                  <span>Meta: {formatMoney(dashboardStats.monthlyTarget)}</span>
+                </div>
+              </div>
+
+              <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-cyan-600/20 rounded-full blur-[80px]"></div>
+              <div className="absolute top-10 right-10 opacity-10 rotate-12">
+                <TrendingUp size={120} />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {activeTab === 'new' ? (
         <div className="flex flex-col h-full overflow-hidden">
@@ -863,27 +1103,63 @@ const Sales = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+              <div className="flex flex-col gap-3 overflow-y-auto pr-2 pb-4 custom-scrollbar">
                 {filteredProducts.map(product => (
                   <div
                     key={product.id}
                     onClick={() => addToCart(product)}
-                    className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-cyan-400 dark:hover:border-cyan-500 cursor-pointer group transition-all shadow-sm hover:shadow-xl flex flex-col items-center gap-3 relative overflow-hidden"
+                    className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-cyan-400 dark:hover:border-cyan-500 cursor-pointer group transition-all shadow-sm hover:shadow-md flex items-center justify-between gap-4"
                   >
-                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-1 ${product.quantity < product.minStock ? 'bg-red-50 text-red-500' : 'bg-slate-50 dark:bg-slate-700 text-slate-400'} group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner`}>
-                      <Package size={36} strokeWidth={1.5} />
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${product.quantity < product.minStock ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'} group-hover:scale-105 transition-transform duration-300`}>
+                        <Package size={20} strokeWidth={2} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm text-slate-800 dark:text-white leading-tight truncate group-hover:text-cyan-600 transition-colors">{product.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{product.category}</span>
+                          {product.barcode && <span className="text-[9px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 font-mono">{product.barcode}</span>}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-center w-full">
-                      <h3 className="font-black text-slate-800 dark:text-white text-sm leading-tight mb-1">{product.name}</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{product.category}</p>
-                      <div className="mt-3 bg-slate-50 dark:bg-gray-700 h-1 w-full rounded-full overflow-hidden">
-                        <div className={`h-full ${product.quantity < product.minStock ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${Math.min(100, (product.quantity / (product.minStock * 2)) * 100)}%` }}></div>
+
+                    <div className="hidden sm:flex flex-col items-end gap-1 w-24 shrink-0">
+                      <span className={`text-[10px] font-bold ${product.quantity < product.minStock ? 'text-rose-500' : 'text-emerald-600'}`}>
+                        {product.quantity} {product.unit}
+                      </span>
+                      <div className="bg-slate-100 dark:bg-gray-700 h-1.5 w-full rounded-full overflow-hidden">
+                        <div className={`h-full ${product.quantity < product.minStock ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (product.quantity / (product.minStock * 3)) * 100)}%` }}></div>
                       </div>
-                      <p className="text-[10px] font-bold mt-1.5 text-slate-500">{product.quantity} {product.unit} em estoque</p>
-                      <div className="mt-4 flex items-end justify-center gap-1">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white">{formatMoney(product.price).split(',')[0]}</span>
-                        <span className="text-xs font-bold text-slate-400 mb-1">/{product.unit}</span>
+                    </div>
+
+                    <div className="flex flex-col items-end min-w-[80px] shrink-0 text-right">
+                      <span className="text-base font-black text-slate-900 dark:text-white">{formatMoney(product.price)}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">/ {product.unit}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1 border border-slate-200 dark:border-slate-600">
+                        <input
+                          type="number"
+                          id={`qty-${product.id}`}
+                          min="1"
+                          defaultValue="1"
+                          className="w-12 bg-transparent text-center text-xs font-bold border-none p-1 focus:ring-0 text-slate-900 dark:text-white"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
+                          const qty = parseFloat(qtyInput.value) || 1;
+                          for (let i = 0; i < qty; i++) addToCart(product);
+                          qtyInput.value = "1"; // Reset
+                        }}
+                        className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 text-slate-300 hover:bg-cyan-500 hover:text-white flex items-center justify-center transition-all shrink-0 shadow-sm"
+                      >
+                        <Plus size={16} strokeWidth={3} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1297,12 +1573,28 @@ const Sales = () => {
                           <button onClick={() => setSelectedBudget(b)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-white rounded-lg transition-all" title="Ver Detalhes"><Eye size={18} /></button>
                           <button onClick={() => setShowNFE({ type: 'budget', data: b })} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-white rounded-lg transition-all" title="Gerar NF-e (DANFE)"><FileSearch size={18} /></button>
                           {b.status === 'Aberto' && (
-                            <button
-                              onClick={() => handleConvertBudgetToSale(b)}
-                              className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all"
-                            >
-                              <CheckCircle size={18} />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  setCart(b.items);
+                                  setSelectedClient(b.clientId);
+                                  setDiscount(b.discount.toString());
+                                  setActiveTab('new');
+                                  setShowCheckout(true);
+                                }}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                title="Editar Orçamento"
+                              >
+                                <MoreVertical size={18} className="rotate-90" />
+                              </button>
+                              <button
+                                onClick={() => handleConvertBudgetToSale(b)}
+                                className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all"
+                                title="Converter em Venda"
+                              >
+                                <CheckCircle size={18} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>

@@ -129,8 +129,10 @@ const Production = () => {
             id: editingFormula?.id || Date.now().toString(),
             name: formulaForm.name || '',
             category: formulaForm.category || 'Concreto',
-            outputProductId: formulaForm.outputProductId || 'p1',
-            ingredients: formulaForm.ingredients || []
+            type: formulaForm.type || 'Composicao',
+            outputProductId: formulaForm.outputProductId || 'p1', // Ignored if Britagem
+            ingredients: formulaForm.ingredients || [],
+            outputs: formulaForm.outputs || [] // Only for Britagem
         } as ProductionFormula;
 
         if (editingFormula) {
@@ -140,13 +142,20 @@ const Production = () => {
         }
         setIsFormulaModalOpen(false);
         setEditingFormula(null);
-        setFormulaForm({ ingredients: [{ name: '', qty: 0, unit: 'kg' }] });
+        setFormulaForm({ type: 'Composicao', ingredients: [{ name: '', qty: 0, unit: 'kg' }], outputs: [{ productId: '', name: '', percentage: 0 }] });
     };
 
     const addIngredient = () => {
         setFormulaForm(prev => ({
             ...prev,
             ingredients: [...(prev.ingredients || []), { name: '', qty: 0, unit: 'kg' }]
+        }));
+    };
+
+    const addOutput = () => {
+        setFormulaForm(prev => ({
+            ...prev,
+            outputs: [...(prev.outputs || []), { productId: '', name: '', percentage: 0 }]
         }));
     };
 
@@ -168,7 +177,7 @@ const Production = () => {
                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border dark:border-slate-700">
                         <button onClick={() => setActiveTab('monitor')} className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${activeTab === 'monitor' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>MONITORAMENTO</button>
                         <button onClick={() => setActiveTab('orders')} className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${activeTab === 'orders' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>ORDENS (O.P.)</button>
-                        <button onClick={() => setActiveTab('formulas')} className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${activeTab === 'formulas' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>FÓRMULAS</button>
+                        <button onClick={() => setActiveTab('formulas')} className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${activeTab === 'formulas' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>PROCESSOS PRODUTIVOS/FÓRMULAS</button>
                         <button onClick={() => setActiveTab('lab')} className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${activeTab === 'lab' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-400'}`}>LABORATÓRIO</button>
                     </div>
                     <button
@@ -795,99 +804,181 @@ const Production = () => {
                         </div>
                         <form onSubmit={handleSaveFormula} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Nome da Fórmula</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo de Processo</label>
+                                <select
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                    value={formulaForm.type || 'Composicao'}
+                                    onChange={e => setFormulaForm({ ...formulaForm, type: e.target.value as any })}
+                                >
+                                    <option value="Composicao">Fabricação / Mistura (Vários Insumos → 1 Produto)</option>
+                                    <option value="Britagem">Britagem / Separação (1 Insumo → Vários Produtos)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Nome do Processo / Fórmula</label>
                                 <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={formulaForm.name || ''} onChange={e => setFormulaForm({ ...formulaForm, name: e.target.value })} required />
                             </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Categoria</label>
                                     <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={formulaForm.category || ''} onChange={e => setFormulaForm({ ...formulaForm, category: e.target.value })} required />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto Produzido (Estoque)</label>
-                                    <select
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
-                                        value={formulaForm.outputProductId || ''}
-                                        onChange={e => {
-                                            const selected = inventory.find(i => i.id === e.target.value);
-                                            setFormulaForm({
-                                                ...formulaForm,
-                                                outputProductId: e.target.value,
-                                                name: selected ? selected.name : (formulaForm.name || '')
-                                            });
-                                        }}
-                                        required
-                                    >
-                                        <option value="">Selecione o produto...</option>
-                                        {inventory.map(item => (
-                                            <option key={item.id} value={item.id}>{item.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {formulaForm.type !== 'Britagem' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto Produzido (Estoque)</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                            value={formulaForm.outputProductId || ''}
+                                            onChange={e => {
+                                                const selected = inventory.find(i => i.id === e.target.value);
+                                                setFormulaForm({
+                                                    ...formulaForm,
+                                                    outputProductId: e.target.value,
+                                                    name: selected ? selected.name : (formulaForm.name || '')
+                                                });
+                                            }}
+                                            required={formulaForm.type !== 'Britagem'}
+                                        >
+                                            <option value="">Selecione o produto...</option>
+                                            {inventory.map(item => (
+                                                <option key={item.id} value={item.id}>{item.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="pt-4 border-t dark:border-slate-700">
-                                <div className="flex justify-between items-center mb-4">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Ingredientes / Insumos (p/ UN)</label>
-                                    <button type="button" onClick={addIngredient} className="text-indigo-600 text-[10px] font-black uppercase flex items-center gap-1"><Plus size={12} /> Adicionar</button>
-                                </div>
-                                <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                                    {formulaForm.ingredients?.map((ing, idx) => (
-                                        <div key={idx} className="grid grid-cols-5 gap-2 items-center">
-                                            <select
-                                                className="col-span-2 bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold"
-                                                value={ing.productId || ''}
-                                                onChange={e => {
-                                                    const selectedItem = inventory.find(i => i.id === e.target.value);
-                                                    if (selectedItem) {
+                            {/* Logic for Standard Composition (Many Ingredients -> 1 Output) */}
+                            {formulaForm.type !== 'Britagem' && (
+                                <div className="pt-4 border-t dark:border-slate-700">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase">Ingredientes / Insumos (p/ UN)</label>
+                                        <button type="button" onClick={addIngredient} className="text-indigo-600 text-[10px] font-black uppercase flex items-center gap-1"><Plus size={12} /> Adicionar</button>
+                                    </div>
+                                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                        {formulaForm.ingredients?.map((ing, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <select
+                                                    className="flex-[2] bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-2 font-bold text-xs uppercase"
+                                                    value={ing.productId}
+                                                    onChange={e => {
                                                         const newIngs = [...(formulaForm.ingredients || [])];
-                                                        newIngs[idx].productId = selectedItem.id;
-                                                        newIngs[idx].name = selectedItem.name;
-                                                        newIngs[idx].unit = selectedItem.unit;
+                                                        const selected = inventory.find(i => i.id === e.target.value);
+                                                        newIngs[idx] = { ...ing, productId: e.target.value, name: selected?.name || '', unit: selected?.unit || 'un' };
                                                         setFormulaForm({ ...formulaForm, ingredients: newIngs });
-                                                    }
-                                                }}
-                                            >
-                                                <option value="">Selecione...</option>
-                                                {inventory.map(item => (
-                                                    <option key={item.id} value={item.id}>{item.name}</option>
-                                                ))}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                placeholder="Qtd"
-                                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold"
-                                                value={ing.qty}
-                                                onChange={e => {
-                                                    const newIngs = [...(formulaForm.ingredients || [])];
-                                                    newIngs[idx].qty = Number(e.target.value);
+                                                    }}
+                                                    required
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Qtd"
+                                                    className="w-20 bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-2 font-bold text-xs"
+                                                    value={ing.qty}
+                                                    onChange={e => {
+                                                        const newIngs = [...(formulaForm.ingredients || [])];
+                                                        newIngs[idx] = { ...ing, qty: Number(e.target.value) };
+                                                        setFormulaForm({ ...formulaForm, ingredients: newIngs });
+                                                    }}
+                                                    required
+                                                />
+                                                <span className="text-[10px] font-bold text-slate-400 w-8">{ing.unit}</span>
+                                                <button type="button" onClick={() => {
+                                                    const newIngs = formulaForm.ingredients?.filter((_, i) => i !== idx);
                                                     setFormulaForm({ ...formulaForm, ingredients: newIngs });
-                                                }}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Un"
-                                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 text-[11px] font-bold uppercase text-slate-500"
-                                                value={ing.unit}
-                                                readOnly
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormulaForm({ ...formulaForm, ingredients: formulaForm.ingredients?.filter((_, i) => i !== idx) })}
-                                                className="text-rose-400 hover:text-rose-600"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                                }} className="text-slate-300 hover:text-rose-500"><X size={14} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Logic for Crushing / Decomposition (1 Input -> Many Outputs) */}
+                            {formulaForm.type === 'Britagem' && (
+                                <div className="space-y-6 pt-4 border-t dark:border-slate-700">
+                                    {/* Input Section */}
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Matéria Prima de Entrada (Input)</label>
+                                        <div className="flex gap-2 items-center">
+                                            <select
+                                                className="w-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-xl py-3 font-bold text-sm uppercase text-indigo-700 dark:text-indigo-300"
+                                                value={formulaForm.ingredients?.[0]?.productId || ''}
+                                                onChange={e => {
+                                                    const selected = inventory.find(i => i.id === e.target.value);
+                                                    const inputIng = { productId: e.target.value, name: selected?.name || '', qty: 1, unit: selected?.unit || 'ton' };
+                                                    setFormulaForm({ ...formulaForm, ingredients: [inputIng] });
+                                                }}
+                                                required
+                                            >
+                                                <option value="">Selecione a Pedra Bruta/Desmonte...</option>
+                                                {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Output Section */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase">Produtos Gerados / Saída (%)</label>
+                                            <button type="button" onClick={addOutput} className="text-emerald-600 text-[10px] font-black uppercase flex items-center gap-1"><Plus size={12} /> Adicionar Produto</button>
+                                        </div>
+                                        <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                            {formulaForm.outputs?.map((out, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <select
+                                                        className="flex-[2] bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-2 font-bold text-xs uppercase"
+                                                        value={out.productId}
+                                                        onChange={e => {
+                                                            const newOuts = [...(formulaForm.outputs || [])];
+                                                            const selected = inventory.find(i => i.id === e.target.value);
+                                                            newOuts[idx] = { ...out, productId: e.target.value, name: selected?.name || '' };
+                                                            setFormulaForm({ ...formulaForm, outputs: newOuts });
+                                                        }}
+                                                        required
+                                                    >
+                                                        <option value="">Selecione Produto...</option>
+                                                        {inventory.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                                    </select>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="number"
+                                                            placeholder="%"
+                                                            className="w-20 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-xl py-2 pl-2 pr-6 font-bold text-xs text-emerald-700"
+                                                            value={out.percentage}
+                                                            onChange={e => {
+                                                                const newOuts = [...(formulaForm.outputs || [])];
+                                                                newOuts[idx] = { ...out, percentage: Number(e.target.value) };
+                                                                setFormulaForm({ ...formulaForm, outputs: newOuts });
+                                                            }}
+                                                            required
+                                                        />
+                                                        <span className="absolute right-2 top-2 text-[10px] font-bold text-emerald-600">%</span>
+                                                    </div>
+                                                    <button type="button" onClick={() => {
+                                                        const newOuts = formulaForm.outputs?.filter((_, i) => i !== idx);
+                                                        setFormulaForm({ ...formulaForm, outputs: newOuts });
+                                                    }} className="text-slate-300 hover:text-rose-500"><X size={14} /></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-2 text-right">
+                                            <span className={`text-[10px] font-black uppercase ${(formulaForm.outputs?.reduce((acc, curr) => acc + curr.percentage, 0) || 0) > 100 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                                Total Agregado: {formulaForm.outputs?.reduce((acc, curr) => acc + curr.percentage, 0) || 0}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex gap-3 pt-6">
                                 {editingFormula && (
                                     <button type="button" onClick={() => { if (confirm("Remover fórmula?")) { deleteFormula(editingFormula.id); setIsFormulaModalOpen(false); } }} className="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl uppercase tracking-widest text-xs">Excluir</button>
                                 )}
-                                <button type="submit" className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs">Salvar Fórmula</button>
+                                <button type="submit" className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs">Salvar Processo</button>
                             </div>
                         </form>
                     </div>

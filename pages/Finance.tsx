@@ -59,6 +59,40 @@ const Finance = () => {
    const [searchTerm, setSearchTerm] = useState('');
    const [categoryFilter, setCategoryFilter] = useState('Todas');
 
+   // Plan of Accounts State
+   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+   const [editingPlan, setEditingPlan] = useState<{ id: string, name: string, parentId: string | null, type?: 'Receita' | 'Despesa' } | null>(null);
+   const [planForm, setPlanForm] = useState<{ name: string, parentId: string, type: 'Receita' | 'Despesa' }>({
+      name: '', parentId: '', type: 'Despesa'
+   });
+
+   const handleSavePlan = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!planForm.name) return;
+
+      if (editingPlan) {
+         updatePlanAccount(editingPlan.id, planForm.name, planForm.parentId || null);
+      } else {
+         // If parentId is empty string, treat as null (Top Level)
+         const distinctParentId = planForm.parentId === '' ? null : planForm.parentId;
+         addPlanAccount(distinctParentId, planForm.name, planForm.type);
+      }
+      setIsPlanModalOpen(false);
+      setEditingPlan(null);
+      setPlanForm({ name: '', parentId: '', type: 'Despesa' });
+   };
+
+   const openPlanModal = (plan?: any, parentId: string | null = null) => {
+      if (plan) {
+         setEditingPlan({ id: plan.id, name: plan.name, parentId, type: plan.type });
+         setPlanForm({ name: plan.name, parentId: parentId || '', type: plan.type || 'Despesa' });
+      } else {
+         setEditingPlan(null);
+         setPlanForm({ name: '', parentId: parentId || '', type: 'Despesa' });
+      }
+      setIsPlanModalOpen(true);
+   };
+
    const formatMoney = (value: number) => {
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
    };
@@ -370,6 +404,81 @@ const Finance = () => {
             </div>
          )}
 
+         {/* Plan of Accounts Modal */}
+         {isPlanModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
+                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
+                     <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <FolderOpen className="text-cyan-600" />
+                        {editingPlan ? 'Editar Categoria' : 'Nova Categoria'}
+                     </h3>
+                     <button onClick={() => setIsPlanModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={24} />
+                     </button>
+                  </div>
+
+                  <form onSubmit={handleSavePlan} className="p-6 space-y-5">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nome da Categoria</label>
+                        <input
+                           required
+                           type="text"
+                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                           placeholder="Ex: Despesas de Marketing"
+                           value={planForm.name}
+                           onChange={e => setPlanForm({ ...planForm, name: e.target.value })}
+                        />
+                     </div>
+
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Grupo Principal (Pai)</label>
+                        <select
+                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 text-sm font-semibold"
+                           value={planForm.parentId}
+                           onChange={e => setPlanForm({ ...planForm, parentId: e.target.value })}
+                           disabled={!!editingPlan && planForm.parentId !== ''} // Lock parent if editing child (simplification)
+                        >
+                           <option value="">(Nenhum - Criar Grupo Raiz)</option>
+                           {planOfAccounts.map(g => (
+                              <option key={g.id} value={g.id}>{g.code} - {g.name} ({g.type})</option>
+                           ))}
+                        </select>
+                     </div>
+
+                     {planForm.parentId === '' && (
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Tipo de Lançamento</label>
+                           <div className="flex bg-slate-100 dark:bg-gray-700 p-1.5 rounded-xl">
+                              <button
+                                 type="button"
+                                 onClick={() => setPlanForm({ ...planForm, type: 'Receita' })}
+                                 className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${planForm.type === 'Receita' ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm border border-slate-100 dark:border-gray-500' : 'text-slate-500 hover:text-slate-700'}`}
+                              >
+                                 <ArrowDown size={16} /> Receita
+                              </button>
+                              <button
+                                 type="button"
+                                 onClick={() => setPlanForm({ ...planForm, type: 'Despesa' })}
+                                 className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${planForm.type === 'Despesa' ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm border border-slate-100 dark:border-gray-500' : 'text-slate-500 hover:text-slate-700'}`}
+                              >
+                                 <ArrowUp size={16} /> Despesa
+                              </button>
+                           </div>
+                        </div>
+                     )}
+
+                     <button
+                        type="submit"
+                        className="w-full py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 mt-4"
+                     >
+                        Confirmar
+                     </button>
+                  </form>
+               </div>
+            </div>
+         )}
+
          {/* Main Content Area */}
          {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -651,7 +760,7 @@ const Finance = () => {
                      </h3>
                      <p className="text-xs text-slate-500 mt-1">Estrutura de Categorias de Receitas e Despesas.</p>
                   </div>
-                  <button onClick={() => alert('Para criar categorias, utilize as Configurações do Sistema.')} className="px-4 py-2 bg-slate-50 text-slate-400 text-xs font-bold rounded-lg cursor-not-allowed flex items-center gap-2">
+                  <button onClick={() => openPlanModal()} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
                      <Plus size={14} /> Nova Categoria
                   </button>
                </div>
@@ -670,30 +779,36 @@ const Finance = () => {
                         {planOfAccounts.map(group => (
                            <React.Fragment key={group.id}>
                               {/* Group Header */}
-                              <tr className="bg-slate-50/50 dark:bg-gray-800/50 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors">
-                                 <td className="px-6 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{group.id}</td>
+                              <tr className="bg-slate-50/50 dark:bg-gray-800/50 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors group">
+                                 <td className="px-6 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{group.code}</td>
                                  <td className="px-6 py-3 font-black text-slate-800 dark:text-white flex items-center gap-2">
                                     <FolderOpen size={16} className="text-slate-400" /> {group.name}
                                  </td>
                                  <td className="px-6 py-3 text-center text-xs font-bold text-slate-500">{group.type}</td>
                                  <td className="px-6 py-3 text-center"><span className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold">GRUPO</span></td>
                                  <td className="px-6 py-3 text-right">
-                                    {hasPermission('finance.delete') && (
-                                       <button onClick={() => deletePlanAccount(group.id)} className="p-1.5 text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>
-                                    )}
+                                    <div className="flex justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
+                                       <button onClick={() => openPlanModal(group, null)} className="p-1.5 text-slate-400 hover:text-cyan-600"><Edit2 size={16} /></button>
+                                       {hasPermission('finance.delete') && (
+                                          <button onClick={() => { if (confirm("Excluir Grupo e todas subcategorias?")) deletePlanAccount(group.id, null); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                       )}
+                                    </div>
                                  </td>
                               </tr>
                               {/* Children */}
                               {group.children?.map(child => (
-                                 <tr key={child.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                                 <tr key={child.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors group">
                                     <td className="px-6 py-3 font-mono text-xs text-slate-400 pl-10 border-l-4 border-transparent hover:border-cyan-400">{child.code}</td>
                                     <td className="px-6 py-3 text-slate-600 dark:text-slate-300 font-medium pl-10">{child.name}</td>
-                                    <td className="px-6 py-3 text-center text-xs text-slate-400">{child.type}</td>
+                                    <td className="px-6 py-3 text-center text-xs text-slate-400">{group.type}</td> {/* Inherited Type */}
                                     <td className="px-6 py-3 text-center"><span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-400 text-[10px] font-bold">ANALÍTICA</span></td>
                                     <td className="px-6 py-3 text-right">
-                                       {hasPermission('finance.delete') && (
-                                          <button onClick={() => deletePlanAccount(child.id)} className="p-1.5 text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>
-                                       )}
+                                       <div className="flex justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
+                                          <button onClick={() => openPlanModal(child, group.id)} className="p-1.5 text-slate-400 hover:text-cyan-600"><Edit2 size={14} /></button>
+                                          {hasPermission('finance.delete') && (
+                                             <button onClick={() => { if (confirm("Excluir Categoria?")) deletePlanAccount(child.id, group.id); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                          )}
+                                       </div>
                                     </td>
                                  </tr>
                               ))}

@@ -37,7 +37,8 @@ import {
     Disc,
     ArrowRight,
     RefreshCw,
-    Info
+    Info,
+    Package
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { FleetVehicle, MaintenanceRecord, FuelLog, Tire, TireHistory } from '../types';
@@ -47,7 +48,8 @@ const Fleet = () => {
     const {
         fleet, tires, inventory, addVehicle, updateVehicle, deleteVehicle, updateVehicleStatus,
         addMaintenanceRecord, deleteMaintenanceRecord, addFuelLog, deleteFuelLog,
-        addTire, updateTire, deleteTire, addTireHistory, deleteTireHistory, accounts: financialAccounts
+        addTire, updateTire, deleteTire, addTireHistory, deleteTireHistory, accounts: financialAccounts,
+        updateStock
     } = useApp();
     const [activeTab, setActiveTab] = useState<'overview' | 'vehicles' | 'maintenance' | 'fuel' | 'tires'>('overview');
 
@@ -269,9 +271,17 @@ const Fleet = () => {
 
     const handleSaveTire = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const newTireId = selectedTireId || `T-${Date.now()}`;
+
+        // Handle Stock Deduction logic (Only for new tires coming from stock)
+        if (!selectedTireId && tireForm.stockItemId) {
+            updateStock(tireForm.stockItemId, -1, `Uso Interno - Frota (Pneu ${newTireId})`, newTireId);
+        }
+
         const tireData: Tire = {
             ...tireForm,
-            id: selectedTireId || `T-${Date.now()}`,
+            id: newTireId,
             currentKm: Number(tireForm.currentKm) || 0,
             maxKm: Number(tireForm.maxKm) || 100000,
             recapCount: Number(tireForm.recapCount) || 0,
@@ -279,7 +289,7 @@ const Fleet = () => {
         } as Tire;
 
         if (selectedTireId) {
-            updateTire(tireData);
+            updateTire(selectedTireId, tireData);
         } else {
             addTire(tireData);
         }
@@ -1457,46 +1467,163 @@ const Fleet = () => {
             {isTireModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border dark:border-slate-700 animate-in zoom-in duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                             <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">
-                                {selectedTireId ? 'Editar Pneu' : 'Cadastrar Pneu'}
+                                {selectedTireId ? 'Editar Pneu' : 'Novo Pneu'}
                             </h3>
                             <button onClick={() => setIsTireModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
-                        <form onSubmit={handleSaveTire} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
-                                    placeholder="Ex: PN-102030"
-                                    value={tireForm.serialNumber || ''}
-                                    onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
-                                    required
-                                />
+
+                        {!selectedTireId && !tireForm.brand ? (
+                            // Mode Selection for New Tire
+                            <div className="p-8 grid grid-cols-2 gap-6">
+                                <button
+                                    onClick={() => setTireForm({ ...tireForm, brand: ' ' })} // Hack to bypass check, will reset
+                                    className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all group"
+                                >
+                                    <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-teal-600 shadow-sm"><PenTool size={32} /></div>
+                                    <div className="text-center">
+                                        <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Cadastro Manual</h4>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Pneus já existentes ou sem estoque</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => setTireForm({ ...tireForm, brand: 'STOCK_MODE' })}
+                                    className="flex flex-col items-center justify-center gap-4 p-6 bg-slate-50 dark:bg-slate-700 rounded-3xl border-2 border-slate-100 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                                >
+                                    <div className="p-4 bg-white dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-blue-600 shadow-sm"><Package size={32} /></div>
+                                    <div className="text-center">
+                                        <h4 className="font-black text-slate-800 dark:text-white uppercase mb-1">Baixar do Estoque</h4>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Consumir item do Almoxarifado</p>
+                                    </div>
+                                </button>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Marca</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.brand} onChange={e => setTireForm({ ...tireForm, brand: e.target.value })} required />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Modelo</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.model} onChange={e => setTireForm({ ...tireForm, model: e.target.value })} required />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Medida</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.size} onChange={e => setTireForm({ ...tireForm, size: e.target.value })} required />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px) font-black text-slate-400 uppercase mb-2">KM Estimado (Vida Útil)</label>
-                                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.maxKm} onChange={e => setTireForm({ ...tireForm, maxKm: Number(e.target.value) })} required />
-                                </div>
-                            </div>
-                            <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Salvar Alterações</button>
-                        </form>
+                        ) : (
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                // Intercept for stock deduction logic
+                                if (tireForm.brand === 'STOCK_MODE' && tireForm.model) { // model holds itemId here momentarily
+                                    const itemId = tireForm.model;
+                                    const item = inventory.find(i => i.id === itemId);
+                                    if (item) {
+                                        // Deduct from stock
+                                        // We need access to updateStock, but it's in context. 
+                                        // We'll rely on global updateStock from props/context if available or simple logic
+                                        // Since we can't easily call updateStock here without it being in scope (it is in Fleet component),
+                                        // we will assume Fleet component has updateStock in scope? YES.
+                                        // WAIT: updateStock is NOTdestructured in Fleet. We need to add it.
+                                    }
+                                    // Correct the form data before saving
+                                    // Actually, let handleSaveTire handle the logic if we pass a special flag or handle it here
+                                }
+                                handleSaveTire(e);
+                            }} className="p-6 space-y-4">
+                                {tireForm.brand === 'STOCK_MODE' ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex items-start gap-3">
+                                            <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                                            <div>
+                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-200 uppercase">Conciliação de Estoque</p>
+                                                <p className="text-[10px] text-blue-600/80 dark:text-blue-300">Ao selecionar um pneu, uma unidade será removida do estoque automaticamente e o pneu será cadastrado na frota.</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Selecione o Pneu em Estoque</label>
+                                            <select
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                                onChange={(e) => {
+                                                    const item = inventory.find(i => i.id === e.target.value);
+                                                    if (item) {
+                                                        // Pre-fill form with item data
+                                                        setTireForm({
+                                                            ...tireForm,
+                                                            brand: item.name.split(' ')[0], // Guess brand
+                                                            model: item.name, // Use full name as model for now or split
+                                                            size: '295/80 R22.5', // Default or parse from description
+                                                            stockItemId: item.id, // Store ref
+                                                            maxKm: 100000,
+                                                            currentKm: 0,
+                                                            status: 'Novo'
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                <option value="">Selecione...</option>
+                                                {inventory.filter(i =>
+                                                    i.category.toLowerCase().includes('pneu') && i.quantity > 0
+                                                ).map(i => (
+                                                    <option key={i.id} value={i.id}>{i.name} - (Disp: {i.quantity})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        {tireForm.stockItemId && (
+                                            <div className="space-y-4 pt-4 border-t dark:border-slate-800 animate-in fade-in">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                                        placeholder="Ex: PN-102030"
+                                                        value={tireForm.serialNumber || ''}
+                                                        onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                                                        required
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs hover:bg-blue-500 transition-all"
+                                                >
+                                                    <Download size={16} className="inline mr-2" /> Baixar e Cadastrar
+                                                </button>
+                                            </div>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 })}
+                                            className="w-full py-3 text-slate-400 text-xs font-bold uppercase hover:text-slate-600"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Número de Série (Fogo)</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm uppercase"
+                                                placeholder="Ex: PN-102030"
+                                                value={tireForm.serialNumber || ''}
+                                                onChange={e => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Marca</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.brand} onChange={e => setTireForm({ ...tireForm, brand: e.target.value })} required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Modelo</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.model} onChange={e => setTireForm({ ...tireForm, model: e.target.value })} required />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Medida</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.size} onChange={e => setTireForm({ ...tireForm, size: e.target.value })} required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Estimado (Vida Útil)</label>
+                                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={tireForm.maxKm} onChange={e => setTireForm({ ...tireForm, maxKm: Number(e.target.value) })} required />
+                                            </div>
+                                        </div>
+                                        <button type="submit" className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl shadow-lg mt-6 uppercase tracking-widest text-xs">Salvar Alterações</button>
+                                    </>
+                                )}
+                            </form>
+                        )}
                     </div>
                 </div>
             )}

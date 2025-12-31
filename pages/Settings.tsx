@@ -206,7 +206,7 @@ const Settings = () => {
                             <div className="lg:col-span-4 space-y-6">
                                 <div className="p-8 bg-slate-900 text-white rounded-[40px] shadow-2xl relative overflow-hidden group">
                                     <Zap size={120} className="absolute -right-10 -bottom-10 text-indigo-500/20 group-hover:rotate-12 transition-transform duration-500" />
-                                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Plano Construsys</h4>
+                                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Plano InfraCore</h4>
                                     <div className="space-y-4 relative z-10">
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="font-bold text-slate-400">Status do Plano</span>
@@ -237,7 +237,7 @@ const Settings = () => {
                                             <Phone size={14} className="text-indigo-500" /> 0800 123 4567
                                         </div>
                                         <div className="flex items-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                                            <Mail size={14} className="text-indigo-500" /> vip@construsys.com
+                                            <Mail size={14} className="text-indigo-500" /> vip@infracore.com
                                         </div>
                                     </div>
                                 </div>
@@ -432,7 +432,7 @@ const Settings = () => {
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Backup Automático</p>
-                                            <p className="text-xs font-bold text-slate-900 dark:text-white mt-1">Nuvem Construsys Ativada</p>
+                                            <p className="text-xs font-bold text-slate-900 dark:text-white mt-1">Nuvem InfraCore Ativada</p>
                                         </div>
                                         <div className="bg-emerald-500/10 p-3 rounded-2xl">
                                             <Wifi size={24} className="text-emerald-500 animate-pulse" />

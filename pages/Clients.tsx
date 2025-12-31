@@ -19,7 +19,8 @@ import {
   File,
   XCircle,
   ExternalLink,
-  Upload
+  Upload,
+  Copy
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Client, Supplier, Employee, InventoryItem, FleetVehicle } from '../types';
@@ -94,6 +95,17 @@ const Clients = () => {
     else if (activeTab === 'vehicles') deleteVehicle(id);
   };
 
+  const handleDuplicate = (item: any) => {
+    const duplicatedItem = { ...item };
+    delete duplicatedItem.id; // Ensure new ID generation
+    duplicatedItem.name = `${duplicatedItem.name} (Cópia)`; // Alter reference (Name)
+    if (duplicatedItem.barcode) duplicatedItem.barcode = ''; // Clear unique identifier if exists
+
+    setEditingId(null);
+    setFormData(duplicatedItem);
+    setIsModalOpen(true);
+  };
+
   const TabButton = ({ id, icon: Icon, label, count }: any) => (
     <button
       onClick={() => { setActiveTab(id); setSearchTerm(''); }}
@@ -120,205 +132,404 @@ const Clients = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
-      {/* Modal */}
+      {/* Modal - Enhanced Forms */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl border border-slate-100 dark:border-slate-700 my-8 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-8 border-b border-slate-50 dark:border-slate-700">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                {editingId ? 'Editar' : 'Novo'} {activeTab}
-              </h3>
-              <button onClick={handleCloseModal} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><X size={24} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-4xl border border-slate-100 dark:border-slate-700 my-8 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+              <div>
+                <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest block mb-1">
+                  {editingId ? 'Editando Registro' : 'Novo Cadastro'}
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {activeTab === 'clients' && 'Cliente'}
+                  {activeTab === 'suppliers' && 'Fornecedor'}
+                  {activeTab === 'employees' && 'Colaborador'}
+                  {activeTab === 'products' && 'Produto / Material'}
+                  {activeTab === 'vehicles' && 'Veículo da Frota'}
+                </h3>
+              </div>
+              <button onClick={handleCloseModal} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500"><X size={24} /></button>
             </div>
 
-            <form onSubmit={handleSave} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className={activeTab === 'products' ? "md:col-span-1" : "md:col-span-2"}>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    {activeTab === 'products' ? 'Nome do Produto' : 'Nome / Razão Social'}
-                  </label>
-                  <input type="text" required className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3 font-bold" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                </div>
+            {/* Scrollable Form Content */}
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <form id="cadastro-form" onSubmit={handleSave} className="space-y-8">
 
-                {activeTab === 'products' && (
-                  <>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marca / Brand</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.brand || ''} onChange={e => setFormData({ ...formData, brand: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Categoria</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">NCM</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.ncm || ''} onChange={e => setFormData({ ...formData, ncm: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Código de Barras (EAN)</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.barcode || ''} onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização (Rua/Box)</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Peso Un. (kg)</label>
-                      <input type="number" step="0.001" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) })} />
-                    </div>
-                  </>
-                )}
+                {/* --- SEÇÃO 1: INFORMAÇÕES PRINCIPAIS --- */}
+                <section>
+                  <h4 className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 dark:border-slate-700 pb-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
+                    Dados Principais
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
-                {activeTab === 'vehicles' && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Placa</label>
-                    <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3 uppercase" value={formData.plate || ''} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} />
-                  </div>
-                )}
-
-                {(activeTab === 'clients' || activeTab === 'suppliers') && (
-                  <>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Documento (CPF/CNPJ)</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.document || ''} onChange={e => setFormData({ ...formData, document: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</label>
-                      <input type="email" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Telefone / WhatsApp</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pessoa de Contato</label>
-                      <input type="text" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.contactPerson || ''} onChange={e => setFormData({ ...formData, contactPerson: e.target.value })} />
+                    {/* Nome / Descrição */}
+                    <div className="md:col-span-8">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                        {activeTab === 'products' ? 'Descrição do Produto' : activeTab === 'vehicles' ? 'Modelo do Veículo' : 'Nome Completo / Razão Social'}
+                      </label>
+                      <input
+                        type="text" required
+                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-4 font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 transition-all"
+                        placeholder={activeTab === 'clients' ? 'Ex: Construtora Exemplo Ltda' : ''}
+                        value={formData.name || ''}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      />
                     </div>
 
-                    {/* Address Fields */}
-                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                      <p className="md:col-span-4 text-[10px] font-black text-cyan-600 uppercase tracking-widest border-b border-gray-200 pb-2 mb-2">Endereço Completo</p>
-                      <div className="col-span-2">
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Logradouro</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.street || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Número</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.number || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, number: e.target.value } })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">CEP</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.zipCode || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, zipCode: e.target.value } })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Bairro</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.district || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, district: e.target.value } })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Cidade</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" value={formData.address?.city || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">UF</label>
-                        <input type="text" className="w-full rounded-xl border-slate-200 text-sm p-2" maxLength={2} value={formData.address?.state || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })} />
-                      </div>
-                    </div>
-
-                    {activeTab === 'clients' && (
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Limite de Crédito</label>
-                        <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3 text-cyan-600 font-bold" value={formData.creditLimit || ''} onChange={e => setFormData({ ...formData, creditLimit: parseFloat(e.target.value) })} />
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Generic Fields */}
-                {activeTab !== 'products' && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</label>
-                    <select className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.status || 'Ativo'} onChange={e => setFormData({ ...formData, status: e.target.value })}>
-                      <option value="Ativo">Ativo</option>
-                      <option value="Inativo">Inativo</option>
-                      {activeTab === 'suppliers' && <option value="Bloqueado">Bloqueado</option>}
-                      {activeTab === 'employees' && <option value="Férias">Férias</option>}
-                      {activeTab === 'vehicles' && <option value="Operacional">Operacional</option>}
-                      {activeTab === 'vehicles' && <option value="Manutenção">Em Manutenção</option>}
-                    </select>
-                  </div>
-                )}
-
-                {activeTab === 'products' && (
-                  <>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Preço Venda</label>
-                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Atual</label>
-                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.quantity || ''} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Mínimo</label>
-                      <input type="number" className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.minStock || ''} onChange={e => setFormData({ ...formData, minStock: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Unidade</label>
-                      <select className="w-full rounded-2xl border-slate-200 dark:bg-slate-900 dark:border-slate-700 p-3" value={formData.unit || 'un'} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
-                        <option value="un">Unidade (un)</option>
-                        <option value="kg">Quilo (kg)</option>
-                        <option value="m">Metro (m)</option>
-                        <option value="m2">Metro Quadrado (m²)</option>
-                        <option value="m3">Metro Cúbico (m³)</option>
-                        <option value="ton">Tonelada (ton)</option>
-                        <option value="l">Litro (l)</option>
-                        <option value="cx">Caixa (cx)</option>
+                    {/* Status Toggle */}
+                    <div className="md:col-span-4">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+                      <select
+                        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-4 font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 transition-all appearance-none"
+                        value={formData.status || 'Ativo'}
+                        onChange={e => setFormData({ ...formData, status: e.target.value })}
+                      >
+                        <option value="Ativo">Ativo / Disponível</option>
+                        <option value="Inativo">Inativo / Indisponível</option>
+                        {activeTab === 'suppliers' && <option value="Bloqueado">Bloqueado</option>}
+                        {activeTab === 'employees' && <option value="Férias">Em Férias</option>}
+                        {activeTab === 'vehicles' && <option value="Manutenção">Em Manutenção</option>}
                       </select>
                     </div>
-                  </>
-                )}
-              </div>
 
-              {/* Attachments Section */}
-              {activeTab !== 'products' && (
-                <div className="pt-6 border-t border-slate-50 dark:border-slate-700">
-                  <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4"><Paperclip size={14} /> Documentos & Anexos</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-cyan-400 transition-colors relative">
-                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
+                    {/* Campos Específicos por Tipo */}
+
+                    {/* -> CLIENTES & FORNECEDORES & COLABORADORES */}
+                    {(activeTab === 'clients' || activeTab === 'suppliers' || activeTab === 'employees') && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">CPF / CNPJ</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
+                            value={formData.document || ''} onChange={e => setFormData({ ...formData, document: e.target.value })}
+                            placeholder="00.000.000/0000-00" />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Email Principal</label>
+                          <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
+                            value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Telefone / WhatsApp</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
+                            value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+
+                    {/* -> PRODUTOS */}
+                    {activeTab === 'products' && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Marca / Fabricante</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.brand || ''} onChange={e => setFormData({ ...formData, brand: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Categoria</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.category || ''} onChange={e => setFormData({ ...formData, category: e.target.value })} list="categories-list" />
+                          <datalist id="categories-list">
+                            <option value="Agregados" />
+                            <option value="Cimentos e Argamassas" />
+                            <option value="Aços e Metais" />
+                            <option value="Madeiras" />
+                            <option value="Tubos e Conexões" />
+                            <option value="Material Elétrico" />
+                            <option value="Material Hidráulico" />
+                            <option value="Tintas e Solventes" />
+                            <option value="Revestimentos e Pisos" />
+                            <option value="Telhas e Coberturas" />
+                            <option value="Ferramentas Manuais" />
+                            <option value="Ferramentas Elétricas" />
+                            <option value="EPIs - Proteção Individual" />
+                            <option value="Peças de Reposição" />
+                            <option value="Manutenção em Geral" />
+                            <option value="Combustíveis e Óleos" />
+                            <option value="Pneus e Rodagem" />
+                            <option value="Serviços Terceirizados" />
+                            <option value="Locação de Equipamentos" />
+                            <option value="Insumos Administrativos" />
+                          </datalist>
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Código de Barras (EAN)</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.barcode || ''} onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+
+                    {/* -> VEÍCULOS */}
+                    {activeTab === 'vehicles' && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Placa</label>
+                          <input type="text" className="w-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-100 dark:border-emerald-700/50 rounded-xl p-3 text-lg font-black text-center uppercase tracking-widest text-emerald-700 dark:text-emerald-400"
+                            value={formData.plate || ''} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} placeholder="ABC-1234" maxLength={8} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cor</label>
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded-xl p-1 pr-3">
+                            <input type="color" className="w-10 h-10 rounded-lg cursor-pointer border-none bg-transparent" value={formData.color || '#ffffff'} onChange={e => setFormData({ ...formData, color: e.target.value })} />
+                            <input type="text" className="bg-transparent border-none text-sm font-medium w-full focus:ring-0" placeholder="Ex: Branco" value={formData.colorName || ''} onChange={e => setFormData({ ...formData, colorName: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Renavam</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.renavam || ''} onChange={e => setFormData({ ...formData, renavam: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+
+                {/* --- SEÇÃO 2: DETALHES OPERACIONAIS --- */}
+                <section>
+                  <h4 className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 dark:border-slate-700 pb-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    Detalhes Operacionais
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+                    {/* ADICIONAIS: Clientes & Fornecedores */}
+                    {(activeTab === 'clients' || activeTab === 'suppliers') && (
+                      <>
+                        <div className="md:col-span-6">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Contato Comercial (Pessoa)</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.contactPerson || ''} onChange={e => setFormData({ ...formData, contactPerson: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-6">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Inscrição Estadual</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.stateReg || ''} onChange={e => setFormData({ ...formData, stateReg: e.target.value })} />
+                        </div>
+                        {activeTab === 'clients' && (
+                          <div className="md:col-span-4">
+                            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Limite de Crédito (R$)</label>
+                            <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-bold text-emerald-600"
+                              value={formData.creditLimit || ''} onChange={e => setFormData({ ...formData, creditLimit: parseFloat(e.target.value) })} />
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* ADICIONAIS: Colaboradores */}
+                    {activeTab === 'employees' && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cargo / Função</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.role || ''} onChange={e => setFormData({ ...formData, role: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Departamento</label>
+                          <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.department || ''} onChange={e => setFormData({ ...formData, department: e.target.value })}>
+                            <option value="">Selecione...</option>
+                            <option value="Administrativo">Administrativo</option>
+                            <option value="Engenharia">Engenharia</option>
+                            <option value="Financeiro">Financeiro</option>
+                            <option value="Operacional">Operacional</option>
+                            <option value="Vendas">Vendas</option>
+                            <option value="RH">RH</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Data Admissão</label>
+                          <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.admissionDate ? new Date(formData.admissionDate.split('/').reverse().join('-')).toISOString().split('T')[0] : ''}
+                            onChange={e => setFormData({ ...formData, admissionDate: new Date(e.target.value).toLocaleDateString('pt-BR') })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Salário Base (R$)</label>
+                          <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.salary || ''} onChange={e => setFormData({ ...formData, salary: parseFloat(e.target.value) })} />
+                        </div>
+                      </>
+                    )}
+
+                    {/* ADICIONAIS: Produtos */}
+                    {activeTab === 'products' && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Preço de Venda (R$)</label>
+                          <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-bold text-emerald-600"
+                            value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Estoque Atual</label>
+                          <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-bold"
+                            value={formData.quantity || ''} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Unidade de Medida</label>
+                          <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.unit || 'un'} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                            <option value="un">Unidade (un)</option>
+                            <option value="kg">Quilo (kg)</option>
+                            <option value="m">Metro (m)</option>
+                            <option value="m2">Metro² (m²)</option>
+                            <option value="m3">Metro³ (m³)</option>
+                            <option value="sc">Saco (sc)</option>
+                            <option value="l">Litro (l)</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Estoque Mínimo (Alerta)</label>
+                          <input type="number" step="0.01" className="w-full bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 rounded-xl p-3 text-sm font-bold text-rose-600"
+                            value={formData.minStock || ''} onChange={e => setFormData({ ...formData, minStock: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Peso Unitário (kg)</label>
+                          <input type="number" step="0.001" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.weight || ''} onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Localização (Rua/Box)</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.location || ''} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+
+                    {/* ADICIONAIS: Veículos */}
+                    {activeTab === 'vehicles' && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Chassi</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.chassis || ''} onChange={e => setFormData({ ...formData, chassis: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kilometragem Atual</label>
+                          <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.mileage || ''} onChange={e => setFormData({ ...formData, mileage: parseFloat(e.target.value) })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Combustível</label>
+                          <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.fuelType || ''} onChange={e => setFormData({ ...formData, fuelType: e.target.value })}>
+                            <option value="Diesel">Diesel</option>
+                            <option value="Gasolina">Gasolina</option>
+                            <option value="Etanol">Etanol</option>
+                            <option value="Flex">Flex</option>
+                            <option value="Hibrido">Híbrido</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+
+                    {/* ENDEREÇO (Comum a Clientes, Fornecedores e Colaboradores) */}
+                    {(activeTab === 'clients' || activeTab === 'suppliers' || activeTab === 'employees') && (
+                      <div className="md:col-span-12 mt-4 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50">
+                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Endereço Completo
+                        </h5>
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                          <div className="col-span-2">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">CEP</label>
+                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.zipCode || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, zipCode: e.target.value } })} />
+                          </div>
+                          <div className="col-span-4 md:col-span-4">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Logradouro (Rua/Av)</label>
+                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.street || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, street: e.target.value } })} />
+                          </div>
+                          <div className="col-span-1">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Número</label>
+                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.number || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, number: e.target.value } })} />
+                          </div>
+                          <div className="col-span-3">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Bairro</label>
+                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.district || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, district: e.target.value } })} />
+                          </div>
+                          <div className="col-span-3">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Cidade</label>
+                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.city || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })} />
+                          </div>
+                          <div className="col-span-1">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">UF</label>
+                            <input type="text" maxLength={2} className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700 uppercase"
+                              value={formData.address?.state || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* --- SEÇÃO 3: ANEXOS (Comum) --- */}
+                <section>
+                  <h4 className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 dark:border-slate-700 pb-2">
+                    <span className="w-2 h-2 rounded-full bg-orange-400"></span> Documentação
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-50/50 dark:hover:bg-cyan-900/10 transition-all group relative">
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                           const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + 'KB' };
                           setFormData({ ...formData, attachments: [...(formData.attachments || []), at] });
                         }
                       }} />
-                      <Upload size={20} className="text-slate-300 mb-1" />
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">Anexar Arquivo</span>
+                      <div className="p-4 bg-white dark:bg-slate-700 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                        <Upload size={24} className="text-cyan-500" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Clique para Anexar</span>
+                      <span className="text-[10px] text-slate-400 uppercase mt-1">PDF, Imagens ou Documentos</span>
                     </div>
 
-                    <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                       {formData.attachments?.map((at: any) => (
-                        <div key={at.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl group">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <File size={14} className="text-cyan-600 shrink-0" />
-                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate uppercase">{at.name}</span>
+                        <div key={at.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-700/50 border border-slate-100 dark:border-slate-600 rounded-xl hover:shadow-sm transition-shadow">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="p-2 bg-slate-100 dark:bg-slate-600 rounded-lg text-slate-500">
+                              <File size={16} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{at.name}</span>
+                              <span className="text-[9px] text-slate-400">{at.date} • {at.size}</span>
+                            </div>
                           </div>
-                          <button type="button" onClick={() => setFormData({ ...formData, attachments: formData.attachments.filter((a: any) => a.id !== at.id) })} className="p-1 text-slate-400 hover:text-rose-500"><XCircle size={14} /></button>
+                          <button type="button" onClick={() => setFormData({ ...formData, attachments: formData.attachments.filter((a: any) => a.id !== at.id) })}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                            <XCircle size={16} />
+                          </button>
                         </div>
                       ))}
-                      {(!formData.attachments || formData.attachments.length === 0) && <p className="text-[9px] text-slate-300 uppercase italic text-center py-4">Sem anexos</p>}
+                      {(!formData.attachments || formData.attachments.length === 0) && (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 border border-slate-100 dark:border-slate-700 rounded-2xl p-4">
+                          <Paperclip size={24} className="mb-2 opacity-50" />
+                          <p className="text-[10px] uppercase font-bold text-center">Nenhum documento anexado</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
+                </section>
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-slate-50 dark:border-slate-700">
-                <button type="button" onClick={handleCloseModal} className="px-6 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all">Cancelar</button>
-                <button type="submit" className="px-8 py-3 bg-cyan-600 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all flex items-center gap-2">
-                  <Save size={16} /> Salvar Registro
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end gap-3 z-10">
+              <button type="button" onClick={handleCloseModal} className="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={() => (document.getElementById('cadastro-form') as HTMLFormElement)?.requestSubmit()} className="px-8 py-3 rounded-xl bg-slate-900 dark:bg-cyan-600 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2">
+                <Save size={16} /> Salvar Alterações
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -383,6 +594,9 @@ const Clients = () => {
                 </td>
                 <td className="px-8 py-6 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {activeTab === 'products' && (
+                      <button onClick={() => handleDuplicate(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Duplicar"><Copy size={18} /></button>
+                    )}
                     <button onClick={() => handleOpenModal(item)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all"><Edit size={18} /></button>
                     <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18} /></button>
                   </div>

@@ -118,8 +118,15 @@ const Dashboard = () => {
               </div>
               <div className="bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded-lg text-slate-500 dark:text-slate-300 text-[10px] font-black border border-slate-100 dark:border-slate-600 uppercase">{pendingBudgets} Aberto</div>
             </div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Performance Vendas</p>
-            <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{totalSalesThisMonth} <span className="text-sm text-slate-400 font-black uppercase ml-1">Orders</span></h3>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Vendas Hoje</p>
+            <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+              {(() => {
+                const todayStr = new Date().toLocaleDateString('pt-BR');
+                const salesToday = sales.filter(s => s.date === todayStr);
+                const totalToday = salesToday.reduce((acc, s) => acc + s.amount, 0);
+                return formatMoney(totalToday);
+              })()}
+            </h3>
             <div className="h-1 w-12 bg-cyan-500 rounded-full mt-4 group-hover:w-full transition-all duration-700"></div>
           </div>
         </div>

@@ -133,15 +133,15 @@ const INITIAL_ROLES: AppRole[] = [
 ];
 
 const INITIAL_USERS: User[] = [
-  { id: '1', name: 'Admin Construsys', username: 'admin', password: '123', email: 'admin@construsys.com', roleId: 'admin', status: 'Ativo', registeredAt: '01/01/2023' },
-  { id: '2', name: 'Gerência Vendas', username: 'vendas', password: '123', email: 'vendas@construsys.com', roleId: 'manager', status: 'Ativo', registeredAt: '15/05/2023' },
+  { id: '1', name: 'Admin InfraCore', username: 'admin', password: '123', email: 'admin@infracore.com', roleId: 'admin', status: 'Ativo', registeredAt: '01/01/2023' },
+  { id: '2', name: 'Gerência Vendas', username: 'vendas', password: '123', email: 'vendas@infracore.com', roleId: 'manager', status: 'Ativo', registeredAt: '15/05/2023' },
 ];
 
 const INITIAL_SETTINGS: AppSettings = {
-  companyName: 'Construsys Engenharia Ltda',
-  tradeName: 'Construsys ERP',
+  companyName: 'InfraCore Engenharia Ltda',
+  tradeName: 'InfraCore ERP',
   document: '12.345.678/0001-99',
-  email: 'contato@construsys.com',
+  email: 'contato@infracore.com',
   phone: '(11) 4002-8922',
   address: 'Rua da Tecnologia, 100 - Industrial, SP',
   currency: 'BRL',
@@ -168,8 +168,8 @@ const INITIAL_SETTINGS: AppSettings = {
 };
 
 const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  { id: '1', userId: '1', userName: 'Admin Construsys', action: 'Alteração de Permissão', module: 'Segurança', details: 'Alterou permissões do grupo Operador', timestamp: '23/12/2025 09:15', severity: 'warning' },
-  { id: '2', userId: '1', userName: 'Admin Construsys', action: 'Login no Sistema', module: 'Acesso', details: 'Acesso realizado via IP 192.168.0.1', timestamp: '23/12/2025 08:00', severity: 'info' },
+  { id: '1', userId: '1', userName: 'Admin InfraCore', action: 'Alteração de Permissão', module: 'Segurança', details: 'Alterou permissões do grupo Operador', timestamp: '23/12/2025 09:15', severity: 'warning' },
+  { id: '2', userId: '1', userName: 'Admin InfraCore', action: 'Login no Sistema', module: 'Acesso', details: 'Acesso realizado via IP 192.168.0.1', timestamp: '23/12/2025 08:00', severity: 'info' },
   { id: '3', userId: '2', userName: 'Gerência Vendas', action: 'Exclusão de Registro', module: 'Vendas', details: 'Excluiu o orçamento B-20230510', timestamp: '22/12/2025 17:30', severity: 'critical' },
 ];
 
@@ -288,9 +288,9 @@ interface AppContextType {
 
   addAccount: (acc: any) => void; // Added
   deleteAccount: (id: string) => void; // Added
-  addPlanAccount: (parentId: string, name: string) => void; // Added
-  deletePlanAccount: (parentId: string, id: string) => void; // Added
-  updatePlanAccount: (gIndex: number, cIndex: number | null, name: string) => void; // Added
+  addPlanAccount: (parentId: string | null, name: string, type?: 'Receita' | 'Despesa') => void; // Updated
+  deletePlanAccount: (id: string, parentId?: string | null) => void; // Updated
+  updatePlanAccount: (id: string, name: string, parentId?: string | null) => void; // Updated
 
   clearAllData: () => void;
 
@@ -317,24 +317,145 @@ const INITIAL_ACCOUNTS = [
 ];
 
 const INITIAL_PLAN_OF_ACCOUNTS = [
+  // ==================================================================================
+  // GRUPO 1: RECEITAS (ENTRADAS)
+  // ==================================================================================
   {
-    id: '1', code: '1.01', name: 'Receita Operacional', type: 'Receita', children: [
-      { id: '11', code: '1.01.01', name: 'Venda de Mercadorias' },
-      { id: '12', code: '1.01.02', name: 'Prestação de Serviços' },
+    id: '1', code: '1.01', name: 'Receita Operacional Bruta', type: 'Receita', children: [
+      { id: '101', code: '1.01.01', name: 'Venda de Produtos de Fabricação Própria' },
+      { id: '102', code: '1.01.02', name: 'Revenda de Mercadorias' },
+      { id: '103', code: '1.01.03', name: 'Prestação de Serviços de Engenharia/Obra' },
+      { id: '104', code: '1.01.04', name: 'Locação de Equipamentos e Maquinário' },
     ]
   },
   {
-    id: '2', code: '2.01', name: 'Despesas Administrativas', type: 'Despesa', children: [
-      { id: '21', code: '2.01.01', name: 'Salários e Ordenados' },
-      { id: '22', code: '2.01.02', name: 'Aluguel' },
-      { id: '23', code: '2.01.03', name: 'Energia Elétrica' },
+    id: '2', code: '1.02', name: 'Outras Receitas Operacionais', type: 'Receita', children: [
+      { id: '201', code: '1.02.01', name: 'Recuperação de Despesas' },
+      { id: '202', code: '1.02.02', name: 'Venda de Ativo Imobilizado (Ganho de Capital)' },
+      { id: '203', code: '1.02.03', name: 'Reversão de Provisões' },
     ]
   },
   {
-    id: '3', code: '2.02', name: 'Despesas Operacionais', type: 'Despesa', children: [
-      { id: '31', code: '2.02.01', name: 'Combustível' },
-      { id: '32', code: '2.02.02', name: 'Manutenção de Frota' },
-      { id: '33', code: '2.02.03', name: 'Material de Consumo' },
+    id: '3', code: '1.03', name: 'Receitas Financeiras', type: 'Receita', children: [
+      { id: '301', code: '1.03.01', name: 'Rendimentos de Aplicações Financeiras' },
+      { id: '302', code: '1.03.02', name: 'Juros Recebidos de Clientes' },
+      { id: '303', code: '1.03.03', name: 'Descontos Obtidos de Fornecedores' },
+      { id: '304', code: '1.03.04', name: 'Variação Cambial Ativa' },
+    ]
+  },
+
+  // ==================================================================================
+  // GRUPO 2: CUSTOS E DESPESAS (SAÍDAS)
+  // ==================================================================================
+
+  // 2.01 - DEDUÇÕES DA RECEITA
+  {
+    id: '4', code: '2.01', name: 'Deduções da Receita Bruta', type: 'Despesa', children: [
+      { id: '401', code: '2.01.01', name: 'Impostos Incidentes s/ Vendas (ICMS/ISS/PIS/COFINS)' },
+      { id: '402', code: '2.01.02', name: 'Devoluções e Abatimentos de Vendas' },
+      { id: '403', code: '2.01.03', name: 'Cancelamento de Vendas' },
+    ]
+  },
+
+  // 2.02 - CUSTOS (CPV / CSP)
+  {
+    id: '5', code: '2.02', name: 'Custos Diretos (CPV / CSP)', type: 'Despesa', children: [
+      { id: '501', code: '2.02.01', name: 'Matéria-Prima e Insumos (Produção)' },
+      { id: '502', code: '2.02.02', name: 'Materiais Aplicados na Obra' },
+      { id: '503', code: '2.02.03', name: 'Mão de Obra Direta (Operacional)' },
+      { id: '504', code: '2.02.04', name: 'Encargos Sociais sobre MOD' },
+      { id: '505', code: '2.02.05', name: 'Combustíveis e Lubrificantes (Produção)' },
+      { id: '506', code: '2.02.06', name: 'Manutenção de Máquinas e Equipamentos' },
+      { id: '507', code: '2.02.07', name: 'EPIs e Uniformes (Produção)' },
+      { id: '508', code: '2.02.08', name: 'Subempreiteiros e Terceirização de Obra' },
+    ]
+  },
+
+  // 2.03 - DESPESAS COM PESSOAL
+  {
+    id: '6', code: '2.03', name: 'Despesas com Pessoal (Administrativo)', type: 'Despesa', children: [
+      { id: '601', code: '2.03.01', name: 'Salários e Ordenados' },
+      { id: '602', code: '2.03.02', name: 'Pró-Labore Sócios' },
+      { id: '603', code: '2.03.03', name: '13º Salário' },
+      { id: '604', code: '2.03.04', name: 'Férias' },
+      { id: '605', code: '2.03.05', name: 'INSS Empresa' },
+      { id: '606', code: '2.03.06', name: 'FGTS' },
+      { id: '607', code: '2.03.07', name: 'Vale Transporte / Alimentação / Refeição' },
+      { id: '608', code: '2.03.08', name: 'Assistência Médica e Social' },
+      { id: '609', code: '2.03.09', name: 'Treinamentos e Capacitação' },
+    ]
+  },
+
+  // 2.04 - DESPESAS ADMINISTRATIVAS
+  {
+    id: '7', code: '2.04', name: 'Despesas Administrativas e Gerais', type: 'Despesa', children: [
+      { id: '701', code: '2.04.01', name: 'Aluguel de Imóveis' },
+      { id: '702', code: '2.04.02', name: 'Energia Elétrica' },
+      { id: '703', code: '2.04.03', name: 'Água e Esgoto' },
+      { id: '704', code: '2.04.04', name: 'Telefonia e Internet' },
+      { id: '705', code: '2.04.05', name: 'Material de Expediente e Escritório' },
+      { id: '706', code: '2.04.06', name: 'Serviços Contábeis e Jurídicos' },
+      { id: '707', code: '2.04.07', name: 'Consultorias e Auditorias' },
+      { id: '708', code: '2.04.08', name: 'Seguros Gerais (Predial/Responsabilidade)' },
+      { id: '709', code: '2.04.09', name: 'Licenças de Software e TI' },
+      { id: '710', code: '2.04.10', name: 'Serviços de Limpeza e Segurança' },
+      { id: '711', code: '2.04.11', name: 'Depreciação e Amortização' },
+    ]
+  },
+
+  // 2.05 - DESPESAS COMERCIAIS
+  {
+    id: '8', code: '2.05', name: 'Despesas Comerciais e de Vendas', type: 'Despesa', children: [
+      { id: '801', code: '2.05.01', name: 'Comissões sobre Vendas' },
+      { id: '802', code: '2.05.02', name: 'Publicidade e Propaganda (Marketing)' },
+      { id: '803', code: '2.05.03', name: 'Brindes e Bonificações' },
+      { id: '804', code: '2.05.04', name: 'Viagens e Estadias (Comercial)' },
+      { id: '805', code: '2.05.05', name: 'Logística de Entrega (Fretes s/ Vendas)' },
+    ]
+  },
+
+  // 2.06 - DESPESAS DE FROTA (Específico Transportadora/Construtora)
+  {
+    id: '9', code: '2.06', name: 'Despesas com Frota e Veículos', type: 'Despesa', children: [
+      { id: '901', code: '2.06.01', name: 'Combustíveis e Lubrificantes (Frota Apoio)' },
+      { id: '902', code: '2.06.02', name: 'Peças e Manutenção (Frota Apoio)' },
+      { id: '903', code: '2.06.03', name: 'Pneus e Recapagens' },
+      { id: '904', code: '2.06.04', name: 'IPVA, Licenciamento e Seguros de Frota' },
+      { id: '905', code: '2.06.05', name: 'Multas de Trânsito' },
+      { id: '906', code: '2.06.06', name: 'Pedágios e Estacionamentos' },
+    ]
+  },
+
+  // 2.07 - DESPESAS FINANCEIRAS
+  {
+    id: '10', code: '2.07', name: 'Despesas Financeiras', type: 'Despesa', children: [
+      { id: '1001', code: '2.07.01', name: 'Juros Pagos (Empréstimos/Financiamentos)' },
+      { id: '1002', code: '2.07.02', name: 'Juros de Mora e Multas' },
+      { id: '1003', code: '2.07.03', name: 'Tarifas e Manutenção Bancária' },
+      { id: '1004', code: '2.07.04', name: 'IOF' },
+      { id: '1005', code: '2.07.05', name: 'Variação Cambial Passiva' },
+    ]
+  },
+
+  // 2.08 - DESPESAS TRIBUTÁRIAS
+  {
+    id: '11', code: '2.08', name: 'Despesas Tributárias', type: 'Despesa', children: [
+      { id: '1101', code: '2.08.01', name: 'IPTU' },
+      { id: '1102', code: '2.08.02', name: 'IPVA (Administrativo)' },
+      { id: '1103', code: '2.08.03', name: 'Taxas e Alvarás de Funcionamento' },
+      { id: '1104', code: '2.08.04', name: 'Contribuições Associativas e Sindicais' },
+    ]
+  },
+
+  // 2.09 - INVESTIMENTOS (CAPEX)
+  {
+    id: '12', code: '2.09', name: 'Investimentos (Ativo Imobilizado/Intangível)', type: 'Despesa', children: [
+      { id: '1201', code: '2.09.01', name: 'Aquisição de Imóveis e Terrenos' },
+      { id: '1202', code: '2.09.02', name: 'Construções e Benfeitorias em Imóveis' },
+      { id: '1203', code: '2.09.03', name: 'Máquinas, Equipamentos e Ferramentas' },
+      { id: '1204', code: '2.09.04', name: 'Móveis e Utensílios' },
+      { id: '1205', code: '2.09.05', name: 'Veículos' },
+      { id: '1206', code: '2.09.06', name: 'Equipamentos de Informática e Periféricos' },
     ]
   },
 ];
@@ -475,7 +596,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         api.fetchData<ProductionUnit>('production_units'),
         api.fetchData<any>('financial_accounts'),
         api.fetchData<PayrollRecord>('payroll'),
-        // api.fetchData<StockMovement>('stock_movements'), // Table missing in Supabase causing 404
+        api.fetchData<StockMovement>('stock_movements').catch(() => []), // Table might be missing, fail silently
         Promise.resolve([]), // Return empty array to keep destructuring indices aligned
       ]);
 
@@ -602,43 +723,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Ensure Plan of Accounts is up to date (Force update for new structure)
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    setPlanOfAccounts(INITIAL_PLAN_OF_ACCOUNTS);
+  }, []);
+
+  // Loading Logic
+  useEffect(() => {
+    const loadData = async () => {
+      // setLoading(true); // Assuming setLoading is handled elsewhere or not needed here
+
+      // 1. Try Local Storage first
       try {
-        const data = JSON.parse(saved);
-        // Only load from localStorage if Supabase is NOT configured or offline logic
-        // For now, load local first, then overwrite with Supabase if available
-        if (data.clients) setClients(data.clients);
-        if (data.suppliers) setSuppliers(data.suppliers);
-        if (data.employees) setEmployees(data.employees);
-        if (data.transactions) setTransactions(data.transactions);
-        if (data.sales) setSales(data.sales);
-        if (data.budgets) setBudgets(data.budgets);
-        if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
-        if (data.fleet) setFleet(data.fleet);
-        if (data.inventory) setInventory(data.inventory);
-        if (data.payroll) setPayroll(data.payroll);
-        if (data.timeLogs) setTimeLogs(data.timeLogs);
-        if (data.vacations) setVacations(data.vacations);
-        if (data.salaryAdvances) setSalaryAdvances(data.salaryAdvances);
-        if (data.tires) setTires(data.tires);
-        if (data.productionOrders) setProductionOrders(data.productionOrders);
-        if (data.formulas) setFormulas(data.formulas);
-        if (data.productionUnits) setProductionUnits(data.productionUnits);
-        if (data.users) setUsers(data.users);
-        if (data.roles) setRoles(data.roles);
-        if (data.settings) setSettings(data.settings);
-        if (data.auditLogs) setAuditLogs(data.auditLogs);
-        if (data.stockMovements) setStockMovements(data.stockMovements);
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const data = JSON.parse(stored);
+          if (data.clients) setClients(data.clients);
+          if (data.suppliers) setSuppliers(data.suppliers);
+          if (data.employees) setEmployees(data.employees);
+          if (data.transactions) setTransactions(data.transactions);
+          if (data.sales) setSales(data.sales);
+          if (data.budgets) setBudgets(data.budgets);
+          if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
+          if (data.fleet) setFleet(data.fleet);
+          if (data.inventory) setInventory(data.inventory);
+          if (data.payroll) setPayroll(data.payroll);
+          if (data.timeLogs) setTimeLogs(data.timeLogs);
+          if (data.vacations) setVacations(data.vacations);
+          if (data.salaryAdvances) setSalaryAdvances(data.salaryAdvances);
+          if (data.tires) setTires(data.tires);
+          if (data.productionOrders) setProductionOrders(data.productionOrders);
+          if (data.formulas) setFormulas(data.formulas);
+          if (data.productionUnits) setProductionUnits(data.productionUnits);
+          if (data.users) setUsers(data.users);
+          if (data.roles) setRoles(data.roles);
+          if (data.settings) setSettings(data.settings);
+          if (data.auditLogs) setAuditLogs(data.auditLogs);
+          if (data.stockMovements) setStockMovements(data.stockMovements);
+          // Force new Plan if old was detected or just override if user requests 'Update'
+          // For now, we are forcing it via the useEffect above, so we don't load it from storage here to ensure the new structure takes precedence
+          // setPlanOfAccounts(data.planOfAccounts || INITIAL_PLAN_OF_ACCOUNTS);
+        }
       } catch (e) {
         console.error("Failed to load persistence", e);
       }
+
+      // Load from Supabase (async)
+      loadSupabaseData();
     }
 
-    // Load from Supabase (async)
-    loadSupabaseData();
-
+    loadData(); // Call the async function
   }, []);
 
 
@@ -976,7 +1110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Update stock only if not already processed (implicitly handled by UI flow, but good to be safe)
-    sale.items.forEach(item => updateStock(item.id, -item.quantity));
+    sale.items.forEach(item => updateStock(item.id, -item.quantity, `Venda #${sale.id}`, sale.id));
   };
 
   const addBudget = (budget: Budget) => setBudgets(prev => [budget, ...prev]);
@@ -1008,7 +1142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ledgerName: 'Material de Consumo'
       };
       addTransaction(expense);
-      order.items.forEach(item => updateStock(item.id, item.quantity));
+      order.items.forEach(item => updateStock(item.id, item.quantity, `Compra PO #${order.id}`, order.id));
     }
   };
 
@@ -1227,9 +1361,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteProductionUnit = (id: string) => syncDelete('production_units', id, setProductionUnits);
 
   const startProduction = (id: string) => {
-    // Logic to start and deduct items is complex, usually handled by checking order and inventory. 
-    // For now we just update status and let UI handle logic or 'rawMaterialsDeducted'.
-    // But we should likely deduct inventory here if not done.
     setProductionOrders(prev => prev.map(o => {
       if (o.id === id) {
         const updated = { ...o, status: 'Em Produção' as const, progress: 10 };
@@ -1239,14 +1370,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!o.rawMaterialsDeducted) {
           const formula = formulas.find(f => f.id === o.formulaId);
           if (formula) {
-            formula.ingredients.forEach(ing => {
-              updateStock(ing.productId, -(ing.qty * o.quantity));
-            });
+            if (formula.type === 'Britagem') {
+              // Britagem: Deduct Main Input (Ingredient 0)
+              const input = formula.ingredients?.[0];
+              if (input && input.productId) {
+                updateStock(input.productId, -(o.quantity), `Produção OP #${o.orderNumber}`, o.id);
+              }
+            } else {
+              // Composicao: Deduct all ingredients
+              formula.ingredients.forEach(ing => {
+                updateStock(ing.productId, -(ing.qty * o.quantity), `Produção OP #${o.orderNumber}`, o.id);
+              });
+            }
+
             updated.rawMaterialsDeducted = true;
             if (isSupabaseConfigured()) api.updateItem('production_orders', id, { rawMaterialsDeducted: true });
           }
         }
-
         return updated;
       }
       return o;
@@ -1259,10 +1399,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const updated = { ...o, status: 'Finalizado' as const, progress: 100 };
         if (isSupabaseConfigured()) api.updateItem('production_orders', id, { status: 'Finalizado', progress: 100 });
 
-        // Add finished product to inventory
-        // If productId exists
-        if (o.productId) {
-          updateStock(o.productId, o.quantity);
+        const formula = formulas.find(f => f.id === o.formulaId);
+
+        if (formula?.type === 'Britagem') {
+          // Britagem: Add multiple outputs based on percentage
+          if (formula.outputs) {
+            formula.outputs.forEach(out => {
+              // Qty = Order Quantity * (Percentage / 100)
+              const yieldQty = o.quantity * (out.percentage / 100);
+              updateStock(out.productId, yieldQty, `Produção OP #${o.orderNumber}`, o.id);
+            });
+          }
+        } else {
+          // Standard: Add single product
+          if (o.productId) {
+            updateStock(o.productId, o.quantity, `Produção OP #${o.orderNumber}`, o.id);
+          }
         }
         return updated;
       }
@@ -1289,42 +1441,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addAccount = (acc: any) => syncAdd('financial_accounts', acc, setAccounts);
   const deleteAccount = (id: string) => syncDelete('financial_accounts', id, setAccounts);
 
-  const addPlanAccount = (parentId: string, name: string) => { // Added
-    setPlanOfAccounts(prev => prev.map(group => {
-      if (group.id === parentId) {
-        return {
-          ...group,
-          children: [...(group.children || []), {
-            id: Date.now().toString(),
-            code: `${group.code}.${(group.children?.length || 0) + 1}`.padEnd(7, '0'),
-            name
-          }]
-        };
-      }
-      return group;
-    }));
-  };
-
-  const deletePlanAccount = (parentId: string, id: string) => { // Added
-    setPlanOfAccounts(prev => prev.map(group => {
-      if (group.id === parentId) {
-        return { ...group, children: group.children?.filter(c => c.id !== id) };
-      }
-      return group;
-    }));
-  };
-
-  const updatePlanAccount = (gIndex: number, cIndex: number | null, name: string) => { // Added
+  const addPlanAccount = (parentId: string | null, name: string, type: 'Receita' | 'Despesa' = 'Despesa') => {
     setPlanOfAccounts(prev => {
-      const newPlan = [...prev];
-      if (cIndex === null) {
-        newPlan[gIndex] = { ...newPlan[gIndex], name };
-      } else if (newPlan[gIndex].children) {
-        newPlan[gIndex].children = newPlan[gIndex].children.map((child: any, idx: number) =>
-          idx === cIndex ? { ...child, name } : child
-        );
+      if (!parentId) {
+        // Add new Group
+        const newId = Date.now().toString(); // Use timestamp for unique ID to avoid collision
+        // Determine code base
+        const nextCode = (prev.length + 1).toString() + ".01";
+        return [...prev, {
+          id: newId,
+          code: nextCode,
+          name,
+          type,
+          children: []
+        }];
       }
-      return newPlan;
+      return prev.map(group => {
+        if (group.id === parentId) {
+          return {
+            ...group,
+            children: [...(group.children || []), {
+              id: Date.now().toString(),
+              code: `${group.code}.${(group.children?.length || 0) + 1}`,
+              name,
+              type: group.type
+            }]
+          };
+        }
+        return group;
+      });
+    });
+  };
+
+  const deletePlanAccount = (id: string, parentId?: string | null) => {
+    setPlanOfAccounts(prev => {
+      if (!parentId) {
+        return prev.filter(g => g.id !== id);
+      }
+      return prev.map(group => {
+        if (group.id === parentId) {
+          return { ...group, children: group.children?.filter(c => c.id !== id) };
+        }
+        return group;
+      });
+    });
+  };
+
+  const updatePlanAccount = (id: string, name: string, parentId?: string | null) => {
+    setPlanOfAccounts(prev => {
+      if (!parentId) {
+        return prev.map(g => g.id === id ? { ...g, name } : g);
+      }
+      return prev.map(group => {
+        if (group.id === parentId) {
+          return {
+            ...group,
+            children: group.children?.map(c => c.id === id ? { ...c, name } : c)
+          };
+        }
+        return group;
+      });
     });
   };
 
@@ -1399,7 +1575,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{
       clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires,
-      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs,
+      productionOrders, formulas, productionUnits, users, roles, settings, auditLogs, stockMovements,
       accounts: calculatedAccounts, // Use the dynamically calculated accounts
       planOfAccounts,
       currentUser, login, logout, hasPermission,

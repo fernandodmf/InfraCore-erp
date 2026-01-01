@@ -44,7 +44,7 @@ const Dashboard = () => {
   // 1. Monthly Financial Data for Chart (Last 6 Months)
   const chartData = useMemo(() => {
     const today = new Date();
-    const data = [];
+    const data: { name: string; Receita: number; Despesa: number; }[] = [];
 
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);

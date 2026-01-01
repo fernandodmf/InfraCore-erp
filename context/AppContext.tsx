@@ -391,6 +391,7 @@ interface AppContextType {
   deleteAdvance: (id: string) => void;
 
   addTransaction: (transaction: Transaction) => void;
+  updateTransaction: (transaction: Transaction) => void;
   updateTransactionStatus: (id: string, status: Transaction['status'], date?: string) => void;
   deleteTransaction: (id: string) => void;
   importTransactions: (file: any) => void;
@@ -1052,32 +1053,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addPayroll = (record: PayrollRecord) => setPayroll(prev => [record, ...prev]); // TODO: Sync
   const payPayroll = (id: string) => {
-    setPayroll(prev => prev.map(p => {
-      if (p.id === id && p.status !== 'Pago') {
-        const updated: PayrollRecord = {
-          ...p,
-          status: 'Pago' as const,
-          paidAt: new Date().toLocaleDateString('pt-BR')
-        };
-        const expense: Transaction = {
-          id: `pay-${p.id}`,
-          date: updated.paidAt || new Date().toLocaleDateString('pt-BR'),
-          description: `Pagamento Salário: ${p.employeeName} - ${p.month}`,
-          category: 'Folha de Pagamento',
-          account: 'Banco do Brasil',
-          amount: p.totalNet,
-          status: 'Conciliado',
-          type: 'Despesa',
-          ledgerCode: '2.01.01',
-          ledgerName: 'Salários e Ordenados',
-          accountId: ''
-        };
-        // Use a functional update to avoid indirect issues
-        setTransactions(txs => [expense, ...txs]);
-        return updated;
-      }
-      return p;
-    }));
+    const p = payroll.find(r => r.id === id);
+    if (!p || p.status === 'Pago') return;
+
+    const updated: PayrollRecord = {
+      ...p,
+      status: 'Pago' as const,
+      paidAt: new Date().toLocaleDateString('pt-BR')
+    };
+
+    // Transaction creation moved to HR.tsx to prevent duplicates and ensure correct Context
+    // setTransactions - REMOVED
+
+    setPayroll(prev => prev.map(item => item.id === id ? updated : item));
+
+    setPayroll(prev => prev.map(item => item.id === id ? updated : item));
   };
 
   // Time Tracking
@@ -1152,22 +1142,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (adv.id === id && adv.status === 'Aprovado') {
         const paidAt = new Date().toLocaleDateString('pt-BR');
 
-        // Criar transação financeira
-        const expense: Transaction = {
-          id: `adv-${adv.id}`,
-          date: paidAt,
-          description: `Antecipação Salarial: ${adv.employeeName}`,
-          category: 'Adiantamento',
-          account: 'Banco do Brasil',
-          accountId: '',
-          amount: adv.amount,
-          status: 'Conciliado',
-          type: 'Despesa',
-          ledgerCode: '2.01.01',
-          ledgerName: 'Salários e Ordenados'
-        };
-
-        setTransactions(txs => [expense, ...txs]);
+        // Transaction creation moved to HR.tsx
+        // setTransactions - REMOVED
 
         return { ...adv, status: 'Pago' as const, paidAt };
       }
@@ -1350,38 +1326,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteVehicle = (id: string) => setFleet(prev => prev.filter(v => v.id !== id));
 
   const addMaintenanceRecord = (vehicleId: string, record: MaintenanceRecord) => {
+    const vehicle = fleet.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+
+    const ledgerCode = record.ledgerCode || '2.02.02';
+    const ledgerName = record.ledgerName || 'Manutenção de Frota';
+
+    const recordWithLedger: MaintenanceRecord = {
+      ...record,
+      ledgerCode,
+      ledgerName
+    };
+
+    const debitAccount = accounts.find(a => a.id === record.debitAccountId);
+    const expense: Transaction = {
+      id: `maint-${record.id}`,
+      date: record.date,
+      description: `Manutenção: ${vehicle.plate} - ${record.description}`,
+      category: 'Manutenção',
+      account: debitAccount?.name || 'Caixa',
+      accountId: debitAccount?.id || '',
+      amount: record.cost,
+      status: 'Conciliado',
+      type: 'Despesa',
+      ledgerCode,
+      ledgerName
+    };
+    addTransaction(expense);
+
+    // Deduct stock if product is used
+    if (record.productId && record.productQuantity) {
+      updateStock(record.productId, -record.productQuantity);
+    }
+
     setFleet(prev => prev.map(v => {
       if (v.id === vehicleId) {
-        const ledgerCode = record.ledgerCode || '2.02.02';
-        const ledgerName = record.ledgerName || 'Manutenção de Frota';
-
-        const recordWithLedger: MaintenanceRecord = {
-          ...record,
-          ledgerCode,
-          ledgerName
-        };
-
-        const debitAccount = accounts.find(a => a.id === record.debitAccountId);
-        const expense: Transaction = {
-          id: `maint-${record.id}`,
-          date: record.date,
-          description: `Manutenção: ${v.plate} - ${record.description}`,
-          category: 'Manutenção',
-          account: debitAccount?.name || 'Caixa',
-          accountId: debitAccount?.id || '',
-          amount: record.cost,
-          status: 'Conciliado',
-          type: 'Despesa',
-          ledgerCode,
-          ledgerName
-        };
-        addTransaction(expense);
-
-        // Deduct stock if product is used
-        if (record.productId && record.productQuantity) {
-          updateStock(record.productId, -record.productQuantity);
-        }
-
         return {
           ...v,
           maintenanceHistory: [recordWithLedger, ...(v.maintenanceHistory || [])],
@@ -1394,13 +1373,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMaintenanceRecord = (vehicleId: string, recordId: string) => {
+    const vehicle = fleet.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+
+    const recordToDelete = vehicle.maintenanceHistory?.find(r => r.id === recordId);
+    if (recordToDelete) {
+      if (recordToDelete.productId && recordToDelete.productQuantity) {
+        updateStock(recordToDelete.productId, recordToDelete.productQuantity);
+      }
+      // Remove transaction
+      // We can use deleteTransaction but need to ensure it handles the ID format or we manually filter
+      // The ID used in add was `maint-${record.id}`
+      setTransactions(txs => txs.filter(t => t.id !== `maint-${recordId}`));
+    }
+
     setFleet(prev => prev.map(v => {
       if (v.id === vehicleId) {
-        const recordToDelete = v.maintenanceHistory?.find(r => r.id === recordId);
-        if (recordToDelete?.productId && recordToDelete?.productQuantity) {
-          updateStock(recordToDelete.productId, recordToDelete.productQuantity);
-        }
-        setTransactions(txs => txs.filter(t => t.id !== `maint-${recordId}`));
         return {
           ...v,
           maintenanceHistory: v.maintenanceHistory?.filter(r => r.id !== recordId) || []
@@ -1411,33 +1399,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addFuelLog = (vehicleId: string, log: FuelLog) => {
+    const vehicle = fleet.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+
+    const ledgerCode = log.ledgerCode || '2.02.01';
+    const ledgerName = log.ledgerName || 'Combustível';
+
+    const logWithLedger: FuelLog = {
+      ...log,
+      ledgerCode,
+      ledgerName
+    };
+
+    const expense: Transaction = {
+      id: `fuel-${log.id}`,
+      date: log.date,
+      description: `Abastecimento: ${vehicle.plate} - ${log.liters}L`,
+      category: 'Combustível',
+      account: 'Cofre',
+      accountId: '',
+      amount: log.cost,
+      status: 'Conciliado',
+      type: 'Despesa',
+      ledgerCode,
+      ledgerName
+    };
+
+    addTransaction(expense);
+
     setFleet(prev => prev.map(v => {
       if (v.id === vehicleId) {
-        const ledgerCode = log.ledgerCode || '2.02.01';
-        const ledgerName = log.ledgerName || 'Combustível';
-
-        const logWithLedger: FuelLog = {
-          ...log,
-          ledgerCode,
-          ledgerName
-        };
-
-        const expense: Transaction = {
-          id: `fuel-${log.id}`,
-          date: log.date,
-          description: `Abastecimento: ${v.plate} - ${log.liters}L`,
-          category: 'Combustível',
-          account: 'Cofre',
-          accountId: '',
-          amount: log.cost,
-          status: 'Conciliado',
-          type: 'Despesa',
-          ledgerCode,
-          ledgerName
-        };
-
-        addTransaction(expense);
-
         return {
           ...v,
           fuelLogs: [logWithLedger, ...(v.fuelLogs || [])],
@@ -1449,9 +1440,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteFuelLog = (vehicleId: string, logId: string) => {
+    setTransactions(txs => txs.filter(t => t.id !== `fuel-${logId}`));
+
     setFleet(prev => prev.map(v => {
       if (v.id === vehicleId) {
-        setTransactions(txs => txs.filter(t => t.id !== `fuel-${logId}`));
         return {
           ...v,
           fuelLogs: v.fuelLogs?.filter(l => l.id !== logId) || []

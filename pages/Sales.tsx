@@ -430,16 +430,33 @@ const Sales = () => {
       }
     }
 
+    // Determine Status
+    const isPaid = ['money', 'pix', 'debit', 'transfer'].includes(paymentMethod);
+    const transactionStatus = isPaid ? 'Conciliado' : 'Pendente';
+
+    // Calculate Due Date for Financial Records
+    let finalDueDate: string | undefined = undefined;
+
+    if (!isPaid && installments === 1) {
+      // Single Installment Credit/Term Sales: Use Default Payment Term (e.g., 30 days)
+      const term = Number(settings?.operational?.defaultPaymentTerm) || 30;
+      const d = new Date();
+      d.setDate(d.getDate() + term);
+      finalDueDate = d.toLocaleDateString('pt-BR');
+    }
+    // Note: For installments > 1, logic is handled in addSale or customDueDates
+
     // Create Transaction/Sale
     addSale({
       id: saleId,
       date: new Date().toLocaleDateString('pt-BR'),
+      dueDate: finalDueDate, // Pass calculated due date
       description: `Venda Direta${vehicle ? ` - Veículo: ${vehicle.plate}` : ''}`,
       category: 'Vendas',
       accountId: account, // Use ID
       account: financialAccounts.find(a => a.id === account)?.name || 'Desconhecido', // Legacy Name
       amount: finalAmount,
-      status: ['money', 'pix', 'debit', 'transfer'].includes(paymentMethod) ? 'Conciliado' : 'Pendente',
+      status: transactionStatus,
       type: 'Receita',
       clientId: selectedClient,
       clientName: client?.name || 'Cliente Avulso',
@@ -703,20 +720,34 @@ const Sales = () => {
   const handleConvertBudgetToSale = (budget: Budget) => {
     if (!confirm(`Deseja converter o orçamento #${budget.id} em uma venda definitiva?`)) return;
 
+    const paymentMethod = budget.paymentMethod || 'credit';
+    const isPaid = ['money', 'pix', 'debit', 'transfer'].includes(paymentMethod);
+    const status = isPaid ? 'Conciliado' : 'Pendente';
+
+    // Calculate Due Date for converted budgets (Assumes Single Installment/Term)
+    let conversionDueDate: string | undefined = undefined;
+    if (!isPaid) {
+      const term = Number(settings?.operational?.defaultPaymentTerm) || 30;
+      const d = new Date();
+      d.setDate(d.getDate() + term);
+      conversionDueDate = d.toLocaleDateString('pt-BR');
+    }
+
     addSale({
       id: `S-${Date.now()}`,
       date: new Date().toLocaleDateString('pt-BR'),
+      dueDate: conversionDueDate,
       description: `Conversão de Orçamento #${budget.id}`,
       category: 'Vendas',
       accountId: financialAccounts[0]?.id || 'acc-1',
       account: financialAccounts[0]?.name || 'Banco do Brasil',
       amount: budget.total,
-      status: 'Conciliado',
+      status: status,
       type: 'Receita',
       clientId: budget.clientId,
       clientName: budget.clientName,
       items: budget.items,
-      paymentMethod: budget.paymentMethod || 'credit'
+      paymentMethod: paymentMethod
     });
 
     updateBudgetStatus(budget.id, 'Convertido');

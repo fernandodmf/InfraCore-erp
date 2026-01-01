@@ -32,7 +32,8 @@ const Clients = () => {
     suppliers, addSupplier, updateSupplier, deleteSupplier,
     employees, addEmployee, updateEmployee, deleteEmployee,
     inventory, addStockItem, updateStockItem, deleteStockItem,
-    fleet, addVehicle, updateVehicle, deleteVehicle
+    fleet, addVehicle, updateVehicle, deleteVehicle,
+    hasPermission
   } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,11 +42,22 @@ const Clients = () => {
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const canManage = (type: string) => {
+    switch (type) {
+      case 'clients': return hasPermission('clients.manage');
+      case 'suppliers': return hasPermission('clients.manage');
+      case 'employees': return hasPermission('employees.manage');
+      case 'products': return hasPermission('inventory.manage');
+      case 'vehicles': return hasPermission('fleet.manage');
+      default: return false;
+    }
+  };
+
   const handleOpenModal = (item?: any, type: string = activeTab) => {
     setActiveTab(type);
     if (item) {
       setEditingId(item.id);
-      setFormData(item);
+      setFormData(type === 'vehicles' ? { ...item, name: item.model } : item);
     } else {
       setEditingId(null);
       if (type === 'clients') setFormData({ status: 'Ativo', registeredAt: new Date().toLocaleDateString('pt-BR'), colorClass: 'bg-cyan-100 text-cyan-600', type: 'Matriz' });
@@ -80,7 +92,7 @@ const Clients = () => {
       const product: InventoryItem = { ...formData, id: editingId || `p-${Date.now()}`, price: parseFloat(formData.price) || 0, quantity: parseFloat(formData.quantity) || 0, minStock: parseFloat(formData.minStock) || 0 };
       if (editingId) updateStockItem(product); else addStockItem(product);
     } else if (activeTab === 'vehicles') {
-      const vehicle: FleetVehicle = { ...formData, id: editingId || `v-${Date.now()}`, fuelLevel: parseFloat(formData.fuelLevel) || 0 };
+      const vehicle: FleetVehicle = { ...formData, model: formData.name, id: editingId || `v-${Date.now()}`, fuelLevel: parseFloat(formData.fuelLevel) || 0 };
       if (editingId) updateVehicle(vehicle); else addVehicle(vehicle);
     }
     handleCloseModal();
@@ -122,7 +134,7 @@ const Clients = () => {
     if (activeTab === 'suppliers') return suppliers.filter(s => s.name.toLowerCase().includes(term));
     if (activeTab === 'employees') return employees.filter(e => e.name.toLowerCase().includes(term));
     if (activeTab === 'products') return inventory.filter(p => p.name.toLowerCase().includes(term));
-    if (activeTab === 'vehicles') return fleet.filter(v => v.name.toLowerCase().includes(term) || v.plate.toLowerCase().includes(term));
+    if (activeTab === 'vehicles') return fleet.filter(v => (v.model || '').toLowerCase().includes(term) || (v.plate || '').toLowerCase().includes(term));
     return [];
   };
 
@@ -540,9 +552,11 @@ const Clients = () => {
           <p className="text-[10px] font-black text-cyan-600 uppercase tracking-[0.3em] mb-1">Cadastros Centrais</p>
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Gestão Operacional</h2>
         </div>
-        <button onClick={() => handleOpenModal()} className="px-6 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl hover:scale-105 transition-all">
-          <Plus size={20} /> Adicionar Novo
-        </button>
+        {canManage(activeTab) && (
+          <button onClick={() => handleOpenModal()} className="px-6 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl hover:scale-105 transition-all">
+            <Plus size={20} /> Adicionar Novo
+          </button>
+        )}
       </div>
 
       <div className="border-b border-slate-100 dark:border-slate-700">
@@ -578,10 +592,10 @@ const Clients = () => {
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-4">
                     <div className="size-12 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center font-black text-slate-400 group-hover:bg-cyan-50 group-hover:text-cyan-600 transition-colors">
-                      {item.initials || item.name.substring(0, 2).toUpperCase()}
+                      {item.initials || (item.name || item.model || '?').substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.name}</p>
+                      <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.name || item.model}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tabular-nums">{item.document || item.plate || 'REF-' + item.id.slice(-4)}</p>
                     </div>
                   </div>
@@ -594,11 +608,15 @@ const Clients = () => {
                 </td>
                 <td className="px-8 py-6 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {activeTab === 'products' && (
+                    {activeTab === 'products' && canManage('products') && (
                       <button onClick={() => handleDuplicate(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Duplicar"><Copy size={18} /></button>
                     )}
-                    <button onClick={() => handleOpenModal(item)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all"><Edit size={18} /></button>
-                    <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                    {canManage(activeTab) && (
+                      <>
+                        <button onClick={() => handleOpenModal(item)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all"><Edit size={18} /></button>
+                        <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -606,7 +624,7 @@ const Clients = () => {
           </tbody>
         </table>
       </div>
-    </div>
+    </div >
   );
 };
 

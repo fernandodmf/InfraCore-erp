@@ -97,7 +97,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 // 3. PARÂMETROS OPERACIONAIS
 const OperationalParametersSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
     const operationalParams = [
-        // VENDAS & COMERCIAL (15 parâmetros)
+        // VENDAS & COMERCIAL
         { id: 'maxDiscount', label: 'Desconto Máximo Permitido (%)', min: 0, max: 100, category: 'Vendas', icon: 'Percent' },
         { id: 'minMargin', label: 'Margem Mínima de Lucro (%)', min: 0, max: 100, category: 'Vendas', icon: 'TrendingUp' },
         { id: 'defaultPaymentTerm', label: 'Prazo Padrão de Pagamento (dias)', min: 0, max: 365, category: 'Vendas', icon: 'Calendar' },
@@ -105,43 +105,21 @@ const OperationalParametersSection = ({ settings, onUpdate }: { settings: import
         { id: 'maxInstallments', label: 'Máximo de Parcelas', min: 1, max: 48, category: 'Vendas', icon: 'Layers' },
         { id: 'minInstallmentValue', label: 'Valor Mínimo por Parcela (R$)', min: 10, max: 10000, category: 'Vendas', icon: 'DollarSign' },
         { id: 'creditLimit', label: 'Limite de Crédito Padrão (R$)', min: 0, max: 1000000, category: 'Vendas', icon: 'Target' },
-        { id: 'overdueGracePeriod', label: 'Período de Tolerância Inadimplência (dias)', min: 0, max: 30, category: 'Vendas', icon: 'Clock' },
-        { id: 'autoApprovalLimit', label: 'Limite Auto-Aprovação Vendas (R$)', min: 0, max: 100000, category: 'Vendas', icon: 'Check' },
         { id: 'commissionRate', label: 'Taxa de Comissão Padrão (%)', min: 0, max: 20, category: 'Vendas', icon: 'Percent' },
-        { id: 'priceTableCount', label: 'Número de Tabelas de Preço', min: 1, max: 10, category: 'Vendas', icon: 'BarChart3' },
-        { id: 'quotaRenewalDays', label: 'Renovação de Cotas (dias)', min: 1, max: 365, category: 'Vendas', icon: 'RefreshCw' },
-        { id: 'leadFollowupDays', label: 'Dias para Follow-up de Leads', min: 1, max: 30, category: 'Vendas', icon: 'Users' },
-        { id: 'contractMinDuration', label: 'Duração Mínima Contrato (meses)', min: 1, max: 60, category: 'Vendas', icon: 'FileText' },
-        { id: 'warrantyPeriod', label: 'Período de Garantia Padrão (meses)', min: 0, max: 60, category: 'Vendas', icon: 'Shield' },
 
         // ESTOQUE & PRODUÇÃO
         { id: 'safetyStock', label: 'Estoque de Segurança (%)', min: 0, max: 50, category: 'Estoque', icon: 'Package' },
         { id: 'reorderPoint', label: 'Ponto de Reposição (%)', min: 5, max: 50, category: 'Estoque', icon: 'TrendingDown' },
-        { id: 'maxStockLevel', label: 'Nível Máximo de Estoque (%)', min: 50, max: 100, category: 'Estoque', icon: 'TrendingUp' },
-        { id: 'inventoryCountFrequency', label: 'Frequência de Inventário (dias)', min: 30, max: 365, category: 'Estoque', icon: 'Calendar' },
         { id: 'batchTrackingDays', label: 'Rastreamento de Lote (dias)', min: 30, max: 1825, category: 'Estoque', icon: 'Search' },
-        { id: 'wastePercentage', label: 'Percentual de Perda Aceitável (%)', min: 0, max: 10, category: 'Estoque', icon: 'AlertTriangle' },
         { id: 'productionLeadTime', label: 'Lead Time de Produção (dias)', min: 1, max: 90, category: 'Produção', icon: 'Clock' },
-        { id: 'setupTime', label: 'Tempo de Setup Máquinas (min)', min: 5, max: 480, category: 'Produção', icon: 'Settings' },
-        { id: 'qualityControlSampling', label: 'Amostragem Controle Qualidade (%)', min: 1, max: 100, category: 'Produção', icon: 'CheckCircle' },
         { id: 'maintenanceInterval', label: 'Intervalo Manutenção Preventiva (horas)', min: 100, max: 5000, category: 'Produção', icon: 'Tool' },
-        { id: 'batchSize', label: 'Tamanho de Lote Padrão', min: 1, max: 10000, category: 'Produção', icon: 'Layers' },
-        { id: 'workShiftHours', label: 'Horas por Turno', min: 4, max: 12, category: 'Produção', icon: 'Clock' },
-        { id: 'overtimeLimit', label: 'Limite de Horas Extras (h/mês)', min: 0, max: 100, category: 'Produção', icon: 'AlertCircle' },
-        { id: 'scrapReworkLimit', label: 'Limite de Retrabalho (%)', min: 0, max: 20, category: 'Produção', icon: 'RefreshCw' },
         { id: 'capacityUtilization', label: 'Meta Utilização Capacidade (%)', min: 50, max: 100, category: 'Produção', icon: 'Target' },
 
-        // COMPRAS & FORNECEDORES
+        // COMPRAS
         { id: 'purchaseApprovalLevel1', label: 'Aprovação Nível 1 - Limite (R$)', min: 0, max: 50000, category: 'Compras', icon: 'DollarSign' },
-        { id: 'purchaseApprovalLevel2', label: 'Aprovação Nível 2 - Limite (R$)', min: 5000, max: 200000, category: 'Compras', icon: 'DollarSign' },
         { id: 'minQuotations', label: 'Mínimo de Cotações Obrigatórias', min: 1, max: 10, category: 'Compras', icon: 'FileText' },
         { id: 'supplierEvaluationPeriod', label: 'Período Avaliação Fornecedores (meses)', min: 1, max: 24, category: 'Compras', icon: 'Star' },
         { id: 'deliveryToleranceDays', label: 'Tolerância Atraso Entrega (dias)', min: 0, max: 15, category: 'Compras', icon: 'Truck' },
-        { id: 'minOrderValue', label: 'Valor Mínimo de Pedido (R$)', min: 0, max: 10000, category: 'Compras', icon: 'ShoppingCart' },
-        { id: 'paymentTermNegotiation', label: 'Prazo Negociação Pagamento (dias)', min: 0, max: 180, category: 'Compras', icon: 'Calendar' },
-        { id: 'qualityInspectionRate', label: 'Taxa Inspeção Recebimento (%)', min: 0, max: 100, category: 'Compras', icon: 'Search' },
-        { id: 'returnPeriod', label: 'Prazo para Devolução (dias)', min: 1, max: 30, category: 'Compras', icon: 'RotateCcw' },
-        { id: 'contractRenewalAlert', label: 'Alerta Renovação Contrato (dias)', min: 7, max: 90, category: 'Compras', icon: 'Bell' },
 
         // FINANCEIRO
         { id: 'interestRate', label: 'Taxa de Juros Mora (% a.m.)', min: 0, max: 10, category: 'Financeiro', icon: 'Percent' },
@@ -149,11 +127,6 @@ const OperationalParametersSection = ({ settings, onUpdate }: { settings: import
         { id: 'earlyPaymentDiscount', label: 'Desconto Pagamento Antecipado (%)', min: 0, max: 15, category: 'Financeiro', icon: 'TrendingDown' },
         { id: 'cashFlowProjectionDays', label: 'Projeção Fluxo de Caixa (dias)', min: 30, max: 365, category: 'Financeiro', icon: 'TrendingUp' },
         { id: 'bankReconciliationFrequency', label: 'Frequência Conciliação Bancária (dias)', min: 1, max: 30, category: 'Financeiro', icon: 'RefreshCw' },
-        { id: 'minimumCashReserve', label: 'Reserva Mínima de Caixa (R$)', min: 0, max: 1000000, category: 'Financeiro', icon: 'DollarSign' },
-        { id: 'budgetVarianceAlert', label: 'Alerta Variação Orçamentária (%)', min: 0, max: 50, category: 'Financeiro', icon: 'AlertCircle' },
-        { id: 'invoiceReminderDays', label: 'Lembrete Vencimento Fatura (dias)', min: 1, max: 15, category: 'Financeiro', icon: 'Bell' },
-        { id: 'creditCardProcessingFee', label: 'Taxa Processamento Cartão (%)', min: 0, max: 10, category: 'Financeiro', icon: 'CreditCard' },
-        { id: 'fiscalYearStart', label: 'Início Ano Fiscal (Mês)', min: 1, max: 12, category: 'Financeiro', icon: 'Calendar' },
     ];
 
     const [filterCategory, setFilterCategory] = useState('Todos');
@@ -338,39 +311,77 @@ const IntegrationsSection = ({ settings, onUpdate }: { settings: import('../type
                 ))}
             </div>
 
-            {/* Grid de Integrações */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredIntegrations.map(integration => {
-                    const status = settings.integrations?.[integration.id]?.status ?? 'Inativo';
-                    const isActive = status === 'Ativo';
-                    return (
-                        <div key={integration.id} className={`p-5 rounded-2xl border transition-all group ${isActive
-                            ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900/50 shadow-lg'
-                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100'
-                            }`}>
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-2xl">{integration.icon}</div>
-                                    <div>
-                                        <h5 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{integration.name}</h5>
-                                        <div onClick={() => toggleIntegration(integration.id, integration)} className={`mt-2 flex items-center gap-2 cursor-pointer`}>
-                                            <div className={`w-8 h-4 rounded-full relative transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all ${isActive ? 'right-0.5' : 'left-0.5'}`}></div>
+            {/* Tabela de Integrações (Layout Mais Leve) */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-purple-100 dark:border-purple-900/30 overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-purple-100 dark:border-purple-900/30 bg-purple-50/30 dark:bg-slate-900/50">
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-wider w-1/2">Serviço / Integração</th>
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-wider hidden sm:table-cell">Categoria</th>
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-wider">Status</th>
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-wider text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {filteredIntegrations.map(integration => {
+                            const status = settings.integrations?.[integration.id]?.status ?? 'Inativo';
+                            const isActive = status === 'Ativo';
+                            // Dynamic Config Button color based on active status
+                            const btnClass = isActive
+                                ? "border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100"
+                                : "border-slate-200 text-slate-500 bg-white hover:bg-slate-50";
+
+                            return (
+                                <tr key={integration.id} className="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            {/* Minimalist Icon Container */}
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow-sm transition-all ${isActive ? 'bg-white text-purple-600 ring-1 ring-purple-100' : 'bg-slate-100 text-slate-400 grayscale'}`}>
+                                                {integration.icon}
                                             </div>
-                                            <span className="text-[9px] font-bold uppercase text-slate-500">{status}</span>
+                                            <div>
+                                                <h5 className={`font-bold text-xs leading-tight ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
+                                                    {integration.name}
+                                                </h5>
+                                                <p className="text-[10px] text-slate-400 font-medium truncate max-w-[200px] sm:max-w-xs mt-0.5">
+                                                    {integration.description}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <p className="text-[10px] text-slate-500 mb-3 min-h-[30px]">{integration.description}</p>
-                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                <button className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-purple-50 hover:text-purple-600 transition-colors flex items-center justify-center gap-1">
-                                    <Settings size={12} /> Configurar
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
+                                    </td>
+                                    <td className="p-4 hidden sm:table-cell">
+                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${isActive ? 'bg-white border-purple-100 text-purple-600' : 'bg-slate-100 border-transparent text-slate-400'}`}>
+                                            {integration.category}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <div
+                                            onClick={() => toggleIntegration(integration.id, integration)}
+                                            className="flex items-center gap-2 cursor-pointer select-none"
+                                        >
+                                            <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${isActive ? 'bg-purple-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
+                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${isActive ? 'right-0.5' : 'left-0.5'}`}></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <button className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all shadow-sm inline-flex items-center gap-1.5 opacity-60 group-hover:opacity-100 ${btnClass}`}>
+                                            <SettingsGear size={12} />
+                                            <span className="hidden sm:inline">Configurar</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+
+                {filteredIntegrations.length === 0 && (
+                    <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
+                        <Package size={32} className="mb-2 opacity-20" />
+                        <span className="text-xs font-medium">Nenhuma integração encontrada nesta categoria.</span>
+                    </div>
+                )}
             </div>
 
             {/* Adicionar Nova Integração */}
@@ -1948,14 +1959,7 @@ const Settings = () => {
                                 </div>
                             </section>
 
-                            {/* Operational Parameters */}
-                            <OperationalParametersSection settings={tempSettings} onUpdate={setTempSettings} />
 
-                            {/* Integrations & APIs */}
-                            <IntegrationsSection settings={tempSettings} onUpdate={setTempSettings} />
-
-                            {/* Email & Communication */}
-                            <EmailCommunicationSection settings={tempSettings} onUpdate={setTempSettings} />
 
                             {/* Notification Preferences */}
                             <section className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 p-8 rounded-[32px] border border-rose-100 dark:border-rose-900/30">

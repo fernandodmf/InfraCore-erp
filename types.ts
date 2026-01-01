@@ -70,6 +70,7 @@ export interface Employee {
   address?: Address;
   cpf?: string;
   photo?: string;
+  vacationDaysAvailable?: number;
 }
 
 export interface InventoryItem {
@@ -219,6 +220,8 @@ export interface FleetVehicle {
   insuranceExpiry?: string;
   driverId?: string;
   chassis?: string;
+  maintenanceHistory?: MaintenanceRecord[];
+  fuelLogs?: FuelLog[];
 }
 
 export interface MaintenanceRecord {
@@ -485,9 +488,11 @@ export interface PayrollRecord {
   employeeName: string;
   month: string; // MM/YYYY
   baseSalary: number;
-  additions: number;
-  deductions: number;
-  netSalary: number;
+  benefits?: number;
+  overtime?: number;
+  discounts: number; // Replaces deductions
+  additions?: number;
+  totalNet: number; // Replaces netSalary
   status: 'Pendente' | 'Pago';
   paymentDate?: string;
   paidAt?: string;
@@ -502,7 +507,7 @@ export interface TimeLog {
   lunchStart?: string;
   lunchEnd?: string;
   totalHours?: string;
-  status?: 'Regular' | 'Extra' | 'Atraso';
+  status?: 'Regular' | 'Extra' | 'Atraso' | 'Presente' | 'Saída';
 }
 
 export interface Vacation {
@@ -513,14 +518,18 @@ export interface Vacation {
   endDate: string;
   days?: number;
   status: 'Solicitado' | 'Aprovado' | 'Concluído' | 'Cancelado' | 'Rejeitado';
+  requestedAt?: string;
+  notes?: string;
 }
 
 export interface SalaryAdvance {
   id: string;
   employeeId: string;
   employeeName: string;
-  date: string;
   amount: number;
-  reason: string;
+  reason?: string;
   status: 'Pendente' | 'Aprovado' | 'Pago' | 'Rejeitado';
+  requestDate: string;
+  deductFromMonth: string;
+  notes?: string;
 }

@@ -52,7 +52,7 @@ import { exportToCSV, printDocument } from '../utils/exportUtils';
 const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Reports = () => {
-    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements } = useApp();
+    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements, settings } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('dashboard');
 
@@ -236,34 +236,67 @@ const Reports = () => {
     const handlePrintReport = () => {
         const title = `Relatório de ${modules.find(m => m.id === selectedModule)?.name}`;
 
-        // Generate HTML Table
         if (reportData.length === 0) {
             alert("Sem dados para imprimir.");
             return;
         }
 
+        // Get Company Info or Defaults
+        const company = settings || {
+            companyName: 'INFRACORE ERP',
+            tradeName: 'Sistemas de Gestão',
+            document: '00.000.000/0000-00',
+            email: 'contato@infracore.com.br',
+            phone: '(11) 99999-9999',
+            address: 'Endereço Padrão do Sistema'
+        } as any;
+
         const headers = Object.keys(reportData[0]);
+
         const html = `
-            <div style="margin-bottom: 20px;">
-                <p><strong>Período:</strong> ${new Date(startDate).toLocaleDateString()} a ${new Date(endDate).toLocaleDateString()}</p>
-                <p><strong>Total de Registros:</strong> ${reportData.length}</p>
-            </div>
-            <table>
-                <thead>
-                    <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-                </thead>
-                <tbody>
-                    ${reportData.map(row => `
-                        <tr>${headers.map(h => {
+            <div style="font-family: sans-serif; padding: 20px;">
+                <!-- Header -->
+                <div style="border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between;">
+                    <div>
+                        <h1 style="font-size: 24px; color: #000; margin-bottom: 5px; text-transform: uppercase;">${company.tradeName || company.companyName}</h1>
+                        <p style="font-size: 12px; font-weight: bold; margin: 2px 0;">CNPJ: ${company.document}</p>
+                        <p style="font-size: 11px; color: #555; margin: 2px 0;">${company.address}</p>
+                        <p style="font-size: 11px; color: #555; margin: 2px 0;">${company.phone} | ${company.email}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="font-size: 18px; color: #0891b2; margin-bottom: 5px; text-transform: uppercase;">${title}</h2>
+                        <p style="font-size: 12px; margin: 2px 0;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</p>
+                        <p style="font-size: 12px; margin: 2px 0;">Período: <strong>${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}</strong></p>
+                        <p style="font-size: 12px; margin: 2px 0;">Registros: <strong>${reportData.length}</strong></p>
+                    </div>
+                </div>
+
+                <!-- Content Table -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 10px;">
+                    <thead style="background: #f1f5f9; color: #475569; text-transform: uppercase;">
+                        <tr>${headers.map(h => `<th style="padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0;">${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody style="color: #1e293b;">
+                        ${reportData.map((row, idx) => `
+                            <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
+                                ${headers.map(h => {
             let val = row[h as keyof typeof row];
             if (typeof val === 'number' && (h.includes('Valor') || h.includes('Total') || h.includes('Preço') || h.includes('Salário'))) {
                 val = formatMoney(val);
             }
-            return `<td>${val}</td>`;
-        }).join('')}</tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            return `<td style="padding: 8px 10px;">${val}</td>`;
+        }).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <!-- Footer -->
+                <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8;">
+                    <span>Documento processado eletronicamente por INFRACORE ERP®</span>
+                    <span>Página 1 of 1</span>
+                </div>
+            </div>
         `;
         printDocument(title, html);
     };

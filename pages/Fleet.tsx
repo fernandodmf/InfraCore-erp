@@ -167,6 +167,37 @@ const Fleet = () => {
     const totalKm = useMemo(() => fleet.reduce((acc, v) => acc + (v.km || 0), 0), [fleet]);
     const operationalCount = fleet.filter(v => v.status === 'Operacional').length;
 
+    const currentMonthStats = useMemo(() => {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        let fuel = 0;
+        let maint = 0;
+        let tires = 0;
+
+        fleet.forEach(v => {
+            v.fuelLogs?.forEach(l => {
+                const d = new Date(l.date + 'T12:00:00'); // Ensure correct day parsing
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    fuel += l.cost;
+                }
+            });
+            v.maintenanceHistory?.forEach(m => {
+                const d = new Date(m.date + 'T12:00:00');
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    if (m.description.toLowerCase().includes('pneu') || m.type === 'Preditiva') { // Simple heuristic for tires
+                        tires += m.cost;
+                    } else {
+                        maint += m.cost;
+                    }
+                }
+            });
+        });
+
+        return { fuel, maint, tires, total: fuel + maint + tires };
+    }, [fleet]);
+
     const formatBRL = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
     const handleSaveMaintenance = (e: React.FormEvent) => {
@@ -289,7 +320,7 @@ const Fleet = () => {
         } as Tire;
 
         if (selectedTireId) {
-            updateTire(selectedTireId, tireData);
+            updateTire(tireData);
         } else {
             addTire(tireData);
         }
@@ -372,7 +403,7 @@ const Fleet = () => {
                             { label: 'DISPONIBILIDADE', value: `${operationalCount}/${fleet.length}`, sub: 'Veículos Ativos', icon: <Activity />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
                             { label: 'KM TOTAL RODADO', value: totalKm.toLocaleString(), sub: 'Distância Acumulada', icon: <Gauge />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/10' },
                             { label: 'MANUTENÇÃO PENDENTE', value: fleet.filter(v => v.status === 'Manutenção').length, sub: 'Intervenções em curso', icon: <Wrench />, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/10' },
-                            { label: 'CUSTO MENSAL ESTIMADO', value: 'R$ 14.500', sub: 'Base: Out/2023', icon: <TrendingUp />, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/10' },
+                            { label: 'CUSTO MENSAL ESTIMADO', value: formatBRL(currentMonthStats.total), sub: `Base: ${new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`, icon: <TrendingUp />, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/10' },
                         ].map((kpi, i) => (
                             <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 hover:scale-[1.02] transition-transform cursor-default">
                                 <div className="flex justify-between items-start mb-6">
@@ -455,9 +486,9 @@ const Fleet = () => {
                                     <PieChart>
                                         <Pie
                                             data={[
-                                                { name: 'Diesel', value: 8500 },
-                                                { name: 'Manutenção', value: 4200 },
-                                                { name: 'Pneus', value: 1800 }
+                                                { name: 'Diesel', value: currentMonthStats.fuel },
+                                                { name: 'Manutenção', value: currentMonthStats.maint },
+                                                { name: 'Pneus', value: currentMonthStats.tires }
                                             ]}
                                             cx="50%"
                                             cy="50%"
@@ -473,14 +504,15 @@ const Fleet = () => {
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff' }}
                                             itemStyle={{ color: '#fff' }}
+                                            formatter={(value: number) => formatBRL(value)}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                                <div><p className="text-[10px] font-black text-teal-600">DIESEL (60%)</p></div>
-                                <div><p className="text-[10px] font-black text-cyan-600">MANUT. (25%)</p></div>
-                                <div><p className="text-[10px] font-black text-rose-600">OUTROS (15%)</p></div>
+                                <div><p className="text-[10px] font-black text-teal-600">DIESEL ({currentMonthStats.total > 0 ? ((currentMonthStats.fuel / currentMonthStats.total) * 100).toFixed(0) : 0}%)</p></div>
+                                <div><p className="text-[10px] font-black text-cyan-600">MANUT. ({currentMonthStats.total > 0 ? ((currentMonthStats.maint / currentMonthStats.total) * 100).toFixed(0) : 0}%)</p></div>
+                                <div><p className="text-[10px] font-black text-rose-600">PNEUS ({currentMonthStats.total > 0 ? ((currentMonthStats.tires / currentMonthStats.total) * 100).toFixed(0) : 0}%)</p></div>
                             </div>
                         </div>
 
@@ -651,7 +683,7 @@ const Fleet = () => {
 
                             const monthlyFuelCost = fuelLogs
                                 .filter(log => parseDate(log.date) >= thirtyDaysAgo)
-                                .reduce((acc, log) => acc + (log.totalCost || 0), 0);
+                                .reduce((acc, log) => acc + (log.cost || 0), 0);
 
                             const monthlyMaintCost = maintHistory
                                 .filter(m => parseDate(m.date) >= thirtyDaysAgo)
@@ -1295,7 +1327,7 @@ const Fleet = () => {
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
-                                                        const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
+                                                        const at = { id: Date.now().toString(), name: file.name, type: file.type, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
                                                         setNewMaint({ ...newMaint, attachments: [...(newMaint.attachments || []), at] });
                                                     }
                                                 }}
@@ -1415,7 +1447,7 @@ const Fleet = () => {
                                                 onChange={(e) => {
                                                     const file = e.target.files?.[0];
                                                     if (file) {
-                                                        const at = { id: Date.now().toString(), name: file.name, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
+                                                        const at = { id: Date.now().toString(), name: file.name, type: file.type, date: new Date().toLocaleDateString('pt-BR'), size: (file.size / 1024).toFixed(1) + ' KB' };
                                                         setNewFuel({ ...newFuel, attachments: [...(newFuel.attachments || []), at] });
                                                     }
                                                 }}

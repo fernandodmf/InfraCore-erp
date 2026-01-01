@@ -7,124 +7,23 @@ import {
   ProductionOrder, ProductionFormula, QualityTest, ProductionUnit, User, AppRole, AppSettings, AuditLog,
   Vacation, SalaryAdvance, StockMovement
 } from '../types';
-import { MOCK_CLIENTS, MOCK_TRANSACTIONS, MOCK_FLEET } from '../constants';
+// MOCK_CLIENTS, MOCK_TRANSACTIONS, MOCK_FLEET imports removed for clean implementation
 
 // Initial Mock Inventory
-const INITIAL_INVENTORY: InventoryItem[] = [
-  { id: 'p1', name: 'Cimento Portland CP-II', category: 'Cimento', quantity: 450, minStock: 100, price: 32.90, unit: 'sc', color: 'bg-gray-200 text-gray-600', weight: 50 },
-  { id: 'p2', name: 'Areia Média Lavada', category: 'Agregados', quantity: 1200, minStock: 200, price: 120.00, unit: 'm³', color: 'bg-yellow-100 text-yellow-600', weight: 1500 },
-  { id: 'p3', name: 'Brita 1', category: 'Agregados', quantity: 800, minStock: 150, price: 145.00, unit: 'm³', color: 'bg-stone-200 text-stone-600', weight: 1450 },
-  { id: 'p4', name: 'Bloco de Concreto 14x19x39', category: 'Alvenaria', quantity: 15000, minStock: 2000, price: 3.80, unit: 'un', color: 'bg-zinc-200 text-zinc-600', weight: 12.5 },
-  { id: 'p5', name: 'Argamassa AC-III', category: 'Argamassas', quantity: 300, minStock: 50, price: 42.50, unit: 'sc', color: 'bg-orange-100 text-orange-600', weight: 20 },
-  { id: 'p6', name: 'Vergalhão CA-50 10mm', category: 'Ferragem', quantity: 500, minStock: 100, price: 48.90, unit: 'br', color: 'bg-slate-200 text-slate-600', weight: 7.4 },
-  { id: 'p7', name: 'Tijolo Cerâmico 6 Furos', category: 'Alvenaria', quantity: 8000, minStock: 1000, price: 1.25, unit: 'un', color: 'bg-red-100 text-red-600', weight: 2.1 },
-  { id: 'p8', name: 'Cal Hidratada', category: 'Aditivos', quantity: 120, minStock: 30, price: 18.90, unit: 'sc', color: 'bg-white border border-gray-200 text-gray-500', weight: 20 },
-  { id: 'p9', name: 'CBUQ Faixa C', category: 'Asfalto', quantity: 50, minStock: 20, price: 380.00, unit: 'ton', color: 'bg-gray-900 text-gray-300', weight: 1000 },
-  { id: 'p10', name: 'Concreto FCK 30', category: 'Concreto', quantity: 0, minStock: 0, price: 450.00, unit: 'm³', color: 'bg-gray-400 text-white', weight: 2400 },
-];
+// Initial Mock Inventory - CLEARED
+const INITIAL_INVENTORY: InventoryItem[] = [];
 
-const INITIAL_BUDGETS: Budget[] = [
-  {
-    id: 'b1',
-    clientId: '2',
-    clientName: 'Construtora Horizonte',
-    date: new Date().toLocaleDateString('pt-BR'),
-    items: [{ id: 'p3', name: 'Brita 1', detail: 'Agregados', quantity: 50, unit: 'm³', price: 145.00 }],
-    subtotal: 7250,
-    discount: 250,
-    total: 7000,
-    status: 'Aberto',
-    expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
-  }
-];
+const INITIAL_BUDGETS: Budget[] = [];
 
-const INITIAL_SUPPLIERS: Supplier[] = [
-  { id: 's1', name: 'Votorantim Cimentos S.A.', tradeName: 'Votorantim', category: 'Materiais Básicos', document: '00.123.456/0001-00', email: 'vendas@votorantim.com', phone: '(11) 3333-4444', status: 'Ativo', registeredAt: '10/01/2023', initials: 'VC' },
-  { id: 's2', name: 'Gerdau Aços Longos S.A.', tradeName: 'Gerdau', category: 'Ferragem', document: '11.222.333/0001-99', email: 'comercial@gerdau.com.br', phone: '(51) 3323-2000', status: 'Ativo', registeredAt: '15/02/2023', initials: 'GE' },
-  { id: 's3', name: 'Pedreira São Jorge Ltda', tradeName: 'Pedreira SJ', category: 'Agregados', document: '22.333.444/0001-88', email: 'contato@pedreirasj.com.br', phone: '(31) 3444-5555', status: 'Ativo', registeredAt: '20/03/2023', initials: 'PS' },
-];
+const INITIAL_SUPPLIERS: Supplier[] = [];
 
-const INITIAL_EMPLOYEES: Employee[] = [
-  { id: '1', name: 'Carlos Mendes', role: 'Gerente de Projetos', department: 'Engenharia', status: 'Ativo', admissionDate: '15/03/2022', salary: 8500.00, email: 'carlos.m@infracore.com', phone: '(11) 98888-1111' },
-  { id: '2', name: 'Ana Silva', role: 'Analista Financeiro', department: 'Financeiro', status: 'Ativo', admissionDate: '02/05/2023', salary: 4200.00, email: 'ana.s@infracore.com', phone: '(11) 98888-2222' },
-  { id: '3', name: 'Roberto Santos', role: 'Mestre de Obras', department: 'Operações', status: 'Férias', admissionDate: '10/01/2021', salary: 5600.00, email: 'roberto.s@infracore.com', phone: '(11) 98888-3333' },
-  { id: '4', name: 'Julia Oliveira', role: 'RH Generalista', department: 'Recursos Humanos', status: 'Ativo', admissionDate: '20/08/2023', salary: 3800.00, email: 'julia.o@infracore.com', phone: '(11) 98888-4444' },
-  { id: '5', name: 'Pedro Costa', role: 'Motorista', department: 'Logística', status: 'Afastado', admissionDate: '12/11/2022', salary: 2800.00, email: 'pedro.c@infracore.com', phone: '(11) 98888-5555' },
-];
+const INITIAL_EMPLOYEES: Employee[] = [];
 
-const INITIAL_TIRES: Tire[] = [
-  {
-    id: 't1',
-    serialNumber: 'PN-MI-001',
-    brand: 'Michelin',
-    model: 'X Multi Z',
-    size: '295/80 R22.5',
-    status: 'Em uso',
-    currentVehicleId: 'v1',
-    position: 'DI',
-    currentKm: 45000,
-    maxKm: 120000,
-    recapCount: 0,
-    history: []
-  },
-  {
-    id: 't2',
-    serialNumber: 'PN-MI-002',
-    brand: 'Michelin',
-    model: 'X Multi Z',
-    size: '295/80 R22.5',
-    status: 'Em uso',
-    currentVehicleId: 'v1',
-    position: 'DD',
-    currentKm: 45000,
-    maxKm: 120000,
-    recapCount: 0,
-    history: []
-  },
-  {
-    id: 't3',
-    serialNumber: 'PN-GO-001',
-    brand: 'Goodyear',
-    model: 'KMAX S',
-    size: '295/80 R22.5',
-    status: 'Estoque',
-    currentKm: 0,
-    maxKm: 100000,
-    recapCount: 1,
-    history: [{ id: 'h1', date: '01/10/2023', type: 'Recapagem', km: 85000, notes: 'Primeira recapagem concluída' }]
-  },
-];
+const INITIAL_TIRES: Tire[] = [];
 
-const INITIAL_FORMULAS: ProductionFormula[] = [
-  {
-    id: 'f1',
-    name: 'Concreto FCK 30',
-    category: 'Concreto',
-    outputProductId: 'p10',
-    ingredients: [
-      { productId: 'p1', name: 'Cimento Portland CP-II', qty: 7, unit: 'sc' }, // 350kg approx
-      { productId: 'p2', name: 'Areia Média Lavada', qty: 0.6, unit: 'm³' },
-      { productId: 'p3', name: 'Brita 1', qty: 0.8, unit: 'm³' }
-    ]
-  },
-  {
-    id: 'f2',
-    name: 'Asfalto CBUQ Faixa C',
-    category: 'Asfalto',
-    outputProductId: 'p9',
-    ingredients: [
-      { productId: 'p2', name: 'Areia Média Lavada', qty: 0.3, unit: 'm³' },
-      { productId: 'p3', name: 'Brita 1', qty: 0.4, unit: 'm³' }
-    ]
-  },
-];
+const INITIAL_FORMULAS: ProductionFormula[] = [];
 
-const INITIAL_PRODUCTION_UNITS: ProductionUnit[] = [
-  { id: 'u1', name: 'Planta Britagem 1', type: 'Britagem', status: 'Operando', capacity: '120 ton/h', currentLoad: 85, temp: 42, power: '850 kW' },
-  { id: 'u2', name: 'Planta Britagem 2', type: 'Britagem', status: 'Manutenção', capacity: '150 ton/h', currentLoad: 0, temp: 22, power: '0 kW' },
-  { id: 'u3', name: 'Usina de Asfalto', type: 'Asfalto', status: 'Operando', capacity: '80 ton/h', currentLoad: 60, temp: 165, power: '420 kW' },
-  { id: 'u4', name: 'Usina de Concreto', type: 'Concreto', status: 'Operando', capacity: '60 m³/h', currentLoad: 45, temp: 28, power: '150 kW' },
-];
+const INITIAL_PRODUCTION_UNITS: ProductionUnit[] = [];
 
 const INITIAL_ROLES: AppRole[] = [
   {
@@ -326,11 +225,7 @@ const INITIAL_SETTINGS: AppSettings = {
   }
 };
 
-const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  { id: '1', userId: '1', userName: 'Admin InfraCore', action: 'Alteração de Permissão', module: 'Segurança', details: 'Alterou permissões do grupo Operador', timestamp: '23/12/2025 09:15', severity: 'warning' },
-  { id: '2', userId: '1', userName: 'Admin InfraCore', action: 'Login no Sistema', module: 'Acesso', details: 'Acesso realizado via IP 192.168.0.1', timestamp: '23/12/2025 08:00', severity: 'info' },
-  { id: '3', userId: '2', userName: 'Gerência Vendas', action: 'Exclusão de Registro', module: 'Vendas', details: 'Excluiu o orçamento B-20230510', timestamp: '22/12/2025 17:30', severity: 'critical' },
-];
+const INITIAL_AUDIT_LOGS: AuditLog[] = [];
 
 interface AppContextType {
   clients: Client[];
@@ -470,10 +365,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const STORAGE_KEY = 'infracore_erp_data';
 
 const INITIAL_ACCOUNTS = [
-  { id: 'acc-1', name: 'Banco do Brasil', type: 'Conta Corrente', balance: 142000, color: 'bg-blue-600', code: '0041 / 44021-X' },
-  { id: 'acc-2', name: 'Bradesco PJ', type: 'Conta Corrente', balance: 340000, color: 'bg-red-600', code: '1290 / 00921-2' },
-  { id: 'acc-3', name: 'NuBank PJ', type: 'Investimento', balance: 250000, color: 'bg-purple-600', code: 'Reserva 100% CDI' },
-  { id: 'acc-4', name: 'Caixa Interno', type: 'Espécie', balance: 12450, color: 'bg-teal-600', code: 'Dinheiro em Mãos' },
+  { id: 'acc-1', name: 'Caixa Geral', type: 'Espécie', balance: 0, color: 'bg-emerald-600', code: 'Gaveta / Cofre' }
 ];
 
 const INITIAL_PLAN_OF_ACCOUNTS = [
@@ -621,14 +513,14 @@ const INITIAL_PLAN_OF_ACCOUNTS = [
 ];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
+  const [clients, setClients] = useState<Client[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>(INITIAL_BUDGETS);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [fleet, setFleet] = useState<FleetVehicle[]>(MOCK_FLEET);
+  const [fleet, setFleet] = useState<FleetVehicle[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
@@ -656,52 +548,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = async (username: string, password?: string): Promise<{ success: boolean; message?: string }> => {
     // Debug info
     console.log('Attempting login with:', { username, passwordProvided: !!password });
-    console.log('Current loaded users:', users);
 
-    // MASTER KEY OVERRIDE: Always allow admin/123 to ensure access
-    if (username === 'admin' && password === '123') {
-      console.log('🔑 Master Key Access Granted for Admin');
-      let adminUser = users.find(u => u.username === 'admin');
-
-      // If not in state (empty DB?), use Initial Mock
-      if (!adminUser) {
-        adminUser = INITIAL_USERS.find(u => u.username === 'admin');
-        console.warn('⚠️ using Fallback Admin User object');
-      }
-
-      if (adminUser) {
-        // Ensure roles exist for permissions
-        if (roles.length === 0) {
-          console.warn('⚠️ Injecting Fallback Roles for Admin Context');
-          setRoles(INITIAL_ROLES);
-        }
-
-        setCurrentUser(adminUser);
-        return { success: true };
-      }
-    }
-
+    // 1. Try to find the user in the loaded state (Real DB Data)
     let user = users.find(u => u.username === username);
 
-    // Legacy Fallback (kept for safety, though Master Key covers most)
-    if (!user && username === 'admin' && password === '123') {
-      // ... (This block is essentially covered above, but we keep the structure if needed)
-      // Actually, let's simplify. The above Master Key handles both cases (user exists or not).
-      // So we can proceed to normal checks for NON-admin users or non-123 passwords.
+    // 2. Emergency/Setup Access: Only allow mock admin if DB is empty OR if explicitly requested manually (not auto-login)
+    // This handles the "First Run" scenario where no users exist in Supabase yet.
+    if (!user && users.length === 0 && username === 'admin' && password === '123') {
+      console.log('🌱 First Access / Emergency Admin Login triggered');
+
+      const mockAdmin = INITIAL_USERS.find(u => u.username === 'admin');
+      if (mockAdmin) {
+        // Ensure roles exist for permissions context
+        if (roles.length === 0) setRoles(INITIAL_ROLES);
+
+        setCurrentUser(mockAdmin);
+        return { success: true, message: 'Acesso de Configuração Inicial (Banco Vazio)' };
+      }
     }
 
-    // Normal Auth Flow
+    // 3. Normal Authentication Flow
     if (!user) {
-      console.warn('Login failed: User not found in state.');
-      return { success: false, message: 'Usuário não encontrado. Se for o primeiro acesso, use admin/123.' };
+      console.warn('Login failed: User not found.');
+      return { success: false, message: 'Usuário não encontrado.' };
     }
 
     if (user.status !== 'Ativo') {
-      console.warn(`Login failed: User ${username} is not Active (Status: ${user.status}).`);
+      console.warn(`Login failed: User ${username} is not Active.`);
       return { success: false, message: 'Usuário inativo ou bloqueado.' };
     }
 
-    const passwordMatch = user.password === password || !user.password;
+    // Password Check (Simple comparsion for MVP)
+    const passwordMatch = user.password === password;
+
     if (!passwordMatch) {
       console.warn('Login failed: Password mismatch.');
       return { success: false, message: 'Senha incorreta.' };
@@ -811,54 +690,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
 
           // 4. Clients
-          console.log('...Seeding Clients');
-          for (const item of MOCK_CLIENTS) {
-            const { id, ...rest } = item;
-            await api.createItem('clients', rest);
-          }
+          console.log('...Seeding Clients (Synced)');
+          // Removed mock clients seeding
 
           // 5. Suppliers
-          console.log('...Seeding Suppliers');
+          console.log('...Seeding Suppliers (Synced)');
           for (const item of INITIAL_SUPPLIERS) {
             const { id, ...rest } = item;
             await api.createItem('suppliers', rest);
           }
 
           // 6. Employees
-          console.log('...Seeding Employees');
+          console.log('...Seeding Employees (Synced)');
           for (const item of INITIAL_EMPLOYEES) {
             const { id, ...rest } = item;
             await api.createItem('employees', rest);
           }
 
           // 7. Inventory
-          console.log('...Seeding Inventory');
+          console.log('...Seeding Inventory (Synced)');
           for (const item of INITIAL_INVENTORY) {
-            // Inventory IDs are used in Formulas, so we ideally keep custom IDs or update Formulas.
-            // For simplicity in this demo, we let Supabase gen ID but we can't easily link formulas without a map.
-            // Strategy: Try to insert WITH ID if possible, or if Supabase ignores it, we have an issue.
-            // IF Supabase table is defined with text ID, we can insert our IDs.
-            // IF Supabase table is uuid default, we lose the link.
-            // Assuming we can send ID since our types use string IDs.
             await api.createItem('inventory', item);
           }
 
           // 8. Fleet
-          console.log('...Seeding Fleet');
-          for (const item of MOCK_FLEET) {
-            const { id, ...rest } = item;
-            await api.createItem('fleet', rest);
-          }
+          console.log('...Seeding Fleet (Synced)');
+          // Removed mock fleet seeding
 
           // 9. Production Units
-          console.log('...Seeding Production Units');
+          console.log('...Seeding Production Units (Synced)');
           for (const item of INITIAL_PRODUCTION_UNITS) {
             const { id, ...rest } = item;
             await api.createItem('production_units', rest);
           }
 
           // 10. Formulas
-          console.log('...Seeding Formulas');
+          console.log('...Seeding Formulas (Synced)');
           for (const item of INITIAL_FORMULAS) {
             const { id, ...rest } = item;
             await api.createItem('production_formulas', rest);
@@ -1298,21 +1165,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ledgerCode: '2.02.03',
           ledgerName: 'Material de Consumo'
         };
+
+        // Fallback for Account
+        const targetAccountId = order.targetAccountId || 'acc-1';
+        const targetAccountName = accounts.find(a => a.id === targetAccountId)?.name || 'Caixa Geral';
+
         const expense: Transaction = {
           id: expenseId,
           date: receivedDate,
-          description: `Compra: ${order.supplierName}`,
+          description: `Compra PO #${order.id}: ${order.supplierName}`,
           category: 'Insumos',
           amount: order.total,
-          account: order.accountId || 'Caixa',
-          accountId: order.accountId || '',
+          account: targetAccountName,
+          accountId: targetAccountId,
           type: 'Despesa',
           status: 'Pendente',
           ledgerCode: '2.02.03',
           ledgerName: 'Material de Consumo'
         };
         addTransaction(expense);
-        order.items.forEach(item => updateStock(item.id, item.quantity));
+
+        // Critical: Update Stock with cost price awareness if needed (future improvement: Weighted Average Cost)
+        order.items.forEach(item => updateStock(item.id, item.quantity, `Compra PO #${order.id}`, order.id));
+
         return updated;
       }
       return order;

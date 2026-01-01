@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Factory,
     ClipboardList,
@@ -66,7 +66,7 @@ const Production = () => {
     });
 
     const [formulaForm, setFormulaForm] = useState<Partial<ProductionFormula>>({
-        ingredients: [{ name: '', qty: 0, unit: 'kg' }]
+        ingredients: [{ productId: '', name: '', qty: 0, unit: 'kg' }]
     });
 
     const handleSaveOrder = (e: React.FormEvent) => {
@@ -142,13 +142,13 @@ const Production = () => {
         }
         setIsFormulaModalOpen(false);
         setEditingFormula(null);
-        setFormulaForm({ type: 'Composicao', ingredients: [{ name: '', qty: 0, unit: 'kg' }], outputs: [{ productId: '', name: '', percentage: 0 }] });
+        setFormulaForm({ type: 'Composicao', ingredients: [{ productId: '', name: '', qty: 0, unit: 'kg' }], outputs: [{ productId: '', name: '', percentage: 0 }] });
     };
 
     const addIngredient = () => {
         setFormulaForm(prev => ({
             ...prev,
-            ingredients: [...(prev.ingredients || []), { name: '', qty: 0, unit: 'kg' }]
+            ingredients: [...(prev.ingredients || []), { productId: '', name: '', qty: 0, unit: 'kg' }]
         }));
     };
 
@@ -158,6 +158,45 @@ const Production = () => {
             outputs: [...(prev.outputs || []), { productId: '', name: '', percentage: 0 }]
         }));
     };
+
+    const productionStats = useMemo(() => {
+        // Quality Stats
+        const allTests = productionOrders.flatMap(o => o.qualityTests || []);
+        const totalTests = allTests.length;
+        const approvedTests = allTests.filter(t => t.status === 'Aprovado').length;
+        const complianceRate = totalTests > 0 ? (approvedTests / totalTests) * 100 : 100;
+
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const approvalsMonth = allTests.filter(t => {
+            if (!t.testedAt) return false;
+            // Handle various date formats if necessary, assuming YYYY-MM-DD for now
+            const parts = t.testedAt.split('-');
+            if (parts.length === 3) {
+                const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                return t.status === 'Aprovado' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }
+            return false;
+        }).length;
+
+        // OEE Calculation
+        const totalUnits = productionUnits.length;
+        const operatingUnits = productionUnits.filter(u => u.status === 'Operando');
+        const availRate = totalUnits > 0 ? operatingUnits.length / totalUnits : 0;
+
+        const avgLoad = operatingUnits.length > 0
+            ? operatingUnits.reduce((acc, u) => acc + u.currentLoad, 0) / operatingUnits.length
+            : 0;
+        const perfRate = avgLoad / 100;
+
+        const qualityRate = complianceRate / 100;
+
+        // OEE = Availability * Performance * Quality
+        const oee = availRate * perfRate * qualityRate * 100;
+
+        return { complianceRate, approvalsMonth, oee, potential: (100 - oee) * 0.1 }; // Mock potential gain as 10% of gap
+    }, [productionOrders, productionUnits]);
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
@@ -293,11 +332,11 @@ const Production = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-3 bg-white/5 rounded-2xl">
                                             <p className="text-[8px] font-black text-indigo-400 uppercase">OEE Atual</p>
-                                            <p className="text-lg font-black text-white">88.4%</p>
+                                            <p className="text-lg font-black text-white">{productionStats.oee.toFixed(1)}%</p>
                                         </div>
                                         <div className="p-3 bg-white/5 rounded-2xl">
                                             <p className="text-[8px] font-black text-indigo-400 uppercase">Potencial</p>
-                                            <p className="text-lg font-black text-emerald-400">+4.2%</p>
+                                            <p className="text-lg font-black text-emerald-400">+{productionStats.potential.toFixed(1)}%</p>
                                         </div>
                                     </div>
                                 </div>
@@ -559,7 +598,7 @@ const Production = () => {
                         </div>
                     ))}
                     <button
-                        onClick={() => { setEditingFormula(null); setFormulaForm({ ingredients: [{ name: '', qty: 0, unit: 'kg' }] }); setIsFormulaModalOpen(true); }}
+                        onClick={() => { setEditingFormula(null); setFormulaForm({ ingredients: [{ productId: '', name: '', qty: 0, unit: 'kg' }] }); setIsFormulaModalOpen(true); }}
                         className="bg-slate-50 dark:bg-slate-900/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 transition-all group min-h-[300px]"
                     >
                         <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-sm group-hover:scale-110 transition-transform"><Plus size={32} /></div>
@@ -583,11 +622,11 @@ const Production = () => {
                         <div className="flex gap-4 w-full md:w-auto">
                             <div className="flex-1 md:w-64 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl border border-indigo-100 dark:border-indigo-800">
                                 <p className="text-[10px] font-black text-indigo-500 uppercase mb-1">Taxa de Conformidade</p>
-                                <p className="text-2xl font-black text-indigo-700">98.2%</p>
+                                <p className="text-2xl font-black text-indigo-700">{productionStats.complianceRate.toFixed(1)}%</p>
                             </div>
                             <div className="flex-1 md:w-64 p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-100 dark:border-emerald-800">
                                 <p className="text-[10px] font-black text-emerald-500 uppercase mb-1">Aprovações (Mês)</p>
-                                <p className="text-2xl font-black text-emerald-700">142</p>
+                                <p className="text-2xl font-black text-emerald-700">{productionStats.approvalsMonth}</p>
                             </div>
                         </div>
                     </div>

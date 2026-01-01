@@ -53,6 +53,17 @@ const Clients = () => {
     }
   };
 
+  const getInitialFormData = (type: string) => {
+    switch (type) {
+      case 'clients': return { status: 'Ativo', registeredAt: new Date().toLocaleDateString('pt-BR'), colorClass: 'bg-cyan-100 text-cyan-600', type: 'Matriz' };
+      case 'suppliers': return { status: 'Ativo', registeredAt: new Date().toLocaleDateString('pt-BR') };
+      case 'employees': return { status: 'Ativo', admissionDate: new Date().toLocaleDateString('pt-BR') };
+      case 'products': return { quantity: 0, minStock: 10, price: 0, costPrice: 0, unit: 'un' };
+      case 'vehicles': return { status: 'Operacional', fuelLevel: 100, lastMaintenance: new Date().toLocaleDateString('pt-BR') };
+      default: return {};
+    }
+  };
+
   const handleOpenModal = (item?: any, type: string = activeTab) => {
     setActiveTab(type);
     if (item) {
@@ -60,11 +71,7 @@ const Clients = () => {
       setFormData(type === 'vehicles' ? { ...item, name: item.model } : item);
     } else {
       setEditingId(null);
-      if (type === 'clients') setFormData({ status: 'Ativo', registeredAt: new Date().toLocaleDateString('pt-BR'), colorClass: 'bg-cyan-100 text-cyan-600', type: 'Matriz' });
-      else if (type === 'suppliers') setFormData({ status: 'Ativo', registeredAt: new Date().toLocaleDateString('pt-BR') });
-      else if (type === 'employees') setFormData({ status: 'Ativo', admissionDate: new Date().toLocaleDateString('pt-BR') });
-      else if (type === 'products') setFormData({ quantity: 0, minStock: 10, price: 0, unit: 'un' });
-      else if (type === 'vehicles') setFormData({ status: 'Operacional', fuelLevel: 100, lastMaintenance: new Date().toLocaleDateString('pt-BR') });
+      setFormData(getInitialFormData(type));
     }
     setIsModalOpen(true);
   };
@@ -89,7 +96,14 @@ const Clients = () => {
       const employee: Employee = { ...formData, id };
       if (editingId) updateEmployee(employee); else addEmployee(employee);
     } else if (activeTab === 'products') {
-      const product: InventoryItem = { ...formData, id: editingId || `p-${Date.now()}`, price: parseFloat(formData.price) || 0, quantity: parseFloat(formData.quantity) || 0, minStock: parseFloat(formData.minStock) || 0 };
+      const product: InventoryItem = {
+        ...formData,
+        id: editingId || `p-${Date.now()}`,
+        price: parseFloat(formData.price) || 0,
+        costPrice: parseFloat(formData.costPrice) || 0,
+        quantity: parseFloat(formData.quantity) || 0,
+        minStock: parseFloat(formData.minStock) || 0
+      };
       if (editingId) updateStockItem(product); else addStockItem(product);
     } else if (activeTab === 'vehicles') {
       const vehicle: FleetVehicle = { ...formData, model: formData.name, id: editingId || `v-${Date.now()}`, fuelLevel: parseFloat(formData.fuelLevel) || 0 };
@@ -206,6 +220,18 @@ const Clients = () => {
                         {activeTab === 'employees' && <option value="Férias">Em Férias</option>}
                         {activeTab === 'vehicles' && <option value="Manutenção">Em Manutenção</option>}
                       </select>
+                      {/* Campo Adicional: Nome Fantasia (Fornecedor) */}
+                      {activeTab === 'suppliers' && (
+                        <div className="md:col-span-12">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Nome Fantasia</label>
+                          <input
+                            type="text"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.tradeName || ''}
+                            onChange={e => setFormData({ ...formData, tradeName: e.target.value })}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Campos Específicos por Tipo */}
@@ -373,6 +399,11 @@ const Clients = () => {
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Preço de Venda (R$)</label>
                           <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-bold text-emerald-600"
                             value={formData.price || ''} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Preço de Custo (R$)</label>
+                          <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium text-slate-500"
+                            value={formData.costPrice || ''} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} />
                         </div>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Estoque Atual</label>

@@ -179,7 +179,8 @@ const Reports = () => {
                 // Dynamic DRE Calculation
                 const revenue = transactions.filter(t => t.type === 'Receita' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
                 const expenses = transactions.filter(t => t.type === 'Despesa' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
-                const taxes = revenue * 0.06; // Mock 6% tax
+                const taxRate = (settings?.technical?.defaultTaxRate || 6) / 100;
+                const taxes = revenue * taxRate; // Dynamic Tax Rate from Settings
                 const netRevenue = revenue - taxes;
                 const grossProfit = netRevenue - (expenses * 0.4); // Assume 40% of expenses are COGS
                 const operatingProfit = grossProfit - (expenses * 0.6); // Remaining 60% are operating expenses
@@ -198,9 +199,12 @@ const Reports = () => {
                 break;
             case 'balance_sheet':
                 // Simplified Balance Sheet
-                const capex = fleet.length * 45000; // Est. value of vehicles
+                const capex = fleet.length * 45000; // Est. value of vehicles (TODO: Add value to FleetVehicle)
                 const cash = financials.balance;
-                const inventoryValue = inventory.reduce((acc, i) => acc + (i.price * i.quantity * 0.6), 0); // Cost value estimation
+                const inventoryValue = inventory.reduce((acc, i) => {
+                    const cost = i.costPrice && i.costPrice > 0 ? i.costPrice : (i.price * 0.6);
+                    return acc + (cost * i.quantity);
+                }, 0);
 
                 data = [
                     { Grupo: 'ATIVO CIRCULANTE', Conta: 'Disponibilidades (Caixa/Bancos)', Valor: cash },
@@ -501,7 +505,7 @@ const Reports = () => {
                                     <PieChart>
                                         <Pie data={categoryData} cx="50%" cy="50%" innerRadius={70} outerRadius={110} fill="#8884d8" paddingAngle={8} dataKey="value" stroke="none">
                                             {categoryData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip />
@@ -525,7 +529,7 @@ const Reports = () => {
                             className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-cyan-200 dark:hover:border-cyan-800 transition-all text-left group"
                         >
                             <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-cyan-600 group-hover:text-white transition-colors mb-6">
-                                {React.cloneElement(m.icon as React.ReactElement, { size: 24 })}
+                                {React.cloneElement(m.icon as any, { size: 24 })}
                             </div>
                             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{m.name}</h3>
                             <p className="text-sm text-slate-500 font-medium">Gerar relatórios detalhados, exportar dados e analisar métricas de {m.name.toLowerCase()}.</p>

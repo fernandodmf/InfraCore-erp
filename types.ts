@@ -208,18 +208,21 @@ export interface FuelLog {
 
 export interface FleetVehicle {
   id: string;
+  name: string; // Modelo/Nome do ativo (ex: "Volvo FH 540")
   plate: string;
-  model: string;
-  brand: string;
-  year: number;
-  type: 'Caminhão' | 'Carro' | 'Van' | 'Motocicleta' | 'Máquina';
+  model?: string; // Modelo técnico (opcional, legado)
+  brand?: string; // Marca (opcional)
+  year?: number;
+  type: 'Caminhão' | 'Carro' | 'Van' | 'Motocicleta' | 'Máquina' | 'Toco' | 'Truck' | 'Carreta LS' | 'Utilitário';
   status: 'Operacional' | 'Manutenção' | 'Em Rota' | 'Parado';
-  fuelType: 'Diesel' | 'Gasolina' | 'Etanol' | 'Flex' | 'Elétrico';
+  fuelType?: 'Diesel' | 'Gasolina' | 'Etanol' | 'Flex' | 'Elétrico';
+  fuelLevel?: number; // Nível de combustível (%)
   km: number;
   nextMaintenanceKm?: number;
   insuranceExpiry?: string;
   driverId?: string;
   chassis?: string;
+  lastMaintenance?: string; // Data da última manutenção
   maintenanceHistory?: MaintenanceRecord[];
   fuelLogs?: FuelLog[];
 }

@@ -65,25 +65,50 @@ const Reports = () => {
 
     // Extended Modules for Reporting - Organized by Category
     const modules = [
-        // COMERCIAL
+        // ═══════════════════════════════════════════════════════════════════════════
+        // COMERCIAL (18 relatórios)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'sales', name: 'Vendas Realizadas', icon: <DollarSign size={16} />, category: 'Comercial', description: 'Histórico completo de vendas com cliente, produtos, valores e forma de pagamento.', fields: ['ID', 'Data', 'Cliente', 'Produtos', 'Total', 'Pagamento', 'Status'] },
         { id: 'sales_by_product', name: 'Vendas por Produto', icon: <Package size={16} />, category: 'Comercial', description: 'Ranking de produtos mais vendidos com quantidade e faturamento.', fields: ['Produto', 'Qtd Vendida', 'Faturamento', 'Margem %', 'Ticket Médio'] },
         { id: 'sales_by_client', name: 'Vendas por Cliente', icon: <User size={16} />, category: 'Comercial', description: 'Análise de faturamento por cliente com frequência de compra.', fields: ['Cliente', 'Total Compras', 'Valor Total', 'Última Compra', 'Ticket Médio'] },
         { id: 'sales_by_seller', name: 'Vendas por Vendedor', icon: <User size={16} />, category: 'Comercial', description: 'Performance individual de vendedores com metas e comissões.', fields: ['Vendedor', 'Vendas', 'Faturamento', 'Comissão', 'Meta %'] },
         { id: 'sales_by_payment', name: 'Vendas por Forma de Pagamento', icon: <DollarSign size={16} />, category: 'Comercial', description: 'Distribuição de vendas por método de pagamento (PIX, cartão, boleto).', fields: ['Forma Pagto', 'Qtd Vendas', 'Valor Total', '% do Total', 'Ticket Médio'] },
+        { id: 'sales_by_region', name: 'Vendas por Região/Cidade', icon: <Circle size={16} />, category: 'Comercial', description: 'Distribuição geográfica das vendas por cidade e estado.', fields: ['Cidade', 'Estado', 'Qtd Vendas', 'Faturamento', '% Participação'] },
+        { id: 'sales_by_category', name: 'Vendas por Categoria', icon: <Package size={16} />, category: 'Comercial', description: 'Performance de vendas agrupada por categoria de produto.', fields: ['Categoria', 'Qtd Produtos', 'Vendas', 'Faturamento', 'Margem Média'] },
+        { id: 'sales_daily', name: 'Vendas Diárias', icon: <Calendar size={16} />, category: 'Comercial', description: 'Resumo de vendas dia a dia com totais e médias.', fields: ['Data', 'Qtd Vendas', 'Faturamento', 'Ticket Médio', 'Top Produto'] },
+        { id: 'sales_hourly', name: 'Vendas por Horário', icon: <Activity size={16} />, category: 'Comercial', description: 'Análise de vendas por faixa horária (pico de vendas).', fields: ['Horário', 'Qtd Vendas', 'Faturamento', '% do Total', 'Pico'] },
+        { id: 'sales_cancelled', name: 'Vendas Canceladas', icon: <AlertTriangle size={16} />, category: 'Comercial', description: 'Histórico de vendas canceladas com motivos.', fields: ['ID', 'Data', 'Cliente', 'Valor', 'Motivo Cancelamento', 'Responsável'] },
+        { id: 'sales_returns', name: 'Devoluções e Trocas', icon: <RefreshCw size={16} />, category: 'Comercial', description: 'Registro de devoluções e trocas de produtos.', fields: ['ID', 'Data', 'Cliente', 'Produto', 'Valor', 'Tipo', 'Motivo'] },
         { id: 'quotes', name: 'Orçamentos Emitidos', icon: <FileText size={16} />, category: 'Comercial', description: 'Listagem de orçamentos com taxa de conversão.', fields: ['Nº', 'Data', 'Cliente', 'Valor', 'Status', 'Convertido'] },
         { id: 'quotes_pending', name: 'Orçamentos Pendentes', icon: <AlertTriangle size={16} />, category: 'Comercial', description: 'Orçamentos aguardando aprovação do cliente.', fields: ['Nº', 'Data', 'Cliente', 'Valor', 'Dias Aguardando', 'Validade'] },
+        { id: 'quotes_conversion', name: 'Taxa de Conversão', icon: <TrendingUp size={16} />, category: 'Comercial', description: 'Análise de conversão de orçamentos em vendas.', fields: ['Período', 'Orçamentos', 'Convertidos', 'Taxa %', 'Valor Convertido'] },
+        { id: 'sales_goals', name: 'Metas de Vendas', icon: <TrendingUp size={16} />, category: 'Comercial', description: 'Acompanhamento de metas por vendedor/equipe.', fields: ['Vendedor', 'Meta', 'Realizado', '% Atingido', 'Faltando'] },
+        { id: 'sales_commissions', name: 'Comissões de Vendedores', icon: <DollarSign size={16} />, category: 'Comercial', description: 'Cálculo de comissões por vendas realizadas.', fields: ['Vendedor', 'Vendas', 'Faturamento', '% Comissão', 'Valor Comissão'] },
+        { id: 'sales_forecast', name: 'Previsão de Vendas', icon: <TrendingUp size={16} />, category: 'Comercial', description: 'Projeção de vendas baseada em histórico.', fields: ['Mês', 'Histórico', 'Projetado', 'Variação', 'Tendência'] },
+        { id: 'sales_seasonality', name: 'Sazonalidade de Vendas', icon: <Activity size={16} />, category: 'Comercial', description: 'Análise de padrões sazonais nas vendas.', fields: ['Mês', 'Média Histórica', 'Índice Sazonal', 'Melhor Ano', 'Pior Ano'] },
 
-        // FINANCEIRO
+        // ═══════════════════════════════════════════════════════════════════════════
+        // FINANCEIRO (15 relatórios)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'finance', name: 'Transações Financeiras', icon: <TrendingUp size={16} />, category: 'Financeiro', description: 'Todas as movimentações de receitas e despesas.', fields: ['ID', 'Data', 'Descrição', 'Categoria', 'Tipo', 'Valor', 'Status', 'Conta'] },
         { id: 'receivables', name: 'Contas a Receber', icon: <ArrowUpRight size={16} />, category: 'Financeiro', description: 'Títulos a receber com vencimento e status.', fields: ['Nº', 'Cliente', 'Valor', 'Vencimento', 'Dias', 'Status'] },
+        { id: 'receivables_aging', name: 'Aging de Recebíveis', icon: <Activity size={16} />, category: 'Financeiro', description: 'Análise por faixa de vencimento (30/60/90/120+ dias).', fields: ['Cliente', 'A Vencer', '1-30 dias', '31-60 dias', '61-90 dias', '90+ dias'] },
         { id: 'payables', name: 'Contas a Pagar', icon: <ArrowDownRight size={16} />, category: 'Financeiro', description: 'Obrigações financeiras pendentes e pagas.', fields: ['Nº', 'Fornecedor', 'Valor', 'Vencimento', 'Dias', 'Status'] },
-        { id: 'cashflow', name: 'Fluxo de Caixa', icon: <Activity size={16} />, category: 'Financeiro', description: 'Entradas e saídas diárias com saldo acumulado.', fields: ['Data', 'Descrição', 'Entrada', 'Saída', 'Saldo'] },
+        { id: 'payables_aging', name: 'Aging de Pagáveis', icon: <Activity size={16} />, category: 'Financeiro', description: 'Contas a pagar por faixa de vencimento.', fields: ['Fornecedor', 'A Vencer', '1-30 dias', '31-60 dias', '61-90 dias', '90+ dias'] },
+        { id: 'cashflow', name: 'Fluxo de Caixa Realizado', icon: <Activity size={16} />, category: 'Financeiro', description: 'Entradas e saídas diárias com saldo acumulado.', fields: ['Data', 'Descrição', 'Entrada', 'Saída', 'Saldo'] },
         { id: 'cashflow_projection', name: 'Projeção de Caixa', icon: <TrendingUp size={16} />, category: 'Financeiro', description: 'Previsão de fluxo de caixa para os próximos 30/60/90 dias.', fields: ['Período', 'A Receber', 'A Pagar', 'Saldo Previsto'] },
+        { id: 'cashflow_daily', name: 'Fluxo de Caixa Diário', icon: <Calendar size={16} />, category: 'Financeiro', description: 'Movimentação detalhada dia a dia.', fields: ['Data', 'Saldo Inicial', 'Entradas', 'Saídas', 'Saldo Final'] },
         { id: 'overdue', name: 'Inadimplência', icon: <AlertTriangle size={16} />, category: 'Financeiro', description: 'Títulos vencidos e análise de inadimplência.', fields: ['Cliente', 'Documento', 'Valor', 'Vencimento', 'Dias Atraso', 'Telefone'] },
+        { id: 'overdue_history', name: 'Histórico de Inadimplência', icon: <Activity size={16} />, category: 'Financeiro', description: 'Evolução da inadimplência ao longo do tempo.', fields: ['Mês', 'Valor Vencido', '% sobre Faturamento', 'Recuperado', 'Perdido'] },
         { id: 'bank_reconciliation', name: 'Conciliação Bancária', icon: <Landmark size={16} />, category: 'Financeiro', description: 'Conferência de lançamentos com extrato bancário.', fields: ['Data', 'Descrição', 'Valor Sistema', 'Valor Banco', 'Diferença', 'Status'] },
+        { id: 'bank_statements', name: 'Extrato por Conta Bancária', icon: <Landmark size={16} />, category: 'Financeiro', description: 'Movimentação detalhada por conta bancária.', fields: ['Data', 'Histórico', 'Documento', 'Débito', 'Crédito', 'Saldo'] },
+        { id: 'expense_by_category', name: 'Despesas por Categoria', icon: <PieChartIcon size={16} />, category: 'Financeiro', description: 'Distribuição de despesas por categoria.', fields: ['Categoria', 'Valor', '% do Total', 'Média Mensal', 'Variação'] },
+        { id: 'revenue_by_source', name: 'Receitas por Origem', icon: <TrendingUp size={16} />, category: 'Financeiro', description: 'Fontes de receita (vendas, serviços, outros).', fields: ['Origem', 'Valor', '% do Total', 'Média Mensal', 'Variação'] },
+        { id: 'financial_ratios', name: 'Indicadores Financeiros', icon: <Activity size={16} />, category: 'Financeiro', description: 'KPIs financeiros: liquidez, rentabilidade, endividamento.', fields: ['Indicador', 'Valor', 'Referência', 'Status', 'Tendência'] },
 
-        // ESTOQUE
+        // ═══════════════════════════════════════════════════════════════════════════
+        // ESTOQUE (6 relatórios - mantido)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'inventory', name: 'Posição de Estoque', icon: <Package size={16} />, category: 'Estoque', description: 'Saldo atual de todos os produtos em estoque.', fields: ['ID', 'Produto', 'Categoria', 'Qtd', 'Unidade', 'Preço Venda', 'Valor Total'] },
         { id: 'stock_movements', name: 'Movimentação de Estoque', icon: <RefreshCw size={16} />, category: 'Estoque', description: 'Histórico de entradas e saídas de produtos.', fields: ['Data', 'Hora', 'Produto', 'Tipo', 'Qtd', 'Motivo', 'Usuário'] },
         { id: 'stock_min', name: 'Estoque Mínimo', icon: <AlertTriangle size={16} />, category: 'Estoque', description: 'Produtos abaixo do estoque mínimo (ponto de reposição).', fields: ['Produto', 'Estoque Atual', 'Mínimo', 'Faltando', 'Fornecedor', 'Último Pedido'] },
@@ -91,38 +116,77 @@ const Reports = () => {
         { id: 'stock_turnover', name: 'Giro de Estoque', icon: <RefreshCw size={16} />, category: 'Estoque', description: 'Análise de rotatividade de produtos.', fields: ['Produto', 'Estoque Médio', 'Vendas', 'Giro', 'Cobertura (dias)'] },
         { id: 'abc_curve', name: 'Curva ABC de Produtos', icon: <PieChartIcon size={16} />, category: 'Estoque', description: 'Classificação ABC por faturamento ou quantidade.', fields: ['Produto', 'Faturamento', '% Acumulado', 'Classe', 'Qtd Vendida'] },
 
-        // CLIENTES
+        // ═══════════════════════════════════════════════════════════════════════════
+        // CLIENTES (4 relatórios - mantido)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'clients', name: 'Cadastro de Clientes', icon: <Circle size={16} />, category: 'Clientes', description: 'Base completa de clientes cadastrados.', fields: ['Nome', 'Documento', 'Email', 'Telefone', 'Cidade', 'Status'] },
         { id: 'clients_new', name: 'Novos Clientes', icon: <UserPlus size={16} />, category: 'Clientes', description: 'Clientes cadastrados no período selecionado.', fields: ['Nome', 'Data Cadastro', 'Origem', 'Primeira Compra', 'Valor'] },
         { id: 'clients_inactive', name: 'Clientes Inativos', icon: <AlertTriangle size={16} />, category: 'Clientes', description: 'Clientes sem compras há mais de 90 dias.', fields: ['Nome', 'Última Compra', 'Dias Inativo', 'Total Histórico', 'Telefone'] },
         { id: 'clients_ranking', name: 'Ranking de Clientes', icon: <TrendingUp size={16} />, category: 'Clientes', description: 'Top clientes por faturamento.', fields: ['Posição', 'Cliente', 'Total Compras', 'Faturamento', 'Ticket Médio'] },
 
-        // COMPRAS
+        // ═══════════════════════════════════════════════════════════════════════════
+        // COMPRAS (3 relatórios - mantido)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'purchases', name: 'Pedidos de Compra', icon: <ClipboardList size={16} />, category: 'Compras', description: 'Listagem de pedidos de compra emitidos.', fields: ['Nº', 'Data', 'Fornecedor', 'Valor', 'Status', 'Prazo Entrega'] },
         { id: 'purchases_by_supplier', name: 'Compras por Fornecedor', icon: <Factory size={16} />, category: 'Compras', description: 'Volume de compras por fornecedor.', fields: ['Fornecedor', 'Total Pedidos', 'Valor Total', 'Prazo Médio', 'Última Compra'] },
         { id: 'purchases_pending', name: 'Compras Pendentes', icon: <AlertTriangle size={16} />, category: 'Compras', description: 'Pedidos aguardando entrega.', fields: ['Nº', 'Fornecedor', 'Valor', 'Data Pedido', 'Previsão', 'Dias'] },
 
-        // FROTA
-        { id: 'fleet', name: 'Cadastro de Veículos', icon: <Truck size={16} />, category: 'Frota', description: 'Listagem completa da frota de veículos.', fields: ['Placa', 'Modelo', 'Tipo', 'KM', 'Status', 'Combustível'] },
-        { id: 'fleet_maintenance', name: 'Manutenções de Veículos', icon: <Activity size={16} />, category: 'Frota', description: 'Histórico de manutenções realizadas.', fields: ['Placa', 'Data', 'Tipo', 'Descrição', 'Valor', 'KM'] },
-        { id: 'fleet_fuel', name: 'Abastecimentos', icon: <Truck size={16} />, category: 'Frota', description: 'Controle de abastecimentos por veículo.', fields: ['Placa', 'Data', 'Litros', 'Valor', 'KM', 'Média km/l'] },
-        { id: 'fleet_costs', name: 'Custos por Veículo', icon: <DollarSign size={16} />, category: 'Frota', description: 'Consolidação de custos (combustível + manutenção) por veículo.', fields: ['Placa', 'Modelo', 'Combustível', 'Manutenção', 'Total', 'Custo/KM'] },
+        // ═══════════════════════════════════════════════════════════════════════════
+        // FROTA (12 relatórios)
+        // ═══════════════════════════════════════════════════════════════════════════
+        { id: 'fleet', name: 'Cadastro de Veículos', icon: <Truck size={16} />, category: 'Frota', description: 'Listagem completa da frota de veículos.', fields: ['Placa', 'Modelo', 'Tipo', 'Ano', 'KM Atual', 'Status', 'Combustível'] },
+        { id: 'fleet_maintenance', name: 'Histórico de Manutenções', icon: <Activity size={16} />, category: 'Frota', description: 'Todas as manutenções realizadas por veículo.', fields: ['Placa', 'Data', 'Tipo', 'Descrição', 'Valor', 'KM', 'Oficina'] },
+        { id: 'fleet_maintenance_pending', name: 'Manutenções Programadas', icon: <Calendar size={16} />, category: 'Frota', description: 'Manutenções preventivas agendadas.', fields: ['Placa', 'Tipo', 'Previsão', 'KM Previsto', 'Ultima Realização', 'Status'] },
+        { id: 'fleet_fuel', name: 'Abastecimentos', icon: <Truck size={16} />, category: 'Frota', description: 'Controle de abastecimentos por veículo.', fields: ['Placa', 'Data', 'Litros', 'Valor', 'Posto', 'KM', 'Média km/l'] },
+        { id: 'fleet_fuel_efficiency', name: 'Eficiência de Combustível', icon: <TrendingUp size={16} />, category: 'Frota', description: 'Análise de consumo médio por veículo.', fields: ['Placa', 'Modelo', 'Média km/l', 'Melhor', 'Pior', 'Custo/KM'] },
+        { id: 'fleet_costs', name: 'Custos Consolidados', icon: <DollarSign size={16} />, category: 'Frota', description: 'Custo total por veículo (combustível + manutenção + outros).', fields: ['Placa', 'Modelo', 'Combustível', 'Manutenção', 'Outros', 'Total', 'Custo/KM'] },
+        { id: 'fleet_costs_monthly', name: 'Custos Mensais da Frota', icon: <Calendar size={16} />, category: 'Frota', description: 'Evolução mensal de custos da frota.', fields: ['Mês', 'Combustível', 'Manutenção', 'Documentação', 'Seguros', 'Total'] },
+        { id: 'fleet_km_report', name: 'Quilometragem por Veículo', icon: <Activity size={16} />, category: 'Frota', description: 'Histórico de quilometragem rodada.', fields: ['Placa', 'Modelo', 'KM Inicial', 'KM Final', 'Rodados', 'Média Diária'] },
+        { id: 'fleet_tires', name: 'Controle de Pneus', icon: <Circle size={16} />, category: 'Frota', description: 'Gestão de vida útil de pneus por veículo.', fields: ['Placa', 'Posição', 'Marca/Modelo', 'KM Rodados', 'Sulco (mm)', 'Status'] },
+        { id: 'fleet_documents', name: 'Documentação de Veículos', icon: <FileText size={16} />, category: 'Frota', description: 'Vencimentos de IPVA, licenciamento, seguro.', fields: ['Placa', 'Modelo', 'IPVA', 'Licenciamento', 'Seguro', 'Próximo Vencimento'] },
+        { id: 'fleet_drivers', name: 'Motoristas e Habilitação', icon: <User size={16} />, category: 'Frota', description: 'Controle de motoristas e CNH.', fields: ['Motorista', 'CNH', 'Categoria', 'Validade', 'Veículo Atribuído', 'Status'] },
+        { id: 'fleet_infractions', name: 'Multas e Infrações', icon: <AlertTriangle size={16} />, category: 'Frota', description: 'Registro de multas por veículo/motorista.', fields: ['Placa', 'Data', 'Local', 'Infração', 'Valor', 'Pontos', 'Responsável'] },
 
-        // RH
+        // ═══════════════════════════════════════════════════════════════════════════
+        // RH (3 relatórios - mantido)
+        // ═══════════════════════════════════════════════════════════════════════════
         { id: 'hr', name: 'Cadastro de Funcionários', icon: <User size={16} />, category: 'RH', description: 'Listagem de colaboradores ativos e inativos.', fields: ['Nome', 'Cargo', 'Depto', 'Salário', 'Admissão', 'Status'] },
         { id: 'hr_payroll', name: 'Folha de Pagamento', icon: <DollarSign size={16} />, category: 'RH', description: 'Resumo da folha de pagamento mensal.', fields: ['Funcionário', 'Salário Base', 'Adicionais', 'Descontos', 'Líquido'] },
         { id: 'hr_vacations', name: 'Férias e Afastamentos', icon: <Calendar size={16} />, category: 'RH', description: 'Controle de férias vencidas e programadas.', fields: ['Funcionário', 'Período Aquisitivo', 'Dias Direito', 'Dias Gozados', 'Saldo', 'Próximas Férias'] },
 
-        // CONTÁBIL
-        { id: 'dre', name: 'D.R.E. (Demonstração de Resultado)', icon: <Calculator size={16} />, category: 'Contábil', description: 'Demonstração do Resultado do Exercício.', fields: ['Descrição', 'Valor', 'Tipo'] },
-        { id: 'balance_sheet', name: 'Balanço Patrimonial', icon: <Landmark size={16} />, category: 'Contábil', description: 'Posição patrimonial (Ativo, Passivo, PL).', fields: ['Grupo', 'Conta', 'Valor'] },
-        { id: 'trial_balance', name: 'Balancete de Verificação', icon: <ScrollText size={16} />, category: 'Contábil', description: 'Saldos das contas contábeis.', fields: ['Conta', 'Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Atual'] },
-        { id: 'taxes', name: 'Apuração de Impostos', icon: <Calculator size={16} />, category: 'Contábil', description: 'Resumo de impostos a recolher (ISS, ICMS, PIS, COFINS).', fields: ['Imposto', 'Base Cálculo', 'Alíquota', 'Valor Devido', 'Vencimento'] },
+        // ═══════════════════════════════════════════════════════════════════════════
+        // CONTÁBIL (14 relatórios)
+        // ═══════════════════════════════════════════════════════════════════════════
+        { id: 'dre', name: 'D.R.E. (Demonstração de Resultado)', icon: <Calculator size={16} />, category: 'Contábil', description: 'Demonstração do Resultado do Exercício completa.', fields: ['Descrição', 'Valor', 'AV %', 'AH %', 'Tipo'] },
+        { id: 'dre_monthly', name: 'D.R.E. Mensal Comparativa', icon: <BarChart3 size={16} />, category: 'Contábil', description: 'DRE mês a mês para análise de evolução.', fields: ['Conta', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Total'] },
+        { id: 'balance_sheet', name: 'Balanço Patrimonial', icon: <Landmark size={16} />, category: 'Contábil', description: 'Posição patrimonial completa (Ativo, Passivo, PL).', fields: ['Grupo', 'Conta', 'Valor Atual', 'Valor Anterior', 'Variação'] },
+        { id: 'balance_sheet_comparative', name: 'Balanço Comparativo', icon: <BarChart3 size={16} />, category: 'Contábil', description: 'Comparação de balanço entre períodos.', fields: ['Conta', 'Período 1', 'Período 2', 'Variação $', 'Variação %'] },
+        { id: 'trial_balance', name: 'Balancete de Verificação', icon: <ScrollText size={16} />, category: 'Contábil', description: 'Saldos de todas as contas contábeis.', fields: ['Código', 'Conta', 'Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Atual'] },
+        { id: 'ledger', name: 'Razão Contábil', icon: <BookOpen size={16} />, category: 'Contábil', description: 'Movimentação detalhada por conta contábil.', fields: ['Data', 'Histórico', 'Débito', 'Crédito', 'Saldo', 'Documento'] },
+        { id: 'journal', name: 'Diário Geral', icon: <ScrollText size={16} />, category: 'Contábil', description: 'Lançamentos contábeis em ordem cronológica.', fields: ['Data', 'Lançamento', 'Conta Débito', 'Conta Crédito', 'Valor', 'Histórico'] },
+        { id: 'taxes', name: 'Apuração de Impostos', icon: <Calculator size={16} />, category: 'Contábil', description: 'Resumo de impostos a recolher.', fields: ['Imposto', 'Base Cálculo', 'Alíquota', 'Valor Devido', 'Vencimento'] },
+        { id: 'taxes_iss', name: 'Apuração ISS', icon: <Calculator size={16} />, category: 'Contábil', description: 'Cálculo detalhado de ISS sobre serviços.', fields: ['NF', 'Cliente', 'Serviço', 'Base Cálculo', 'Alíquota', 'ISS Devido'] },
+        { id: 'taxes_icms', name: 'Apuração ICMS', icon: <Calculator size={16} />, category: 'Contábil', description: 'Débitos e créditos de ICMS.', fields: ['Tipo', 'Documento', 'Valor Contábil', 'Base ICMS', 'ICMS', 'Observação'] },
+        { id: 'taxes_pis_cofins', name: 'Apuração PIS/COFINS', icon: <Calculator size={16} />, category: 'Contábil', description: 'Cálculo de PIS e COFINS sobre faturamento.', fields: ['Mês', 'Faturamento', 'PIS (0.65%)', 'COFINS (3%)', 'Total Devido'] },
+        { id: 'taxes_retained', name: 'Impostos Retidos na Fonte', icon: <AlertTriangle size={16} />, category: 'Contábil', description: 'IRRF, CSRF e INSS retidos.', fields: ['Documento', 'Fornecedor', 'Valor', 'IRRF', 'CSRF', 'INSS', 'Total Retido'] },
+        { id: 'depreciation', name: 'Depreciação de Ativos', icon: <TrendingDown size={16} />, category: 'Contábil', description: 'Cálculo de depreciação do imobilizado.', fields: ['Ativo', 'Valor Original', 'Vida Útil', 'Depreciação Mensal', 'Acumulada', 'Valor Residual'] },
+        { id: 'cost_center', name: 'Resultado por Centro de Custo', icon: <PieChartIcon size={16} />, category: 'Contábil', description: 'Receitas e despesas por centro de custo.', fields: ['Centro de Custo', 'Receitas', 'Custos', 'Despesas', 'Resultado', 'Margem %'] },
 
-        // GERENCIAL
-        { id: 'dashboard_summary', name: 'Resumo Executivo', icon: <PieChartIcon size={16} />, category: 'Gerencial', description: 'Visão consolidada dos principais indicadores.', fields: ['Indicador', 'Valor Atual', 'Meta', 'Variação', 'Status'] },
-        { id: 'profitability', name: 'Análise de Lucratividade', icon: <TrendingUp size={16} />, category: 'Gerencial', description: 'Margem de lucro por produto/serviço.', fields: ['Produto/Serviço', 'Faturamento', 'Custo', 'Lucro', 'Margem %'] },
+        // ═══════════════════════════════════════════════════════════════════════════
+        // GERENCIAL (12 relatórios)
+        // ═══════════════════════════════════════════════════════════════════════════
+        { id: 'dashboard_summary', name: 'Resumo Executivo', icon: <PieChartIcon size={16} />, category: 'Gerencial', description: 'Visão consolidada dos principais indicadores do negócio.', fields: ['Indicador', 'Valor Atual', 'Meta', 'Variação', 'Status', 'Tendência'] },
+        { id: 'kpi_dashboard', name: 'Painel de KPIs', icon: <Activity size={16} />, category: 'Gerencial', description: 'Indicadores-chave de desempenho com metas.', fields: ['KPI', 'Descrição', 'Atual', 'Meta', 'Atingimento', 'Semáforo'] },
+        { id: 'profitability', name: 'Análise de Lucratividade', icon: <TrendingUp size={16} />, category: 'Gerencial', description: 'Margem de lucro por produto, cliente ou serviço.', fields: ['Item', 'Faturamento', 'Custo', 'Lucro', 'Margem %', 'Ranking'] },
+        { id: 'profitability_client', name: 'Lucratividade por Cliente', icon: <User size={16} />, category: 'Gerencial', description: 'Rentabilidade de cada cliente.', fields: ['Cliente', 'Faturamento', 'Custos Diretos', 'Lucro', 'Margem %', 'LTV'] },
         { id: 'comparative', name: 'Comparativo de Períodos', icon: <BarChart3 size={16} />, category: 'Gerencial', description: 'Comparação de desempenho entre períodos.', fields: ['Métrica', 'Período Atual', 'Período Anterior', 'Variação', '% Variação'] },
+        { id: 'trend_analysis', name: 'Análise de Tendências', icon: <TrendingUp size={16} />, category: 'Gerencial', description: 'Tendências de crescimento por área.', fields: ['Área', 'Últimos 3 meses', 'Últimos 6 meses', 'Últimos 12 meses', 'Tendência'] },
+        { id: 'budget_vs_actual', name: 'Orçado x Realizado', icon: <BarChart3 size={16} />, category: 'Gerencial', description: 'Comparação entre orçamento planejado e realizado.', fields: ['Conta', 'Orçado', 'Realizado', 'Variação $', 'Variação %', 'Status'] },
+        { id: 'breakeven', name: 'Ponto de Equilíbrio', icon: <Activity size={16} />, category: 'Gerencial', description: 'Cálculo e análise do ponto de equilíbrio.', fields: ['Descrição', 'Valor', 'Unidades', 'Cobertura Atual', 'Gap'] },
+        { id: 'contribution_margin', name: 'Margem de Contribuição', icon: <TrendingUp size={16} />, category: 'Gerencial', description: 'Margem de contribuição por produto/linha.', fields: ['Produto', 'Preço Venda', 'Custo Variável', 'MC Unitária', 'MC %', 'MC Total'] },
+        { id: 'pareto_analysis', name: 'Análise de Pareto (80/20)', icon: <PieChartIcon size={16} />, category: 'Gerencial', description: 'Identificação dos 20% que geram 80% do resultado.', fields: ['Item', 'Valor', '% Individual', '% Acumulado', 'Classificação'] },
+        { id: 'scorecard', name: 'Balanced Scorecard', icon: <Activity size={16} />, category: 'Gerencial', description: 'Indicadores das 4 perspectivas estratégicas.', fields: ['Perspectiva', 'Objetivo', 'Indicador', 'Meta', 'Resultado', 'Status'] },
+        { id: 'swot_metrics', name: 'Métricas de Performance', icon: <BarChart3 size={16} />, category: 'Gerencial', description: 'Indicadores de eficiência operacional.', fields: ['Área', 'Indicador', 'Valor', 'Benchmark', 'Gap', 'Ação'] },
     ];
 
     // Filter Logic

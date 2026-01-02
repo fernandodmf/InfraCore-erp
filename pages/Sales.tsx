@@ -1168,7 +1168,7 @@ const Sales = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 font-display">
             <ShoppingCart className="text-cyan-600" />
-            Vendas e PDV
+            Faturamento e PDV
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Ponto de venda ágil, orçamentos e pedidos.</p>
         </div>

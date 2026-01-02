@@ -38,8 +38,8 @@ const Layout = () => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={18} /> },
     { name: 'Cadastros', path: '/clients', icon: <Users size={18} />, permission: 'clients.manage' },
-    { name: 'Vendas', path: '/sales', icon: <ShoppingCart size={18} />, permission: 'sales.view' },
-    { name: 'Compras', path: '/purchases', icon: <ShoppingBag size={18} />, permission: 'purchases.view' },
+    { name: 'Faturamento', path: '/sales', icon: <ShoppingCart size={18} />, permission: 'sales.view' },
+    { name: 'Custos e Despesas', path: '/purchases', icon: <ShoppingBag size={18} />, permission: 'purchases.view' },
     { name: 'Produção', path: '/production', icon: <Construction size={18} />, permission: 'production.view' },
     { name: 'Financeiro', path: '/finance', icon: <DollarSign size={18} />, permission: 'finance.view' },
     { name: 'RH', path: '/hr', icon: <Briefcase size={18} />, permission: 'employees.view' },

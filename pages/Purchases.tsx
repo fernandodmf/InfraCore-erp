@@ -491,7 +491,7 @@ const Purchases = () => {
             <div>
                <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
                   <ShoppingBag className="text-cyan-600" />
-                  Central de Compras e Despesas
+                  Central de Custos e Despesas
                </h2>
                <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de pedidos de compra, fornecedores e estoque de insumos.</p>
             </div>
@@ -650,7 +650,7 @@ const Purchases = () => {
                         </div>
                         <span className={`text-xs font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700`}>Mês Atual</span>
                      </div>
-                     <p className="text-xs text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Total em Compras</p>
+                     <p className="text-xs text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Total em Despesas</p>
                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                         {formatCurrency(purchaseOrders.reduce((acc, curr) => acc + curr.total, 0))}
                      </h3>
@@ -702,7 +702,7 @@ const Purchases = () => {
                      <div className="flex items-center justify-between mb-6">
                         <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                            <BarIcon className="text-cyan-600" size={18} />
-                           Volume de Compras Mensal
+                           Volume de Despesas Mensal
                         </h3>
                      </div>
                      <div className="h-64 w-full">

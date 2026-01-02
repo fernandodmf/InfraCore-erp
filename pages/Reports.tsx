@@ -46,7 +46,10 @@ import {
     ClipboardList,
     Landmark,
     User,
-    UserPlus
+    UserPlus,
+    Search,
+    X,
+    Settings
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV, printDocument } from '../utils/exportUtils';
@@ -62,6 +65,12 @@ const Reports = () => {
     const [selectedModule, setSelectedModule] = useState<string>('sales');
     const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Report Library Filters
+    const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('Todos');
+    const [editingReportId, setEditingReportId] = useState<string | null>(null);
+    const [reportSettings, setReportSettings] = useState<Record<string, { format: string; period: string; favorite: boolean }>>({});
 
     // Extended Modules for Reporting - Organized by Category
     const modules = [
@@ -1004,7 +1013,7 @@ const Reports = () => {
                     </div>
                 </div>
             ) : selectedModule === null ? (
-                /* --- REPORT LIBRARY VIEW - Organized by Category --- */
+                /* --- REPORT LIBRARY VIEW - With Filters and Edit Options --- */
                 <div className="flex flex-col gap-6 animate-in slide-in-from-bottom duration-300">
                     {/* Quick Stats Bar */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1013,32 +1022,52 @@ const Reports = () => {
                             <p className="text-2xl font-black">{modules.length}</p>
                         </div>
                         <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Favoritos</p>
+                            <p className="text-2xl font-black">{Object.values(reportSettings).filter(s => s.favorite).length}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Filtrados</p>
+                            <p className="text-2xl font-black">{modules.filter(m =>
+                                (categoryFilter === 'Todos' || (m as any).category === categoryFilter) &&
+                                (searchTerm === '' || m.name.toLowerCase().includes(searchTerm.toLowerCase()) || (m as any).description?.toLowerCase().includes(searchTerm.toLowerCase()))
+                            ).length}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-5 rounded-2xl text-white">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Categorias</p>
                             <p className="text-2xl font-black">{[...new Set(modules.map(m => (m as any).category))].length}</p>
                         </div>
-                        <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-5 rounded-2xl text-white">
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Gerados Hoje</p>
-                            <p className="text-2xl font-black">12</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-5 rounded-2xl text-white">
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Campos Exportáveis</p>
-                            <p className="text-2xl font-black">85+</p>
-                        </div>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-center">
-                        <div className="flex-1 relative w-full">
+                    {/* Search and Filter Bar */}
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+                        <div className="flex-1 relative">
                             <input
                                 type="text"
-                                placeholder="Buscar relatório por nome, categoria ou descrição..."
+                                placeholder="Buscar relatório por nome ou descrição..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20"
                             />
-                            <FileText size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                            {['Todos', 'Comercial', 'Financeiro', 'Estoque', 'Clientes', 'Contábil', 'Gerencial'].map(cat => (
-                                <button key={cat} className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${cat === 'Todos' ? 'bg-cyan-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}`}>
+                            {['Todos', 'Comercial', 'Financeiro', 'Estoque', 'Clientes', 'Compras', 'Frota', 'RH', 'Contábil', 'Gerencial'].map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setCategoryFilter(cat)}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${categoryFilter === cat
+                                        ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                        }`}
+                                >
                                     {cat}
                                 </button>
                             ))}
@@ -1047,8 +1076,17 @@ const Reports = () => {
 
                     {/* Reports by Category */}
                     {['Comercial', 'Financeiro', 'Estoque', 'Clientes', 'Compras', 'Frota', 'RH', 'Contábil', 'Gerencial'].map(category => {
-                        const categoryModules = modules.filter(m => (m as any).category === category);
-                        if (categoryModules.length === 0) return null;
+                        // Apply filters
+                        const filteredModules = modules.filter(m => {
+                            const matchCategory = (m as any).category === category;
+                            const matchFilter = categoryFilter === 'Todos' || (m as any).category === categoryFilter;
+                            const matchSearch = searchTerm === '' ||
+                                m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (m as any).description?.toLowerCase().includes(searchTerm.toLowerCase());
+                            return matchCategory && matchFilter && matchSearch;
+                        });
+
+                        if (filteredModules.length === 0) return null;
 
                         const categoryColors: Record<string, string> = {
                             'Comercial': 'from-cyan-500 to-blue-600',
@@ -1068,66 +1106,177 @@ const Reports = () => {
                                 <div className="flex items-center gap-3">
                                     <div className={`w-2 h-8 rounded-full bg-gradient-to-b ${categoryColors[category]}`}></div>
                                     <h2 className="text-xl font-black text-slate-900 dark:text-white">{category}</h2>
-                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 text-[10px] font-bold rounded-full">{categoryModules.length} relatórios</span>
+                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 text-[10px] font-bold rounded-full">{filteredModules.length} relatórios</span>
                                 </div>
 
                                 {/* Category Reports Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                    {categoryModules.map((m: any) => (
-                                        <div
-                                            key={m.id}
-                                            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group cursor-pointer"
-                                            onClick={() => setSelectedModule(m.id)}
-                                        >
-                                            {/* Header */}
-                                            <div className="flex items-start gap-4 mb-4">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${categoryColors[category]}`}>
-                                                    {React.cloneElement(m.icon as any, { size: 20 })}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="text-sm font-black text-slate-900 dark:text-white mb-1 truncate">{m.name}</h3>
-                                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">{m.description}</p>
-                                                </div>
-                                            </div>
+                                    {filteredModules.map((m: any) => {
+                                        const isEditing = editingReportId === m.id;
+                                        const settings = reportSettings[m.id] || { format: 'Excel', period: 'Mês Atual', favorite: false };
 
-                                            {/* Fields Preview */}
-                                            <div className="mb-4">
-                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Campos Disponíveis</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(m.fields as string[] || []).slice(0, 5).map((field: string, i: number) => (
-                                                        <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[9px] font-bold rounded">
-                                                            {field}
-                                                        </span>
-                                                    ))}
-                                                    {(m.fields as string[] || []).length > 5 && (
-                                                        <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 text-[9px] font-bold rounded">
-                                                            +{(m.fields as string[]).length - 5}
-                                                        </span>
-                                                    )}
+                                        return (
+                                            <div
+                                                key={m.id}
+                                                className={`bg-white dark:bg-slate-800 rounded-2xl border ${isEditing ? 'border-cyan-400 ring-2 ring-cyan-400/20' : 'border-slate-200 dark:border-slate-700'} p-5 hover:shadow-lg transition-all group`}
+                                            >
+                                                {/* Header with Edit/Favorite Buttons */}
+                                                <div className="flex items-start gap-3 mb-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${categoryColors[category]} flex-shrink-0`}>
+                                                        {React.cloneElement(m.icon as any, { size: 18 })}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">{m.name}</h3>
+                                                            {settings.favorite && <span className="text-amber-500 text-lg">★</span>}
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">{m.description}</p>
+                                                    </div>
+                                                    <div className="flex gap-1 flex-shrink-0">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setReportSettings(prev => ({
+                                                                    ...prev,
+                                                                    [m.id]: { ...settings, favorite: !settings.favorite }
+                                                                }));
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all ${settings.favorite ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`}
+                                                            title={settings.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                                                        >
+                                                            {settings.favorite ? '★' : '☆'}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingReportId(isEditing ? null : m.id);
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all ${isEditing ? 'bg-cyan-100 text-cyan-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-cyan-600'}`}
+                                                            title="Configurar relatório"
+                                                        >
+                                                            <Settings size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Footer Actions */}
-                                            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] text-slate-400 font-medium">Formatos:</span>
-                                                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-bold rounded">Excel</span>
-                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[8px] font-bold rounded">PDF</span>
-                                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-bold rounded">CSV</span>
+                                                {/* Editing Panel */}
+                                                {isEditing && (
+                                                    <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 animate-in slide-in-from-top duration-200">
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Formato Padrão</label>
+                                                                <select
+                                                                    value={settings.format}
+                                                                    onChange={(e) => setReportSettings(prev => ({
+                                                                        ...prev,
+                                                                        [m.id]: { ...settings, format: e.target.value }
+                                                                    }))}
+                                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg py-2 px-3 text-xs font-bold text-slate-700 dark:text-slate-300"
+                                                                >
+                                                                    <option>Excel</option>
+                                                                    <option>PDF</option>
+                                                                    <option>CSV</option>
+                                                                    <option>JSON</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Período Padrão</label>
+                                                                <select
+                                                                    value={settings.period}
+                                                                    onChange={(e) => setReportSettings(prev => ({
+                                                                        ...prev,
+                                                                        [m.id]: { ...settings, period: e.target.value }
+                                                                    }))}
+                                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg py-2 px-3 text-xs font-bold text-slate-700 dark:text-slate-300"
+                                                                >
+                                                                    <option>Hoje</option>
+                                                                    <option>Últimos 7 dias</option>
+                                                                    <option>Mês Atual</option>
+                                                                    <option>Trimestre</option>
+                                                                    <option>Ano</option>
+                                                                    <option>Personalizado</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setEditingReportId(null); }}
+                                                                className="flex-1 px-3 py-2 bg-cyan-600 text-white text-[10px] font-black rounded-lg hover:bg-cyan-700 transition-colors"
+                                                            >
+                                                                ✓ Salvar Configuração
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Fields Preview */}
+                                                <div className="mb-3">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Campos ({(m.fields as string[] || []).length})</p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(m.fields as string[] || []).slice(0, 4).map((field: string, i: number) => (
+                                                            <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[9px] font-bold rounded">
+                                                                {field}
+                                                            </span>
+                                                        ))}
+                                                        {(m.fields as string[] || []).length > 4 && (
+                                                            <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 text-[9px] font-bold rounded">
+                                                                +{(m.fields as string[]).length - 4}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setSelectedModule(m.id); }}
-                                                    className="px-3 py-1.5 bg-cyan-600 text-white text-[10px] font-black rounded-lg hover:bg-cyan-700 transition-colors opacity-0 group-hover:opacity-100"
-                                                >
-                                                    Gerar →
-                                                </button>
+
+                                                {/* Footer Actions */}
+                                                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className={`px-1.5 py-0.5 text-[8px] font-bold rounded ${settings.format === 'Excel' ? 'bg-emerald-100 text-emerald-700' : settings.format === 'PDF' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {settings.format}
+                                                        </span>
+                                                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 text-[8px] font-bold rounded">
+                                                            {settings.period}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); exportToCSV([], `Relatorio_${m.id}`); }}
+                                                            className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors"
+                                                            title="Exportar Rápido"
+                                                        >
+                                                            <Download size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setSelectedModule(m.id)}
+                                                            className="px-3 py-1.5 bg-cyan-600 text-white text-[10px] font-black rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-1"
+                                                        >
+                                                            <FileText size={12} /> Gerar
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );
                     })}
+
+                    {/* No Results Message */}
+                    {modules.filter(m =>
+                        (categoryFilter === 'Todos' || (m as any).category === categoryFilter) &&
+                        (searchTerm === '' || m.name.toLowerCase().includes(searchTerm.toLowerCase()) || (m as any).description?.toLowerCase().includes(searchTerm.toLowerCase()))
+                    ).length === 0 && (
+                            <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+                                <Search size={48} className="mx-auto text-slate-300 mb-4" />
+                                <h3 className="text-lg font-bold text-slate-600 dark:text-slate-400 mb-2">Nenhum relatório encontrado</h3>
+                                <p className="text-sm text-slate-500 mb-4">Tente ajustar os filtros ou termo de busca</p>
+                                <button
+                                    onClick={() => { setSearchTerm(''); setCategoryFilter('Todos'); }}
+                                    className="px-4 py-2 bg-cyan-600 text-white font-bold text-sm rounded-xl hover:bg-cyan-700 transition-colors"
+                                >
+                                    Limpar Filtros
+                                </button>
+                            </div>
+                        )}
 
                     {/* Footer Info */}
                     <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1136,13 +1285,16 @@ const Reports = () => {
                                 <BookOpen size={20} />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Clique em qualquer relatório para configurar e gerar</p>
-                                <p className="text-xs text-slate-500">Defina o período desejado, visualize os dados e exporte em Excel, PDF ou CSV.</p>
+                                <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Configure e gere seus relatórios</p>
+                                <p className="text-xs text-slate-500">Use o botão ⚙️ para definir formato e período padrão de cada relatório.</p>
                             </div>
                         </div>
                         <div className="flex gap-3">
-                            <button className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2">
-                                <Download size={14} /> Exportar Catálogo
+                            <button
+                                onClick={() => { setSearchTerm(''); setCategoryFilter('Todos'); setReportSettings({}); }}
+                                className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2"
+                            >
+                                <RefreshCw size={14} /> Resetar Preferências
                             </button>
                         </div>
                     </div>

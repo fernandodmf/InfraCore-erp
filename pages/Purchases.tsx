@@ -547,34 +547,34 @@ const Purchases = () => {
                         </h2>
                         <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
                      </div>
-                     <div className="flex flex-wrap gap-4">
+                     <div className="flex flex-col gap-3 w-full sm:w-auto">
                         <button
                            onClick={() => setActiveTab('new-order')}
-                           className="flex items-center gap-2 px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                           className="flex items-center gap-3 px-6 py-4 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
                         >
                            <Plus size={20} />
-                           Gerar Pedido de Compra
+                           Gerar OCP - Ordem de Compra de Produtos
                         </button>
                         <button
                            onClick={() => setIsOSMModalOpen(true)}
-                           className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                           className="flex items-center gap-3 px-6 py-4 bg-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
                         >
                            <Wrench size={20} />
-                           Gerar OSM
+                           Gerar OSM - Ordem de Serviço de Manutenção
                         </button>
                         <button
                            onClick={() => setIsODOModalOpen(true)}
-                           className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                           className="flex items-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
                         >
                            <FileText size={20} />
-                           Gerar ODO
+                           Gerar ODO - Ordem de Despesa Operacional
                         </button>
                         <button
                            onClick={() => setIsODPModalOpen(true)}
-                           className="flex items-center gap-2 px-6 py-3 bg-fuchsia-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-fuchsia-600/20 hover:bg-fuchsia-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                           className="flex items-center gap-3 px-6 py-4 bg-fuchsia-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-fuchsia-600/20 hover:bg-fuchsia-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
                         >
                            <Users size={20} />
-                           Gerar ODP
+                           Gerar ODP - Ordem de Despesa de Pessoal
                         </button>
                      </div>
                   </div>

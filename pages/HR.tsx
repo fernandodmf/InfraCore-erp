@@ -936,7 +936,36 @@ const HR = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Cargo</label>
-                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={empForm.role || ''} onChange={e => setEmpForm({ ...empForm, role: e.target.value })} required />
+                                                <select
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                                    value={empForm.role || ''}
+                                                    onChange={e => setEmpForm({ ...empForm, role: e.target.value })}
+                                                    required
+                                                >
+                                                    <option value="">Selecione o Cargo...</option>
+                                                    {[
+                                                        'Ajudante Geral',
+                                                        'Analista Financeiro',
+                                                        'Apontador',
+                                                        'Assistente Administrativo',
+                                                        'Comprador',
+                                                        'Diretor',
+                                                        'Eletricista',
+                                                        'Engenheiro Civil',
+                                                        'Gerente de Obras',
+                                                        'Gerente de Projetos',
+                                                        'Mecânico',
+                                                        'Mestre de Obras',
+                                                        'Motorista',
+                                                        'Operador de Máquinas',
+                                                        'Pedreiro',
+                                                        'Servente',
+                                                        'Técnico de Segurança',
+                                                        'Vendedor'
+                                                    ].map(role => (
+                                                        <option key={role} value={role}>{role}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Departamento</label>

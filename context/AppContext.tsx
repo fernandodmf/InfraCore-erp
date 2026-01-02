@@ -225,7 +225,16 @@ const INITIAL_SETTINGS: AppSettings = {
   }
 };
 
-const INITIAL_AUDIT_LOGS: AuditLog[] = [];
+const INITIAL_AUDIT_LOGS: AuditLog[] = [
+  { id: '1', userId: '1', userName: 'Admin InfraCore', action: 'Login no Sistema', module: 'Login', timestamp: '01/01/2026 08:00', severity: 'info', details: 'Login realizado com sucesso via senha', ip: '192.168.1.100' },
+  { id: '2', userId: '1', userName: 'Admin InfraCore', action: 'Alteração de Configuração', module: 'Configurações', timestamp: '01/01/2026 08:05', severity: 'warning', details: 'Alterou o tema para Escuro', ip: '192.168.1.100' },
+  { id: '3', userId: '2', userName: 'Gerência Vendas', action: 'Nova Venda', module: 'Vendas', timestamp: '01/01/2026 09:15', severity: 'info', details: 'Venda #1034 criada para Cliente Exemplo', ip: '192.168.1.102' },
+  { id: '4', userId: '1', userName: 'Admin InfraCore', action: 'Exclusão de Usuário', module: 'Configurações', timestamp: '01/01/2026 10:30', severity: 'critical', details: 'Usuário temp_user removido permanentemente', ip: '192.168.1.100' },
+  { id: '5', userId: '2', userName: 'Gerência Vendas', action: 'Falha de Login', module: 'Login', timestamp: '01/01/2026 11:00', severity: 'warning', details: 'Senha incorreta (3 tentativas)', ip: '192.168.1.105' },
+  { id: '6', userId: '1', userName: 'Admin InfraCore', action: 'Backup Manual', module: 'Segurança', timestamp: '01/01/2026 12:00', severity: 'info', details: 'Backup completo do banco de dados executado', ip: '192.168.1.100' },
+  { id: '7', userId: '1', userName: 'Admin InfraCore', action: 'Atualização de Estoque', module: 'Estoque', timestamp: '01/01/2026 14:20', severity: 'info', details: 'Ajuste manual de inventário: Cimento CP-II (+50 un)', ip: '192.168.1.100' },
+  { id: '8', userId: 'financial', userName: 'Analista Financeiro', action: 'Pagamento Realizado', module: 'Financeiro', timestamp: '01/01/2026 15:45', severity: 'info', details: 'Conta de Energia (Ref: 12/2025) paga via Boleto', ip: '192.168.1.108' },
+];
 
 interface AppContextType {
   clients: Client[];
@@ -295,6 +304,7 @@ interface AppContextType {
   updateBudgetStatus: (id: string, status: Budget['status']) => void;
 
   addPurchaseOrder: (order: PurchaseOrder) => void;
+  updatePurchaseOrder: (order: PurchaseOrder) => void;
   receivePurchaseOrder: (id: string) => void;
 
   addVehicle: (vehicle: FleetVehicle) => void;
@@ -348,7 +358,8 @@ interface AppContextType {
   updatePlanAccount: (id: string, name: string, parentId?: string | null) => void; // Updated
 
   clearAllData: () => void;
-
+  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
+  seedDatabase: (data: any) => void;
   financials: {
     totalRevenue: number;
     totalExpenses: number;
@@ -817,6 +828,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.location.reload();
   }, []);
 
+  const addAuditLog = (logData: Omit<AuditLog, 'id' | 'timestamp'>) => {
+    const newLog: AuditLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toLocaleString('pt-BR'),
+      ...logData
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+  };
+
   // Clients
   // Wrap setters to also update Supabase (Optimistic UI)
   const syncAdd = async (table: string, item: any, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
@@ -1146,6 +1166,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addTransaction(expense);
       order.items.forEach(item => updateStock(item.id, item.quantity, `Compra PO #${order.id}`, order.id));
     }
+  };
+
+  const updatePurchaseOrder = (order: PurchaseOrder) => {
+    setPurchaseOrders(prev => prev.map(o => o.id === order.id ? order : o));
+    if (isSupabaseConfigured()) api.updateItem('purchase_orders', order.id, order);
   };
 
   const receivePurchaseOrder = (id: string) => {
@@ -1598,6 +1623,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [transactions, accounts]);
 
+  const seedDatabase = (data: any) => {
+    if (data.settings) setSettings(data.settings);
+    if (data.employees) setEmployees(data.employees);
+    if (data.clients) setClients(data.clients);
+    if (data.suppliers) setSuppliers(data.suppliers);
+    if (data.inventory) setInventory(data.inventory);
+    if (data.fleet) setFleet(data.fleet);
+    if (data.transactions) setTransactions(data.transactions);
+    if (data.sales) setSales(data.sales);
+    if (data.budgets) setBudgets(data.budgets);
+    if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
+    if (data.stockMovements) setStockMovements(data.stockMovements);
+    if (data.auditLogs) setAuditLogs(data.auditLogs);
+    if (data.productionOrders) setProductionOrders(data.productionOrders);
+    if (data.formulas) setFormulas(data.formulas);
+    if (data.productionUnits) setProductionUnits(data.productionUnits);
+    // For fuelLogs/maintenance, they are nested in fleet, so setFleet handles it.
+  };
+
   return (
     <AppContext.Provider value={{
       clients, suppliers, employees, transactions, sales, budgets, purchaseOrders, fleet, inventory, payroll, timeLogs, vacations, salaryAdvances, tires,
@@ -1612,7 +1656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addVacation, updateVacationStatus, deleteVacation,
       addSalaryAdvance, updateAdvanceStatus, paySalaryAdvance, deleteAdvance,
       addTransaction, updateTransaction, updateTransactionStatus, deleteTransaction, importTransactions, addSale, addBudget, updateBudgetStatus,
-      addPurchaseOrder, receivePurchaseOrder,
+      addPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder,
       addStockItem, updateStock, updateStockItem, deleteStockItem,
       addVehicle, updateVehicle, updateVehicleStatus, deleteVehicle,
       addMaintenanceRecord, deleteMaintenanceRecord, addFuelLog, deleteFuelLog,
@@ -1622,7 +1666,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addProductionUnit, updateProductionUnit, deleteProductionUnit,
       addUser, updateUser, deleteUser, addRole, updateRole, deleteRole, updateSettings,
       addAccount, deleteAccount, addPlanAccount, deletePlanAccount, updatePlanAccount,
-      clearAllData, financials
+      clearAllData, addAuditLog, seedDatabase, financials
     }}>
       {children}
     </AppContext.Provider>

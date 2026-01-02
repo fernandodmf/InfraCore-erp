@@ -362,8 +362,35 @@ const Clients = () => {
                       <>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cargo / Função</label>
-                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.role || ''} onChange={e => setFormData({ ...formData, role: e.target.value })} />
+                          <select
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.role || ''}
+                            onChange={e => setFormData({ ...formData, role: e.target.value })}
+                          >
+                            <option value="">Selecione...</option>
+                            {[
+                              'Ajudante Geral',
+                              'Analista Financeiro',
+                              'Apontador',
+                              'Assistente Administrativo',
+                              'Comprador',
+                              'Diretor',
+                              'Eletricista',
+                              'Engenheiro Civil',
+                              'Gerente de Obras',
+                              'Gerente de Projetos',
+                              'Mecânico',
+                              'Mestre de Obras',
+                              'Motorista',
+                              'Operador de Máquinas',
+                              'Pedreiro',
+                              'Servente',
+                              'Técnico de Segurança',
+                              'Vendedor'
+                            ].map(role => (
+                              <option key={role} value={role}>{role}</option>
+                            ))}
+                          </select>
                         </div>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Departamento</label>

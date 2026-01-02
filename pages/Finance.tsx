@@ -37,7 +37,7 @@ const Finance = () => {
    const {
       transactions, financials, addTransaction, deleteTransaction, importTransactions, updateTransactionStatus, updateTransaction,
       accounts, addAccount, deleteAccount,
-      planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount, hasPermission
+      planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount, hasPermission, currentUser
    } = useApp();
 
    const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'receivables' | 'payables' | 'accounts' | 'planning'>('overview');
@@ -135,11 +135,40 @@ const Finance = () => {
       if (selectedTransaction) {
          updateTransaction(newTx);
       } else {
+         // Balance Validation Logic
+         if (newTx.type === 'Despesa' && newTx.status === 'Conciliado') {
+            const txAccount = accounts.find(a => a.id === newTx.accountId);
+            if (txAccount) {
+               const currentBalance = txAccount.balance;
+               const limit = 0; // Assuming 0 for now as Account interface usually lacks explicit overdraft limit
+               if (currentBalance - newTx.amount < -limit) {
+                  if (currentUser?.username === 'admin') {
+                     if (!confirm(`⚠️ ALERTA DE SALDO:\n\nA conta "${txAccount.name}" ficará com saldo negativo (Saldo Atual: ${formatMoney(currentBalance)} - Valor: ${formatMoney(newTx.amount)} = ${formatMoney(currentBalance - newTx.amount)}).\n\nComo Administrador, você pode prosseguir. Desejaautorizar esta operação?`)) {
+                        return;
+                     }
+                  } else {
+                     alert(`🚫 OPERAÇÃO BLOQUEADA\n\nSaldo insuficiente na conta "${txAccount.name}".\nSaldo Atual: ${formatMoney(currentBalance)}\nValor da Saída: ${formatMoney(newTx.amount)}\n\nEsta operação deixaria a conta negativa, o que não é permitido para seu perfil.`);
+                     return;
+                  }
+               }
+            }
+         }
          addTransaction(newTx);
       }
       setIsModalOpen(false);
       setSelectedTransaction(null);
-      setFormData({ type: 'Despesa', date: new Date().toLocaleDateString('pt-BR'), status: 'Pendente', account: 'Bradesco PJ' });
+      setFormData({
+         type: 'Despesa',
+         date: new Date().toLocaleDateString('pt-BR'),
+         status: 'Pendente',
+         account: 'Bradesco PJ',
+         partnerName: '',
+         documentNumber: '',
+         competenceDate: '',
+         costCenter: '',
+         notes: '',
+         paymentMethod: 'Boleto'
+      });
    };
 
    // UI Components
@@ -197,16 +226,23 @@ const Finance = () => {
                <NavButton id="planning" label="Plano de Contas" icon={FolderOpen} />
             </div>
 
-            {hasPermission('finance.transact') && (
+            {currentUser?.username === 'admin' && (
                <button
                   onClick={() => {
                      setSelectedTransaction(null);
-                     setFormData({ type: 'Despesa', date: new Date().toLocaleDateString('pt-BR'), status: 'Pendente', account: 'Bradesco PJ' });
+                     setFormData({
+                        type: 'Despesa',
+                        date: new Date().toLocaleDateString('pt-BR'),
+                        status: 'Pendente',
+                        account: 'Bradesco PJ',
+                        paymentMethod: 'Boleto',
+                        costCenter: 'Administrativo'
+                     });
                      setIsModalOpen(true);
                   }}
                   className="mx-2 xl:mx-0 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
                >
-                  <Plus size={18} /> Novo Lançamento
+                  <Plus size={18} /> Novo Lançamento (Admin)
                </button>
             )}
          </div>
@@ -257,6 +293,17 @@ const Finance = () => {
                            />
                         </div>
 
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Beneficiário / Pagador</label>
+                           <input
+                              type="text"
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                              placeholder="Nome do Cliente ou Fornecedor"
+                              value={formData.partnerName || ''}
+                              onChange={e => setFormData({ ...formData, partnerName: e.target.value })}
+                           />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                            <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Valor (R$)</label>
@@ -274,12 +321,36 @@ const Finance = () => {
                               </div>
                            </div>
                            <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Data</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nº Documento</label>
+                              <input
+                                 type="text"
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold"
+                                 placeholder="NF-1234"
+                                 value={formData.documentNumber || ''}
+                                 onChange={e => setFormData({ ...formData, documentNumber: e.target.value })}
+                              />
+                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Data Pagamento/Recebimento</label>
+                              <input
+                                 type="text" // Using text to allow DD/MM/YYYY format or date picker if implemented differently
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold text-center"
+                                 placeholder="DD/MM/AAAA"
+                                 value={formData.date || ''}
+                                 onChange={e => setFormData({ ...formData, date: e.target.value })}
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Data Competência</label>
                               <input
                                  type="text"
                                  className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold text-center"
-                                 value={formData.date || ''}
-                                 onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                 placeholder="DD/MM/AAAA"
+                                 value={formData.competenceDate || ''}
+                                 onChange={e => setFormData({ ...formData, competenceDate: e.target.value })}
                               />
                            </div>
                         </div>
@@ -310,13 +381,52 @@ const Finance = () => {
                                  <button
                                     type="button"
                                     key={acc.id}
-                                    onClick={() => setFormData({ ...formData, account: acc.name })}
+                                    onClick={() => setFormData({ ...formData, account: acc.name, accountId: acc.id })}
                                     className={`p-2 rounded-lg border text-xs font-bold text-left transition-all ${formData.account === acc.name ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:text-cyan-300 dark:bg-cyan-900/30' : 'border-slate-200 dark:border-gray-600 text-slate-500 hover:border-cyan-300'}`}
                                  >
                                     <span className="block truncate">{acc.name}</span>
                                  </button>
                               ))}
                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Forma de Pagamento</label>
+                              <select
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 text-sm font-semibold"
+                                 value={formData.paymentMethod || 'Boleto'}
+                                 onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+                              >
+                                 <option value="Dinheiro">Dinheiro (Espécie)</option>
+                                 <option value="Boleto">Boleto Bancário</option>
+                                 <option value="PIX">PIX</option>
+                                 <option value="Cartão Crédito">Cartão de Crédito</option>
+                                 <option value="Cartão Débito">Cartão de Débito</option>
+                                 <option value="Transferência">TED / DOC</option>
+                                 <option value="Cheque">Cheque</option>
+                              </select>
+                           </div>
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Centro de Custo</label>
+                              <input
+                                 type="text"
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold"
+                                 placeholder="Ex: Administrativo"
+                                 value={formData.costCenter || ''}
+                                 onChange={e => setFormData({ ...formData, costCenter: e.target.value })}
+                              />
+                           </div>
+                        </div>
+
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Observações</label>
+                           <textarea
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 text-sm font-medium resize-none h-20"
+                              placeholder="Detalhes adicionais sobre a transação..."
+                              value={formData.notes || ''}
+                              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                           />
                         </div>
                      </div>
 
@@ -709,10 +819,10 @@ const Finance = () => {
                      icon={ArrowUp}
                   />
                   <KpiCard
-                     title="Saldo Projetado"
-                     value={formatMoney(financials.projectedBalance)}
-                     subtext="Após quitações"
-                     color="text-cyan-600"
+                     title="Lucro Líquido"
+                     value={formatMoney(financials.totalRevenue - financials.totalExpenses)}
+                     subtext="Resultado do Período"
+                     color={financials.totalRevenue - financials.totalExpenses >= 0 ? 'text-emerald-600' : 'text-red-600'}
                      icon={TrendingUp}
                   />
                </div>

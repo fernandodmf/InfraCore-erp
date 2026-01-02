@@ -28,6 +28,7 @@ import {
     Clock,
     Printer
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { ProductionOrder, InventoryItem, ProductionFormula, QualityTest, ProductionUnit } from '../types';
 import { useApp } from '../context/AppContext';
 
@@ -161,6 +162,16 @@ const Production = () => {
     };
 
     const productionStats = useMemo(() => {
+        // Helper to parse mix of YYYY-MM-DD and DD/MM/YYYY
+        const getDate = (dateStr: string) => {
+            if (!dateStr) return new Date();
+            if (dateStr.includes('/')) {
+                const [d, m, y] = dateStr.split('/').map(Number);
+                return new Date(y, m - 1, d);
+            }
+            return new Date(dateStr);
+        };
+
         // Quality Stats
         const allTests = productionOrders.flatMap(o => o.qualityTests || []);
         const totalTests = allTests.length;
@@ -172,13 +183,8 @@ const Production = () => {
         const currentYear = now.getFullYear();
         const approvalsMonth = allTests.filter(t => {
             if (!t.testedAt) return false;
-            // Handle various date formats if necessary, assuming YYYY-MM-DD for now
-            const parts = t.testedAt.split('-');
-            if (parts.length === 3) {
-                const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                return t.status === 'Aprovado' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-            }
-            return false;
+            const d = getDate(t.testedAt);
+            return t.status === 'Aprovado' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
         }).length;
 
         // OEE Calculation
@@ -198,6 +204,43 @@ const Production = () => {
 
         return { complianceRate, approvalsMonth, oee, potential: (100 - oee) * 0.1 }; // Mock potential gain as 10% of gap
     }, [productionOrders, productionUnits]);
+
+    const chartData = useMemo(() => {
+        const getDate = (dateStr: string) => {
+            if (!dateStr) return new Date();
+            if (dateStr.includes('/')) {
+                const [d, m, y] = dateStr.split('/').map(Number);
+                return new Date(y, m - 1, d);
+            }
+            return new Date(dateStr);
+        };
+
+        const last12Months = Array.from({ length: 12 }, (_, i) => {
+            const d = new Date();
+            d.setMonth(d.getMonth() - (11 - i));
+            return {
+                month: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(),
+                year: d.getFullYear(),
+                monthIndex: d.getMonth(),
+                fullDate: d
+            };
+        });
+
+        return last12Months.map(time => {
+            const volume = productionOrders
+                .filter(o => {
+                    const d = getDate(o.startDate);
+                    return d.getMonth() === time.monthIndex && d.getFullYear() === time.year;
+                })
+                .reduce((acc, curr) => acc + curr.quantity, 0);
+
+            return {
+                name: `${time.month}/${time.year.toString().slice(2)}`,
+                Produção: volume,
+                Meta: 2000 // Mock target
+            };
+        });
+    }, [productionOrders]);
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
@@ -348,6 +391,45 @@ const Production = () => {
                             >
                                 Aplicar Otimização
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Historical Chart */}
+                    <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                                <Activity className="text-emerald-500" />
+                                Volume de Produção (12 Meses)
+                            </h3>
+                            <div className="flex gap-4 text-[10px] font-bold uppercase">
+                                <span className="flex items-center gap-2"><span className="w-3 h-3 bg-indigo-500 rounded-full"></span> Realizado</span>
+                                <span className="flex items-center gap-2"><span className="w-3 h-3 bg-slate-300 dark:bg-slate-600 rounded-full"></span> Meta</span>
+                            </div>
+                        </div>
+                        <div className="h-80 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                                        dy={10}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }}
+                                    />
+                                    <RechartsTooltip
+                                        cursor={{ fill: '#F1F5F9', opacity: 0.5 }}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar dataKey="Produção" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={30} />
+                                    <Bar dataKey="Meta" fill="#E2E8F0" radius={[4, 4, 0, 0]} barSize={30} />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </>

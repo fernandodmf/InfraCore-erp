@@ -59,7 +59,7 @@ const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'cu
 const Reports = () => {
     const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements, settings } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('generator');
 
     // Report Generator State
     const [selectedModule, setSelectedModule] = useState<string>('sales');
@@ -70,7 +70,7 @@ const Reports = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('Todos');
     const [editingReportId, setEditingReportId] = useState<string | null>(null);
-    const [reportSettings, setReportSettings] = useState<Record<string, { format: string; period: string; favorite: boolean }>>({});
+    const [reportSettings, setReportSettings] = useState<Record<string, { format: string; period: string; favorite: boolean; fields?: string[] }>>({});
 
     // Extended Modules for Reporting - Organized by Category
     const modules = [
@@ -904,16 +904,10 @@ const Reports = () => {
 
                 <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border dark:border-slate-700">
                     <button
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                        <PieChartIcon size={16} /> VISÃO GERAL
-                    </button>
-                    <button
                         onClick={() => { setActiveTab('generator'); setSelectedModule(null); }}
-                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'generator' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 bg-white dark:bg-slate-700 text-cyan-600 shadow-sm`}
                     >
-                        <Printer size={16} /> RELATÓRIOS DETALHADOS
+                        <Printer size={16} /> BIBLIOTECA DE RELATÓRIOS
                     </button>
                 </div>
             </div>
@@ -1017,7 +1011,7 @@ const Reports = () => {
                 <div className="flex flex-col gap-6 animate-in slide-in-from-bottom duration-300">
                     {/* Quick Stats Bar */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-5 rounded-2xl text-white">
+                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-5 rounded-2xl text-white">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Total de Relatórios</p>
                             <p className="text-2xl font-black">{modules.length}</p>
                         </div>
@@ -1198,6 +1192,36 @@ const Reports = () => {
                                                                 </select>
                                                             </div>
                                                         </div>
+
+                                                        {/* Field Selection */}
+                                                        <div>
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Campos</label>
+                                                            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg p-2 max-h-32 overflow-y-auto grid grid-cols-2 gap-2">
+                                                                {(m.fields as string[] || []).map(f => {
+                                                                    const currentFields = settings.fields || m.fields || [];
+                                                                    const isSelected = currentFields.includes(f);
+                                                                    return (
+                                                                        <label key={f} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-1 rounded">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={() => {
+                                                                                    const newFields = isSelected
+                                                                                        ? currentFields.filter((field: string) => field !== f)
+                                                                                        : [...currentFields, f];
+                                                                                    setReportSettings(prev => ({
+                                                                                        ...prev,
+                                                                                        [m.id]: { ...settings, fields: newFields }
+                                                                                    }));
+                                                                                }}
+                                                                                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3 h-3"
+                                                                            />
+                                                                            {f}
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
                                                         <div className="flex gap-2">
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); setEditingReportId(null); }}
@@ -1261,10 +1285,11 @@ const Reports = () => {
                     })}
 
                     {/* No Results Message */}
-                    {modules.filter(m =>
-                        (categoryFilter === 'Todos' || (m as any).category === categoryFilter) &&
-                        (searchTerm === '' || m.name.toLowerCase().includes(searchTerm.toLowerCase()) || (m as any).description?.toLowerCase().includes(searchTerm.toLowerCase()))
-                    ).length === 0 && (
+                    {
+                        modules.filter(m =>
+                            (categoryFilter === 'Todos' || (m as any).category === categoryFilter) &&
+                            (searchTerm === '' || m.name.toLowerCase().includes(searchTerm.toLowerCase()) || (m as any).description?.toLowerCase().includes(searchTerm.toLowerCase()))
+                        ).length === 0 && (
                             <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
                                 <Search size={48} className="mx-auto text-slate-300 mb-4" />
                                 <h3 className="text-lg font-bold text-slate-600 dark:text-slate-400 mb-2">Nenhum relatório encontrado</h3>
@@ -1276,7 +1301,8 @@ const Reports = () => {
                                     Limpar Filtros
                                 </button>
                             </div>
-                        )}
+                        )
+                    }
 
                     {/* Footer Info */}
                     <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -1298,7 +1324,7 @@ const Reports = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div >
             ) : (
                 /* --- REPORT CONFIGURATOR VIEW --- */
                 <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
@@ -1403,7 +1429,7 @@ const Reports = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </div >
     );
 };
 

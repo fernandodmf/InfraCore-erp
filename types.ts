@@ -123,6 +123,12 @@ export interface Transaction {
   originId?: string; // ID of Sale, PO, etc.
   ledgerCode?: string;
   ledgerName?: string;
+  // Enhanced Details
+  partnerName?: string; // Beneficiário / Pagador
+  costCenter?: string;
+  paymentMethod?: string;
+  competenceDate?: string;
+  notes?: string;
 }
 
 export interface SalesItem {
@@ -349,16 +355,7 @@ export interface TireHistory {
   position?: string;
 }
 
-export interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  action: string;
-  module: string;
-  details: string;
-  timestamp: string;
-  severity: 'info' | 'warning' | 'critical';
-}
+
 
 export interface AppRole {
   id: string;
@@ -552,4 +549,16 @@ export interface SalaryAdvance {
   requestDate: string;
   deductFromMonth: string;
   notes?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  module: string; // 'Login', 'Vendas', 'Configurações', etc.
+  details?: string;
+  timestamp: string; // ISO String or Formatted
+  severity: 'info' | 'warning' | 'critical';
+  ip?: string;
 }

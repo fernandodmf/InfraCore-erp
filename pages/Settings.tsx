@@ -66,6 +66,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { User, AppRole, AppSettings, AuditLog } from '../types';
 import { APP_PERMISSIONS } from '../permission_constants';
+import { generateCameloData } from '../src/utils/seeder';
 
 // Internal Toast Component
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void }) => {
@@ -925,7 +926,7 @@ const DataSecuritySection = ({ settings, onUpdate, addToast }: {
                     )}
                 </button>
                 <button
-                    onClick={() => addToast?.('Gerenciamento de chaves indisponível no modo seguro.', 'warning')}
+                    onClick={() => addToast?.('Gerenciamento de chaves indisponível no modo seguro.', 'error')}
                     className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors flex items-center gap-2"
                 >
                     <Key size={14} /> Gerenciar Chaves de Criptografia
@@ -1373,7 +1374,7 @@ const Settings = () => {
         users, roles, settings, auditLogs, employees,
         addUser, updateUser, deleteUser,
         addRole, updateRole, deleteRole,
-        updateSettings, clearAllData, hasPermission
+        updateSettings, clearAllData, hasPermission, seedDatabase
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'company' | 'security' | 'system' | 'audit'>('company');
@@ -1403,6 +1404,10 @@ const Settings = () => {
     // Audit Filters
     const [auditSearch, setAuditSearch] = useState('');
     const [auditModuleFilter, setAuditModuleFilter] = useState('Todos');
+    const [auditStartDate, setAuditStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
+    const [auditEndDate, setAuditEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [auditSeverityFilter, setAuditSeverityFilter] = useState<'all' | 'info' | 'warning' | 'critical'>('all');
+
 
     // Sync temp settings on mount/update (only if not dirty, strategy can vary)
     // For this simple app, we'll just track changes.
@@ -1460,16 +1465,59 @@ const Settings = () => {
         }
     };
 
+    // Helper for Exporting
+    const exportToCSV = (data: any[], filename: string) => {
+        if (!data || !data.length) return;
+        const keys = Object.keys(data[0]);
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + keys.join(",") + "\n"
+            + data.map(row => keys.map(k => {
+                const val = row[k];
+                return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+            }).join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", filename + ".csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // Filter Logic for Audit Log
+    // Filter Logic for Audit Log
+    const parseLogDate = (dateStr: string) => {
+        if (!dateStr) return new Date(0);
+        try {
+            // Expecting DD/MM/YYYY HH:mm
+            const [datePart, timePart] = dateStr.split(' ');
+            if (!datePart) return new Date(0);
+            const [day, month, year] = datePart.split('/');
+            return new Date(`${year}-${month}-${day}T${timePart || '00:00:00'}`);
+        } catch { return new Date(0); }
+    };
+
     const filteredAuditLogs = useMemo(() => {
         return auditLogs.filter(log => {
-            const matchesSearch = log.details.toLowerCase().includes(auditSearch.toLowerCase()) ||
+            const matchesSearch = (log.details || '').toLowerCase().includes(auditSearch.toLowerCase()) ||
                 log.userName.toLowerCase().includes(auditSearch.toLowerCase()) ||
                 log.action.toLowerCase().includes(auditSearch.toLowerCase());
+
             const matchesModule = auditModuleFilter === 'Todos' || log.module === auditModuleFilter;
-            return matchesSearch && matchesModule;
-        });
-    }, [auditLogs, auditSearch, auditModuleFilter]);
+            const matchesSeverity = auditSeverityFilter === 'all' || log.severity === auditSeverityFilter;
+
+            const logDate = parseLogDate(log.timestamp);
+            const start = new Date(auditStartDate);
+            start.setHours(0, 0, 0, 0);
+
+            const end = new Date(auditEndDate);
+            end.setHours(23, 59, 59, 999);
+
+            const matchesDate = logDate >= start && logDate <= end;
+
+            return matchesSearch && matchesModule && matchesSeverity && matchesDate;
+        }).sort((a, b) => parseLogDate(b.timestamp).getTime() - parseLogDate(a.timestamp).getTime());
+    }, [auditLogs, auditSearch, auditModuleFilter, auditSeverityFilter, auditStartDate, auditEndDate]);
 
     // UI Helpers
     const TabButton = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
@@ -2210,6 +2258,21 @@ const Settings = () => {
                                         >
                                             🗑️ Resetar Sistema Completo
                                         </button>
+
+                                        <button
+                                            onClick={() => {
+                                                if (confirm("🚜 Carga de Dados: Camelo Mineração & Pavimentação\n\nIsso irá carregar um cenário industrial completo:\n- Pedreira (Britagem)\n- Usina de Asfalto\n- Central de Concreto\n- 3 Anos de Histórico Operacional\n\nDeseja continuar? (Dados atuais serão perdidos)")) {
+                                                    const data = generateCameloData();
+                                                    seedDatabase(data);
+                                                    addToast('Ambiente Industrial carregado com sucesso!', 'success');
+                                                }
+                                            }}
+                                            className="px-8 py-4 bg-white hover:bg-emerald-600 text-emerald-600 hover:text-white border-2 border-emerald-300 hover:border-emerald-600 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-500/30 hover:scale-105 active:scale-95 flex flex-col items-center gap-2"
+                                        >
+                                            <span className="text-2xl">🏭</span>
+                                            <span>Carregar Planta Industrial</span>
+                                            <span className="text-[9px] opacity-75 lowercase font-mono">(britagem • asfalto • concreto)</span>
+                                        </button>
                                         <p className="text-[9px] text-rose-600 dark:text-rose-400 text-center font-bold">Esta ação apaga todos os dados permanentemente</p>
                                     </div>
                                 </div>
@@ -2219,79 +2282,201 @@ const Settings = () => {
 
                     {/* AUDIT LOG */}
                     {activeTab === 'audit' && (
-                        <div className="h-full flex flex-col animate-in fade-in duration-500">
-                            <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6 shrink-0">
-                                <div className="relative w-full md:w-96">
+                        <div className="h-full flex flex-col animate-in fade-in duration-500 space-y-6">
+                            {/* Dashboard Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="absolute right-0 top-0 p-4 opacity-10"><Shield size={64} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total de Registros</p>
+                                    <p className="text-3xl font-black text-slate-800 dark:text-white mt-1">{filteredAuditLogs.length}</p>
+                                    <div className="mt-2 text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                        <CheckCircle size={12} /> Sistema Monitorado
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="absolute right-0 top-0 p-4 opacity-10"><AlertTriangle size={64} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Críticos / Alertas</p>
+                                    <p className="text-3xl font-black text-rose-600 mt-1">
+                                        {filteredAuditLogs.filter(l => l.severity === 'critical' || l.severity === 'warning').length}
+                                    </p>
+                                    <div className="mt-2 text-xs text-rose-600 font-bold flex items-center gap-1">
+                                        Verificar incidentes
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="absolute right-0 top-0 p-4 opacity-10"><Users size={64} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Usuários Ativos</p>
+                                    <p className="text-3xl font-black text-slate-800 dark:text-white mt-1">
+                                        {[...new Set(filteredAuditLogs.map(l => l.userName))].length}
+                                    </p>
+                                    <div className="mt-2 text-xs text-slate-500 font-bold">
+                                        No período selecionado
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden flex flex-col justify-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            if (filteredAuditLogs.length === 0) {
+                                                addToast('Nenhum dado para exportar.', 'info');
+                                                return;
+                                            }
+                                            exportToCSV(filteredAuditLogs, `Auditoria_Export_${new Date().toISOString().split('T')[0]}`);
+                                            addToast('Relatório de auditoria exportado!', 'success');
+                                        }}
+                                        className="w-full py-2.5 bg-slate-900 dark:bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-800 flex items-center justify-center gap-2"
+                                    >
+                                        <Download size={14} /> Exportar CSV
+                                    </button>
+                                    <button className="w-full py-2.5 bg-cyan-600 text-white rounded-xl text-xs font-bold hover:bg-cyan-500 flex items-center justify-center gap-2">
+                                        <Printer size={14} /> Imprimir Relatório
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Filters and Toolbar */}
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row gap-4">
+                                <div className="flex-1 relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
                                         type="text"
-                                        placeholder="Buscar logs..."
-                                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 ring-indigo-500/20"
+                                        placeholder="Buscar por ação, usuário, detalhes..."
+                                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-cyan-500/20"
                                         value={auditSearch}
                                         onChange={(e) => setAuditSearch(e.target.value)}
                                     />
                                 </div>
-                                <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
-                                    {['Todos', 'Login', 'Vendas', 'Configurações', 'Estoque', 'Financeiro'].map(m => (
-                                        <button
-                                            key={m}
-                                            onClick={() => setAuditModuleFilter(m)}
-                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all ${auditModuleFilter === m
-                                                ? 'bg-slate-900 text-white shadow-md'
-                                                : 'bg-slate-50 dark:bg-slate-900 text-slate-500 hover:bg-slate-100'
-                                                }`}
-                                        >
-                                            {m}
-                                        </button>
-                                    ))}
+
+                                <div className="flex gap-2 items-center flex-wrap">
+                                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700">
+                                        <Calendar size={14} className="text-slate-400" />
+                                        <input
+                                            type="date"
+                                            value={auditStartDate}
+                                            onChange={e => setAuditStartDate(e.target.value)}
+                                            className="bg-transparent border-none text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-24"
+                                        />
+                                        <span className="text-slate-300">-</span>
+                                        <input
+                                            type="date"
+                                            value={auditEndDate}
+                                            onChange={e => setAuditEndDate(e.target.value)}
+                                            className="bg-transparent border-none text-xs font-bold text-slate-600 dark:text-slate-300 outline-none w-24"
+                                        />
+                                    </div>
+
+                                    <select
+                                        value={auditSeverityFilter}
+                                        onChange={e => setAuditSeverityFilter(e.target.value as any)}
+                                        className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none h-full"
+                                    >
+                                        <option value="all">Todas Severidades</option>
+                                        <option value="info">ℹ️ Informativo</option>
+                                        <option value="warning">⚠️ Avisos</option>
+                                        <option value="critical">🚨 Crítico</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/30 rounded-[24px] overflow-hidden border border-slate-100 dark:border-slate-700/50">
-                                <div className="overflow-y-auto h-full custom-scrollbar">
+                            {/* Module Tabs */}
+                            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                {['Todos', 'Login', 'Vendas', 'Configurações', 'Estoque', 'Financeiro', 'Frota', 'Produção', 'RH', 'Segurança'].map(m => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setAuditModuleFilter(m)}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-all border ${auditModuleFilter === m
+                                            ? 'bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900'
+                                            : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Data Table */}
+                            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-y-auto flex-1 custom-scrollbar">
                                     <table className="w-full text-left border-collapse">
-                                        <thead className="bg-white dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
+                                        <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                                             <tr>
-                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Tempo</th>
-                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Usuário</th>
-                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Ação</th>
-                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Detalhe</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-40">Data / Hora</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-48">Usuário</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-40">Módulo/Ação</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Detalhes da Ocorrência</th>
+                                                <th className="py-4 px-6 text-[10px] font-black uppercase text-slate-400 tracking-widest w-24 text-right">IP</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                            {filteredAuditLogs.map(log => (
-                                                <tr key={log.id} className="group hover:bg-white dark:hover:bg-slate-800 transition-colors">
-                                                    <td className="py-4 px-6">
-                                                        <span className="text-[10px] font-mono font-bold text-slate-500">{log.timestamp}</span>
-                                                    </td>
-                                                    <td className="py-4 px-6">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500">
-                                                                {log.userName.charAt(0)}
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                            {filteredAuditLogs.length > 0 ? (
+                                                filteredAuditLogs.map(log => (
+                                                    <tr key={log.id} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                        <td className="py-4 px-6">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{log.timestamp.split(' ')[0]}</span>
+                                                                <span className="text-[10px] font-mono text-slate-400">{log.timestamp.split(' ')[1]}</span>
                                                             </div>
-                                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{log.userName}</span>
+                                                        </td>
+                                                        <td className="py-4 px-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">
+                                                                    {log.userName.charAt(0)}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{log.userName}</span>
+                                                                    <span className="text-[9px] text-slate-400">ID: {log.userId}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-6">
+                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${log.severity === 'critical' ? 'bg-rose-50 border-rose-100 text-rose-700' :
+                                                                log.severity === 'warning' ? 'bg-amber-50 border-amber-100 text-amber-700' :
+                                                                    'bg-slate-50 border-slate-100 text-slate-600 dark:bg-slate-900/50 dark:border-slate-600 dark:text-slate-400'
+                                                                }`}>
+                                                                {log.severity === 'critical' && <AlertTriangle size={10} />}
+                                                                {log.severity === 'warning' && <AlertTriangle size={10} />}
+                                                                {log.severity === 'info' && <Info size={10} />}
+                                                                {log.module} • {log.action}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 px-6">
+                                                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-xl">
+                                                                {log.details}
+                                                            </p>
+                                                        </td>
+                                                        <td className="py-4 px-6 text-right">
+                                                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded">
+                                                                {log.ip || 'Local'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={5} className="py-20 text-center">
+                                                        <div className="flex flex-col items-center justify-center opacity-50">
+                                                            <Search size={48} className="text-slate-300 mb-4" />
+                                                            <p className="text-sm font-bold text-slate-500">Nenhum registro encontrado</p>
+                                                            <p className="text-xs text-slate-400 mt-1">Tente ajustar os filtros de busca</p>
                                                         </div>
                                                     </td>
-                                                    <td className="py-4 px-6">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wide ${log.severity === 'critical' ? 'bg-rose-100 text-rose-700' :
-                                                            log.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
-                                                                'bg-indigo-50 text-indigo-700'
-                                                            }`}>
-                                                            {log.module} • {log.action}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 px-6">
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs group-hover:whitespace-normal group-hover:overflow-visible group-hover:z-50">{log.details}</p>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {filteredAuditLogs.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={4} className="py-12 text-center text-slate-400 italic text-xs">Nenhum registro encontrado para os filtros atuais.</td>
                                                 </tr>
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+
+                                {/* Footer Pagination (Visual Only for now as functionality assumes full list) */}
+                                <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                                        Mostrando {filteredAuditLogs.length} registros
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <button disabled className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-400 cursor-not-allowed">Anterior</button>
+                                        <button disabled className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-400 cursor-not-allowed">Próxima</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

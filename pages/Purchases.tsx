@@ -34,7 +34,9 @@ import {
    BarChart as BarIcon,
    Users,
    Printer,
-   Edit2
+   Edit2,
+   ClipboardCheck,
+   ShieldCheck
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, Cell } from 'recharts';
 import { useApp } from '../context/AppContext';
@@ -53,6 +55,7 @@ const Purchases = () => {
       inventory,
       purchaseOrders,
       addPurchaseOrder,
+      updatePurchaseOrder,
       receivePurchaseOrder,
       addStockItem,
       updateStockItem,
@@ -60,7 +63,7 @@ const Purchases = () => {
       accounts
    } = useApp();
 
-   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory'>('dashboard');
+   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('approval');
    const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
    const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -122,17 +125,11 @@ const Purchases = () => {
    const orderSubtotal = orderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
    const orderTotal = orderSubtotal + shippingCost; // With shipping
 
-   const handleCreateOrder = (status: PurchaseOrder['status'] = 'Pendente') => {
+   const handleCreateOrder = () => {
       if (isSubmitting) return;
 
       if (!selectedSupplier || orderItems.length === 0) {
          alert("Selecione um fornecedor e adicione itens ao pedido.");
-         return;
-      }
-
-      // If auto-receiving or instant payment, account is required
-      if ((status === 'Recebido' || status === 'Aprovado') && !sourceAccount) {
-         alert("Selecione uma conta financeira para vincular o pagamento/previsão.");
          return;
       }
 
@@ -147,16 +144,16 @@ const Purchases = () => {
          items: orderItems,
          subtotal: orderSubtotal,
          total: orderTotal,
-         status: status,
+         status: 'Pendente', // Always Pending first
          attachments: tempAttachments,
          paymentTerms,
          shippingCost,
-         targetAccountId: sourceAccount
+         targetAccountId: sourceAccount // Opicional nesta fase
       };
 
       addPurchaseOrder(newOrder);
 
-      alert(status === 'Recebido' ? "Compra registrada, estoque atualizado e financeiro lançado!" : "Pedido de compra gerado com sucesso!");
+      alert("Pedido enviado para a Central de Aprovações!");
 
       // Reset and redirect
       setOrderItems([]);
@@ -164,8 +161,28 @@ const Purchases = () => {
       setTempAttachments([]);
       setShippingCost(0);
       setSourceAccount('');
-      setActiveTab('orders');
+      setActiveTab('approval'); // Go to approval
       setIsSubmitting(false);
+   };
+
+   const handleApproveOrder = (order: PurchaseOrder) => {
+      if (confirm(`Confirmar aprovação do pedido #${order.id}?`)) {
+         updatePurchaseOrder({ ...order, status: 'Aprovado' });
+      }
+   };
+
+   const handleRejectOrder = (order: PurchaseOrder) => {
+      if (confirm(`Rejeitar pedido #${order.id}? Ele será cancelado.`)) {
+         updatePurchaseOrder({ ...order, status: 'Cancelado' });
+      }
+   };
+
+   const handleReceiveApprovedOrder = (order: PurchaseOrder) => {
+      if (order.status !== 'Aprovado') return alert("O pedido precisa ser APROVADO antes de ser recebido.");
+
+      // If no account, Context falls back to Default/Caixa
+      receivePurchaseOrder(order.id);
+      alert(`Recebimento confirmado! Estoque e Financeiro atualizados.${!order.targetAccountId ? ' (Conta Padrão utilizada)' : ''}`);
    };
 
    const handleSaveStock = (e: React.FormEvent) => {
@@ -331,15 +348,102 @@ const Purchases = () => {
                         : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                         }`}
                   >
-                     {tab === 'dashboard' && <ArrowRight size={16} />}
+                     {tab === 'dashboard' && <BarIcon size={16} />}
+                     {tab === 'approval' && <ShieldCheck size={16} />}
                      {tab === 'orders' && <FileText size={16} />}
                      {tab === 'suppliers' && <Users size={16} />}
                      {tab === 'inventory' && <Warehouse size={16} />}
-                     {tab === 'dashboard' ? 'Painel Geral' : tab === 'orders' ? 'Pedidos e Histórico' : tab === 'suppliers' ? 'Fornecedores' : 'Gerenciar Estoque'}
+                     {
+                        tab === 'dashboard' ? 'Painel Geral' :
+                           tab === 'approval' ? 'Central de Aprovações' :
+                              tab === 'orders' ? 'Histórico de Pedidos' :
+                                 tab === 'suppliers' ? 'Fornecedores' : 'Estoque'
+                     }
                   </button>
                ))}
             </nav>
          </div>
+
+         {/* APPROVAL CENTER (CENTRAL DE APROVAÇÕES) */}
+         {activeTab === 'approval' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+               <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-white flex justify-between items-center">
+                  <div>
+                     <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                        <ShieldCheck className="text-emerald-400" size={32} />
+                        Central de Autorização
+                     </h2>
+                     <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
+                  </div>
+                  <div className="text-right bg-white/5 p-4 rounded-2xl border border-white/10">
+                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Pendente</p>
+                     <p className="text-3xl font-black text-emerald-400">{formatCurrency(purchaseOrders.filter(o => o.status === 'Pendente').reduce((acc, curr) => acc + curr.total, 0))}</p>
+                  </div>
+               </div>
+
+               {purchaseOrders.filter(o => o.status === 'Pendente').length === 0 ? (
+                  <div className="py-20 text-center bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-slate-300 dark:border-gray-700">
+                     <CheckCircle size={64} className="mx-auto text-emerald-200 mb-6" />
+                     <h3 className="text-xl font-black text-slate-700 dark:text-white">Tudo Certo!</h3>
+                     <p className="text-slate-500">Nenhum pedido pendente de aprovação no momento.</p>
+                  </div>
+               ) : (
+                  <div className="grid grid-cols-1 gap-6">
+                     {purchaseOrders.filter(o => o.status === 'Pendente').map(order => (
+                        <div key={order.id} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all">
+                           <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
+                           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+                              <div className="flex-1">
+                                 <div className="flex items-center gap-3 mb-2">
+                                    <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200">Aguardando Análise</span>
+                                    <span className="text-xs font-bold text-slate-400">{order.date}</span>
+                                    <span className="text-xs font-mono text-slate-300">#{order.id}</span>
+                                 </div>
+                                 <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1">{order.supplierName}</h3>
+                                 <p className="text-sm text-slate-500">{order.items.length} itens • Condição: <span className="font-bold text-slate-700 dark:text-slate-300">{order.paymentTerms}</span></p>
+                              </div>
+
+                              <div className="flex gap-8 items-center border-l dark:border-slate-700 pl-8">
+                                 <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase">Valor Total</p>
+                                    <p className="text-2xl font-black text-slate-900 dark:text-white">{formatCurrency(order.total)}</p>
+                                 </div>
+                                 <div className="flex gap-3">
+                                    <button
+                                       onClick={() => handleRejectOrder(order)}
+                                       className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold uppercase text-[10px] transition-colors"
+                                    >
+                                       Rejeitar
+                                    </button>
+                                    <button
+                                       onClick={() => handleApproveOrder(order)}
+                                       className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform flex items-center gap-2"
+                                    >
+                                       <ShieldCheck size={18} /> Autorizar Compra
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+
+                           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
+                              <div className="flex gap-4 overflow-x-auto pb-2">
+                                 {order.items.map(item => (
+                                    <div key={item.id} className="min-w-[150px] p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                                       <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{item.name}</p>
+                                       <div className="flex justify-between mt-1">
+                                          <span className="text-[10px] text-slate-500">{item.quantity} {item.unit}</span>
+                                          <span className="text-[10px] font-bold text-emerald-600">{formatCurrency(item.price * item.quantity)}</span>
+                                       </div>
+                                    </div>
+                                 ))}
+                              </div>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               )}
+            </div>
+         )}
 
          {/* DASHBOARD TAB */}
          {activeTab === 'dashboard' && (
@@ -514,6 +618,19 @@ const Purchases = () => {
                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusColor(order.status)}`}>
                                           {order.status}
                                        </span>
+                                    </td>
+                                    <td className="px-6 py-3 text-right">
+                                       {/* Actions per row */}
+                                       {order.status === 'Aprovado' && (
+                                          <button
+                                             onClick={() => receivePurchaseOrder(order.id)}
+                                             title="Receber Material"
+                                             className="p-1 px-2 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-bold uppercase hover:bg-emerald-200 mr-2"
+                                          >
+                                             Receber
+                                          </button>
+                                       )}
+                                       <button onClick={() => handlePrintPurchaseOrder(order)} className="text-slate-400 hover:text-cyan-600"><Printer size={16} /></button>
                                     </td>
                                  </tr>
                               ))}
@@ -722,34 +839,14 @@ const Purchases = () => {
                            <span className="font-black text-cyan-600">{formatCurrency(orderTotal)}</span>
                         </div>
 
-                        <div className="flex items-center gap-2 p-3 bg-cyan-50 dark:bg-cyan-900/10 rounded-lg border border-cyan-100 dark:border-cyan-900/30">
-                           <input
-                              type="checkbox"
-                              id="received"
-                              className="rounded text-cyan-600"
-                              checked={isStockDirect}
-                              onChange={e => setIsStockDirect(e.target.checked)}
-                           />
-                           <label htmlFor="received" className="text-xs font-bold text-cyan-800 dark:text-cyan-400 cursor-pointer">
-                              Entrada imediata no estoque
-                           </label>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
                            <button
-                              onClick={() => handleCreateOrder('Pendente')}
+                              onClick={() => handleCreateOrder()}
                               disabled={isSubmitting}
-                              className={`py-2.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`w-full py-4 bg-cyan-600 rounded-xl text-sm font-black text-white shadow-lg hover:bg-cyan-700 transition-all flex items-center justify-center gap-2 uppercase tracking-wide ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              Gerar Pedido
-                           </button>
-                           <button
-                              onClick={() => handleCreateOrder('Recebido')}
-                              disabled={isSubmitting}
-                              className={`py-2.5 bg-cyan-600 rounded-xl text-xs font-bold text-white shadow-md hover:bg-cyan-700 transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
-                           >
-                              {isSubmitting ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div> : <CheckCircle size={16} />}
-                              {isSubmitting ? 'Processando...' : 'Finalizar'}
+                              {isSubmitting ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div> : <ShieldCheck size={18} />}
+                              {isSubmitting ? 'Processando...' : 'Enviar para Aprovação'}
                            </button>
                         </div>
                      </div>
@@ -843,11 +940,11 @@ const Purchases = () => {
                                     >
                                        <Printer size={18} />
                                     </button>
-                                    {order.status === 'Pendente' && (
+                                    {order.status === 'Aprovado' && (
                                        <button
-                                          onClick={() => receivePurchaseOrder(order.id)}
+                                          onClick={() => handleReceiveApprovedOrder(order)}
                                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                          title="Receber Pedido"
+                                          title="Receber Pedido (Aprovado)"
                                        >
                                           <CheckCircle size={18} />
                                        </button>
@@ -931,8 +1028,8 @@ const Purchases = () => {
                                  </td>
                                  <td className="px-6 py-4 text-center">
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${item.quantity < item.minStock
-                                          ? 'bg-rose-100 text-rose-700 border-rose-200'
-                                          : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                       ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                       : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                                        }`}>
                                        {item.quantity < item.minStock ? 'REPOSIÇÃO' : 'DISPONÍVEL'}
                                     </span>

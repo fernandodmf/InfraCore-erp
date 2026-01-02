@@ -13,6 +13,7 @@ import {
   Banknote,
   QrCode,
   User,
+  Users,
   MoreVertical,
   Minus,
   Truck,
@@ -1315,6 +1316,72 @@ const Sales = () => {
                 </h3>
               </div>
               <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Ranking Vendas (Produtos) */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm col-span-1 lg:col-span-2">
+              <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <Package className="text-cyan-600" size={18} />
+                Produtos Mais Vendidos
+              </h3>
+              <div className="space-y-4">
+                {(() => {
+                  const productSales: any = {};
+                  sales.forEach(s => s.items.forEach(i => {
+                    productSales[i.name] = (productSales[i.name] || 0) + i.quantity;
+                  }));
+                  const sorted = Object.entries(productSales).sort((a: any, b: any) => b[1] - a[1]).slice(0, 5);
+                  return sorted.map(([name, qtd]: any, idx) => (
+                    <div key={idx} className="flex items-center gap-4">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 text-xs font-black flex items-center justify-center">#{idx + 1}</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">{name}</span>
+                          <span className="text-xs font-bold text-cyan-600">{qtd} un.</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                          <div className="bg-cyan-500 h-full rounded-full" style={{ width: `${(qtd / (sorted[0][1] as number)) * 100}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Ranking Vendedores / Metas */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+              <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <Users className="text-amber-500" size={18} />
+                Top Clientes
+              </h3>
+              <div className="space-y-3">
+                {(() => {
+                  const clientSales: any = {};
+                  sales.forEach(s => {
+                    clientSales[s.clientName] = (clientSales[s.clientName] || 0) + s.amount;
+                  });
+                  return Object.entries(clientSales)
+                    .sort((a: any, b: any) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([name, val]: any, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                            {name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 dark:text-gray-200">{name}</p>
+                            <p className="text-[10px] text-slate-400 uppercase">Cliente VIP</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-slate-900 dark:text-white">{formatMoney(val)}</span>
+                      </div>
+                    ));
+                })()}
+              </div>
             </div>
           </div>
 

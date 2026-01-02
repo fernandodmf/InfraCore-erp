@@ -321,16 +321,7 @@ const Purchases = () => {
                <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de pedidos de compra, fornecedores e estoque de insumos.</p>
             </div>
             <div className="flex items-center gap-2">
-               <button
-                  onClick={() => setActiveTab('new-order')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-sm ${activeTab === 'new-order'
-                     ? 'bg-slate-200 text-slate-800'
-                     : 'bg-cyan-600 text-white hover:bg-cyan-700'
-                     }`}
-               >
-                  <Plus size={18} />
-                  Gerar Pedido
-               </button>
+
                <button className="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-600 dark:text-gray-300">
                   <FileText size={20} />
                </button>
@@ -373,12 +364,21 @@ const Purchases = () => {
 
                {/* Authorization Center (Moved to Dashboard) */}
                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-white flex justify-between items-center">
-                  <div>
-                     <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
-                        <ShieldCheck className="text-emerald-400" size={32} />
-                        Central de Autorização
-                     </h2>
-                     <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
+                  <div className="flex flex-col gap-6 items-start">
+                     <div>
+                        <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                           <ShieldCheck className="text-emerald-400" size={32} />
+                           Central de Autorização
+                        </h2>
+                        <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
+                     </div>
+                     <button
+                        onClick={() => setActiveTab('new-order')}
+                        className="flex items-center gap-2 px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                     >
+                        <Plus size={20} />
+                        Gerar Pedido de Compra
+                     </button>
                   </div>
                   <div className="text-right bg-white/5 p-4 rounded-2xl border border-white/10">
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Pendente</p>

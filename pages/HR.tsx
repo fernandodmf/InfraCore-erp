@@ -459,10 +459,12 @@ const HR = () => {
                 <div className="flex items-center gap-4">
                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border dark:border-slate-700">
                         <button onClick={() => setActiveTab('employees')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'employees' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Colaboradores</button>
-                        <button onClick={() => setActiveTab('vacations')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'vacations' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Férias</button>
                         <button onClick={() => setActiveTab('advances')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'advances' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Antecipações</button>
                         <button onClick={() => setActiveTab('payroll')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'payroll' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Folha</button>
                         <button onClick={() => setActiveTab('time')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'time' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Ponto</button>
+                        {currentUser?.roleId === 'admin' && (
+                            <button onClick={() => setActiveTab('vacations')} className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${activeTab === 'vacations' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Férias</button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -525,14 +527,7 @@ const HR = () => {
                                         >
                                             <Download size={18} />
                                         </button>
-                                        {hasPermission('employees.manage') && (
-                                            <button
-                                                onClick={() => { setSelectedEmployee(null); setEmpForm({ status: 'Ativo', salary: 0, vacationDaysAvailable: 30 }); setIsEmployeeModalOpen(true); }}
-                                                className="px-6 py-3 bg-cyan-600 text-white font-black text-xs rounded-xl shadow-lg shadow-cyan-600/20 uppercase tracking-widest flex items-center gap-2"
-                                            >
-                                                <UserPlus size={18} /> Novo Colaborador
-                                            </button>
-                                        )}
+
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -595,7 +590,7 @@ const HR = () => {
                         )}
 
                         {/* Vacations Tab */}
-                        {activeTab === 'vacations' && (
+                        {activeTab === 'vacations' && currentUser?.roleId === 'admin' && (
                             <div className="space-y-6">
                                 <div className="flex justify-end">
                                     <button

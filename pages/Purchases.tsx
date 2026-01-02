@@ -60,10 +60,11 @@ const Purchases = () => {
       addStockItem,
       updateStockItem,
       deleteStockItem,
-      accounts
+      accounts,
+      currentUser
    } = useApp();
 
-   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('approval');
+   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('dashboard');
    const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
    const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -315,7 +316,7 @@ const Purchases = () => {
             <div>
                <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
                   <ShoppingBag className="text-cyan-600" />
-                  Suprimentos e Compras
+                  Central de Compras e Despesas
                </h2>
                <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de pedidos de compra, fornecedores e estoque de insumos.</p>
             </div>
@@ -364,9 +365,13 @@ const Purchases = () => {
             </nav>
          </div>
 
-         {/* APPROVAL CENTER (CENTRAL DE APROVAÇÕES) */}
-         {activeTab === 'approval' && (
-            <div className="space-y-6 animate-in fade-in duration-500">
+
+
+         {/* DASHBOARD TAB */}
+         {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+
+               {/* Authorization Center (Moved to Dashboard) */}
                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-white flex justify-between items-center">
                   <div>
                      <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
@@ -381,13 +386,8 @@ const Purchases = () => {
                   </div>
                </div>
 
-               {purchaseOrders.filter(o => o.status === 'Pendente').length === 0 ? (
-                  <div className="py-20 text-center bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-slate-300 dark:border-gray-700">
-                     <CheckCircle size={64} className="mx-auto text-emerald-200 mb-6" />
-                     <h3 className="text-xl font-black text-slate-700 dark:text-white">Tudo Certo!</h3>
-                     <p className="text-slate-500">Nenhum pedido pendente de aprovação no momento.</p>
-                  </div>
-               ) : (
+               {/* Pending Orders List (Only if > 0) */}
+               {purchaseOrders.filter(o => o.status === 'Pendente').length > 0 && (
                   <div className="grid grid-cols-1 gap-6">
                      {purchaseOrders.filter(o => o.status === 'Pendente').map(order => (
                         <div key={order.id} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all">
@@ -442,12 +442,7 @@ const Purchases = () => {
                      ))}
                   </div>
                )}
-            </div>
-         )}
 
-         {/* DASHBOARD TAB */}
-         {activeTab === 'dashboard' && (
-            <div className="space-y-6">
                {/* Stats */}
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
@@ -978,17 +973,7 @@ const Purchases = () => {
                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 text-sm outline-none"
                         />
                      </div>
-                     <button
-                        onClick={() => {
-                           setEditingItem(null);
-                           setStockForm({ name: '', category: 'Material', quantity: 0, minStock: 0, unit: 'UN', price: 0 });
-                           setIsStockModalOpen(true);
-                        }}
-                        className="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95"
-                        title="Adicionar Item Manualmente"
-                     >
-                        <Plus size={20} />
-                     </button>
+
                   </div>
                   <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto">
                      {['Todos', 'Crítico', 'Normal', 'Excedente'].map(f => (
@@ -1057,20 +1042,24 @@ const Purchases = () => {
                                        >
                                           <ShoppingBag size={18} />
                                        </button>
-                                       <button
-                                          onClick={() => { setEditingItem(item); setStockForm(item); setIsStockModalOpen(true); }}
-                                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                          title="Editar"
-                                       >
-                                          <Edit2 size={18} />
-                                       </button>
-                                       <button
-                                          onClick={() => { if (confirm('Remover este item do catálogo?')) deleteStockItem(item.id); }}
-                                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                          title="Excluir"
-                                       >
-                                          <Trash2 size={18} />
-                                       </button>
+                                       {currentUser?.roleId === 'admin' && (
+                                          <>
+                                             <button
+                                                onClick={() => { setEditingItem(item); setStockForm(item); setIsStockModalOpen(true); }}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                title="Editar"
+                                             >
+                                                <Edit2 size={18} />
+                                             </button>
+                                             <button
+                                                onClick={() => { if (confirm('Remover este item do catálogo?')) deleteStockItem(item.id); }}
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                title="Excluir"
+                                             >
+                                                <Trash2 size={18} />
+                                             </button>
+                                          </>
+                                       )}
                                     </div>
                                  </td>
                               </tr>

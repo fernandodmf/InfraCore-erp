@@ -1528,60 +1528,154 @@ const Settings = () => {
                                             <Landmark size={16} className="text-emerald-500" /> Dados Bancários
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banco</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                            {/* Instituição Financeira - Select com bancos brasileiros */}
+                                            <div className="space-y-2 md:col-span-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instituição Financeira</label>
+                                                <select
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
                                                     value={tempSettings.bankDetails?.bankName || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, bankName: e.target.value } as any })}
-                                                    placeholder="Ex: Banco do Brasil"
-                                                />
+                                                >
+                                                    <option value="">Selecione o banco...</option>
+                                                    <optgroup label="🏦 Bancos Tradicionais">
+                                                        <option value="001 - Banco do Brasil S.A.">001 - Banco do Brasil S.A.</option>
+                                                        <option value="033 - Banco Santander (Brasil) S.A.">033 - Banco Santander (Brasil) S.A.</option>
+                                                        <option value="104 - Caixa Econômica Federal">104 - Caixa Econômica Federal</option>
+                                                        <option value="237 - Banco Bradesco S.A.">237 - Banco Bradesco S.A.</option>
+                                                        <option value="341 - Banco Itaú S.A.">341 - Banco Itaú S.A.</option>
+                                                        <option value="422 - Banco Safra S.A.">422 - Banco Safra S.A.</option>
+                                                        <option value="745 - Banco Citibank S.A.">745 - Banco Citibank S.A.</option>
+                                                    </optgroup>
+                                                    <optgroup label="💜 Bancos Digitais">
+                                                        <option value="077 - Banco Inter S.A.">077 - Banco Inter S.A.</option>
+                                                        <option value="212 - Banco Original S.A.">212 - Banco Original S.A.</option>
+                                                        <option value="260 - Nubank">260 - Nu Pagamentos S.A. (Nubank)</option>
+                                                        <option value="336 - Banco C6 S.A.">336 - Banco C6 S.A.</option>
+                                                        <option value="290 - PagBank">290 - PagBank (PagSeguro)</option>
+                                                        <option value="323 - Mercado Pago">323 - Mercado Pago</option>
+                                                        <option value="380 - PicPay">380 - PicPay Serviços S.A.</option>
+                                                        <option value="403 - Cora">403 - Cora SCD S.A.</option>
+                                                    </optgroup>
+                                                    <optgroup label="🏛️ Bancos de Investimento">
+                                                        <option value="208 - Banco BTG Pactual S.A.">208 - Banco BTG Pactual S.A.</option>
+                                                        <option value="102 - XP Investimentos">102 - XP Investimentos</option>
+                                                        <option value="735 - Banco Neon S.A.">735 - Banco Neon S.A.</option>
+                                                        <option value="746 - Banco Modal S.A.">746 - Banco Modal S.A.</option>
+                                                    </optgroup>
+                                                    <optgroup label="🏢 Cooperativas">
+                                                        <option value="748 - Sicredi">748 - Sicredi</option>
+                                                        <option value="756 - Sicoob">756 - Sicoob</option>
+                                                        <option value="091 - Unicred">091 - Unicred Central</option>
+                                                        <option value="085 - Ailos">085 - Ailos</option>
+                                                    </optgroup>
+                                                    <optgroup label="🏗️ Bancos Regionais">
+                                                        <option value="041 - Banrisul">041 - Banrisul</option>
+                                                        <option value="070 - BRB">070 - BRB - Banco de Brasília</option>
+                                                        <option value="004 - BNB">004 - Banco do Nordeste (BNB)</option>
+                                                        <option value="003 - BASA">003 - Banco da Amazônia (BASA)</option>
+                                                        <option value="021 - Banestes">021 - Banestes</option>
+                                                    </optgroup>
+                                                    <optgroup label="🌐 Outros">
+                                                        <option value="outro">Outro banco não listado</option>
+                                                    </optgroup>
+                                                </select>
                                             </div>
+
+                                            {/* Tipo de Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agência</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Conta</label>
+                                                <select
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
+                                                    value={tempSettings.bankDetails?.accountType || 'Conta Corrente'}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, accountType: e.target.value } as any })}
+                                                >
+                                                    <option value="Conta Corrente">Conta Corrente</option>
+                                                    <option value="Conta Poupança">Conta Poupança</option>
+                                                    <option value="Conta Salário">Conta Salário</option>
+                                                    <option value="Conta PJ">Conta Pessoa Jurídica</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Agência */}
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agência (com dígito)</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                                                     value={tempSettings.bankDetails?.agency || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, agency: e.target.value } as any })}
                                                     placeholder="Ex: 0001-X"
+                                                    maxLength={10}
                                                 />
                                             </div>
+
+                                            {/* Número da Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Conta Corrente</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número da Conta (com dígito)</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                                                     value={tempSettings.bankDetails?.account || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, account: e.target.value } as any })}
                                                     placeholder="Ex: 12345-6"
+                                                    maxLength={15}
                                                 />
                                             </div>
+
+                                            {/* Titular da Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chave PIX</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Titular da Conta</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                                                    value={tempSettings.bankDetails?.pixKey || ''}
-                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixKey: e.target.value } as any })}
-                                                    placeholder="CPF/CNPJ/Email/Aleatória"
+                                                    value={tempSettings.bankDetails?.holderName || tempSettings.companyName || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, holderName: e.target.value } as any })}
+                                                    placeholder="Nome do titular"
                                                 />
                                             </div>
-                                            <div className="space-y-2 md:col-span-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Chave</label>
-                                                <select
-                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                                                    value={tempSettings.bankDetails?.pixType || 'CNPJ'}
-                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixType: e.target.value } as any })}
-                                                >
-                                                    <option>CNPJ</option>
-                                                    <option>CPF</option>
-                                                    <option>E-mail</option>
-                                                    <option>Telefone</option>
-                                                    <option>Chave Aleatória</option>
-                                                </select>
+                                        </div>
+
+                                        {/* Seção PIX separada com destaque */}
+                                        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                                            <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                ⚡ Chave PIX
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Chave PIX</label>
+                                                    <select
+                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
+                                                        value={tempSettings.bankDetails?.pixType || 'CNPJ'}
+                                                        onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixType: e.target.value } as any })}
+                                                    >
+                                                        <option value="CNPJ">CNPJ</option>
+                                                        <option value="CPF">CPF</option>
+                                                        <option value="E-mail">E-mail</option>
+                                                        <option value="Telefone">Telefone</option>
+                                                        <option value="Chave Aleatória">Chave Aleatória (EVP)</option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chave PIX</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                        value={tempSettings.bankDetails?.pixKey || ''}
+                                                        onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixKey: e.target.value } as any })}
+                                                        placeholder={
+                                                            tempSettings.bankDetails?.pixType === 'CNPJ' ? '00.000.000/0000-00' :
+                                                                tempSettings.bankDetails?.pixType === 'CPF' ? '000.000.000-00' :
+                                                                    tempSettings.bankDetails?.pixType === 'E-mail' ? 'exemplo@empresa.com.br' :
+                                                                        tempSettings.bankDetails?.pixType === 'Telefone' ? '+55 11 99999-9999' :
+                                                                            'Cole sua chave aleatória aqui'
+                                                        }
+                                                    />
+                                                </div>
                                             </div>
+                                            <p className="mt-3 text-[10px] text-slate-500 flex items-center gap-1">
+                                                <Info size={12} />
+                                                Essa chave será utilizada para recebimento via PIX em vendas e orçamentos.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

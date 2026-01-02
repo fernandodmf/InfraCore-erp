@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, Cell } from 'recharts';
 import { useApp } from '../context/AppContext';
-import { PurchaseOrder, PurchaseItem, Supplier, InventoryItem, MaintenanceRecord } from '../types';
+import { PurchaseOrder, PurchaseItem, Supplier, InventoryItem, MaintenanceRecord, Employee } from '../types';
 import { printDocument } from '../utils/exportUtils';
 
 const Purchases = () => {
@@ -63,7 +63,8 @@ const Purchases = () => {
       deleteStockItem,
       accounts,
       currentUser,
-      addMaintenanceRecord
+      addMaintenanceRecord,
+      employees
    } = useApp();
 
    const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('dashboard');
@@ -134,6 +135,26 @@ const Purchases = () => {
       installments: 1,
       account: '',
       attachments: []
+   });
+
+   // ODP States (Personnel Expense)
+   const [isODPModalOpen, setIsODPModalOpen] = useState(false);
+   const [odpForm, setOdpForm] = useState<{
+      employeeId: string;
+      type: string;
+      value: number;
+      date: string;
+      description: string;
+      paymentMethod: string;
+      account: string;
+   }>({
+      employeeId: '',
+      type: 'Adiantamento Salarial',
+      value: 0,
+      date: new Date().toISOString().split('T')[0],
+      description: '',
+      paymentMethod: 'Transferência Bancária',
+      account: ''
    });
 
    // Cart Management
@@ -420,6 +441,49 @@ const Purchases = () => {
       alert("ODO gerada e enviada para aprovação!");
    };
 
+   const handleSaveODP = (e: React.FormEvent) => {
+      e.preventDefault();
+
+      const employee = employees.find(emp => emp.id === odpForm.employeeId);
+      if (!employee) return;
+
+      const newOrder: PurchaseOrder = {
+         id: `ODP-${Date.now()}`,
+         supplierId: employee.id,
+         supplierName: employee.name,
+         date: new Date(odpForm.date).toLocaleDateString('pt-BR'),
+         items: [{
+            id: `SERV-${Date.now()}`,
+            name: `${odpForm.type}: ${odpForm.description}`,
+            quantity: 1,
+            unit: 'UN',
+            price: odpForm.value
+         }],
+         subtotal: odpForm.value,
+         total: odpForm.value,
+         status: 'Pendente',
+         attachments: [],
+         paymentTerms: odpForm.paymentMethod,
+         shippingCost: 0,
+         ledgerName: `Pessoal - ${odpForm.type}`,
+         targetAccountId: odpForm.account,
+         ledgerCode: '2.01.01' // Generic code for personnel
+      };
+
+      addPurchaseOrder(newOrder);
+      setIsODPModalOpen(false);
+      setOdpForm({
+         employeeId: '',
+         type: 'Adiantamento Salarial',
+         value: 0,
+         date: new Date().toISOString().split('T')[0],
+         description: '',
+         paymentMethod: 'Transferência Bancária',
+         account: ''
+      });
+      alert("ODP gerada com sucesso!");
+   };
+
    return (
       <div className="flex flex-col gap-6">
          {/* Header */}
@@ -504,6 +568,13 @@ const Purchases = () => {
                         >
                            <FileText size={20} />
                            Gerar ODO
+                        </button>
+                        <button
+                           onClick={() => setIsODPModalOpen(true)}
+                           className="flex items-center gap-2 px-6 py-3 bg-fuchsia-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-fuchsia-600/20 hover:bg-fuchsia-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                        >
+                           <Users size={20} />
+                           Gerar ODP
                         </button>
                      </div>
                   </div>
@@ -1604,6 +1675,100 @@ const Purchases = () => {
                            className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-indigo-600/30 hover:bg-indigo-500 transition-all flex items-center justify-center gap-2"
                         >
                            <Save size={18} /> Lançar Despesa
+                        </button>
+                     </div>
+                  </form>
+               </div>
+            </div>
+         )}
+
+         {/* ODP Modal (Personnel Expense) */}
+         {isODPModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+               <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
+                  <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                     <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gerar Ordem de Despesa de Pessoal (ODP)</h3>
+                     <button onClick={() => setIsODPModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                  </div>
+                  <form onSubmit={handleSaveODP} className="p-10 space-y-6">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Colaborador (RH)</label>
+                        <select
+                           className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                           value={odpForm.employeeId}
+                           onChange={e => setOdpForm({ ...odpForm, employeeId: e.target.value })}
+                           required
+                        >
+                           <option value="">Selecione o colaborador...</option>
+                           {employees.map(emp => (
+                              <option key={emp.id} value={emp.id}>{emp.name} - {emp.role}</option>
+                           ))}
+                        </select>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo de Despesa</label>
+                           <select
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                              value={odpForm.type}
+                              onChange={e => setOdpForm({ ...odpForm, type: e.target.value })}
+                           >
+                              <option value="Adiantamento Salarial">Adiantamento Salarial</option>
+                              <option value="Reembolso de Despesas">Reembolso de Despesas</option>
+                              <option value="Vale Transporte">Vale Transporte</option>
+                              <option value="Vale Refeição">Vale Refeição</option>
+                              <option value="Bônus / Premiação">Bônus / Premiação</option>
+                              <option value="Rescisão">Rescisão</option>
+                              <option value="Férias">Férias</option>
+                              <option value="Outros">Outros</option>
+                           </select>
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Valor (R$)</label>
+                           <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={odpForm.value || ''} onChange={e => setOdpForm({ ...odpForm, value: Number(e.target.value) })} required />
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição / Observação</label>
+                        <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Detalhes adicionais..." value={odpForm.description} onChange={e => setOdpForm({ ...odpForm, description: e.target.value })} />
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data de Pagamento</label>
+                           <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={odpForm.date} onChange={e => setOdpForm({ ...odpForm, date: e.target.value })} required />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Conta de Saída</label>
+                           <select
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                              value={odpForm.account}
+                              onChange={e => setOdpForm({ ...odpForm, account: e.target.value })}
+                              required
+                           >
+                              <option value="">Selecione a conta...</option>
+                              {accounts.map(acc => (
+                                 <option key={acc.id} value={acc.id}>{acc.name} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(acc.balance)})</option>
+                              ))}
+                           </select>
+                        </div>
+                     </div>
+
+                     <div className="pt-6 border-t dark:border-slate-700 flex gap-4">
+                        <button
+                           type="button"
+                           onClick={() => setIsODPModalOpen(false)}
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+                        >
+                           Cancelar
+                        </button>
+                        <button
+                           type="submit"
+                           className="flex-[2] py-4 bg-fuchsia-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-fuchsia-600/30 hover:bg-fuchsia-500 transition-all flex items-center justify-center gap-2"
+                        >
+                           <Save size={18} /> Lançar ODP
                         </button>
                      </div>
                   </form>

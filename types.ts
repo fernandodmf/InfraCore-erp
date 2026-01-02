@@ -392,12 +392,16 @@ export interface AppSettings {
     bankName: string;
     agency: string;
     account: string;
+    accountType?: 'Conta Corrente' | 'Conta Poupança' | 'Conta Salário' | 'Conta PJ';
+    holderName?: string;
     pixKey: string;
     pixType: string;
   };
   currency: string;
   language: string;
   theme: 'light' | 'dark' | 'system';
+  interfaceDensity?: 'compact' | 'standard' | 'comfortable';
+  enableAnimations?: boolean;
   notifications: {
     stockAlerts: boolean;
     overdueFinance: boolean;
@@ -411,6 +415,12 @@ export interface AppSettings {
     financialYearStart: string;
     dateFormat: string;
     timezone: string;
+    cnae?: string;
+    stateRegistry?: string; // Inscrição Estadual
+    cityRegistry?: string; // Inscrição Municipal
+    nfeSeries?: string;
+    nfeNextNumber?: number;
+    nfeEnvironment?: 'homologacao' | 'producao';
   };
   backup: {
     autoBackup: boolean;
@@ -438,6 +448,7 @@ export interface AppSettings {
     senderPassword?: string;
     smtpPassword?: string;
     templates?: Record<string, string>;
+    automations?: Record<string, boolean>;
   };
   documents: {
     printerMain: string;
@@ -452,6 +463,15 @@ export interface AppSettings {
     customFooter: boolean;
     barcode: boolean;
     authSeal: boolean;
+    printerMainConfig?: {
+      quality: 'draft' | 'normal' | 'high';
+      color: 'bw' | 'color';
+      duplex: boolean;
+    };
+    printerThermalConfig?: {
+      width: number;
+      height: number;
+    };
   };
   performance: {
     cacheSize: number; // in MB (simulated)

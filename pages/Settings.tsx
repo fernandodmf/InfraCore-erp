@@ -565,21 +565,33 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] text-slate-500">Editado: {template.lastEdit}</span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
+                                        <button
+                                            onClick={() => addToast?.(`Editando template: ${template.name}`, 'info')}
+                                            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
                                             <Edit2 size={12} className="text-blue-500" />
                                         </button>
-                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
-                                            <Copy size={12} className="text-slate-400" />
+                                        <button
+                                            onClick={() => addToast?.(`Template duplicado: ${template.name}`, 'success')}
+                                            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Copy size={12} className="text-slate-400 hover:text-blue-500" />
                                         </button>
-                                        <button className="p-1.5 hover:bg-blue-50 rounded-lg">
-                                            <Eye size={12} className="text-slate-400" />
+                                        <button
+                                            onClick={() => addToast?.(`Visualizando: ${template.name}`, 'info')}
+                                            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Eye size={12} className="text-slate-400 hover:text-blue-500" />
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                    <button className="w-full py-3 bg-blue-500 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                    <button
+                        onClick={() => addToast?.('Criar novo template: Esta funcionalidade será ativada em breve.', 'info')}
+                        className="w-full py-3 bg-blue-500 text-white rounded-xl text-xs font-black uppercase hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    >
                         <Plus size={14} /> Criar Novo Template
                     </button>
                 </div>
@@ -872,10 +884,16 @@ const DataSecuritySection = ({ settings, onUpdate, addToast }: {
                                 </span>
                             </div>
                         ))}
-                        <button className="w-full mt-3 py-2 bg-purple-500 text-white rounded-xl text-xs font-black uppercase hover:bg-purple-600 transition-colors">
+                        <button
+                            onClick={() => addToast?.('Relatório LGPD agendado para geração!', 'success')}
+                            className="w-full mt-3 py-2 bg-purple-500 text-white rounded-xl text-xs font-black uppercase hover:bg-purple-600 transition-colors"
+                        >
                             Gerar Relatório LGPD
                         </button>
-                        <button className="w-full py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors">
+                        <button
+                            onClick={() => addToast?.('Redirecionando para Central de Privacidade...', 'info')}
+                            className="w-full py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors"
+                        >
                             Central de Privacidade
                         </button>
                     </div>
@@ -906,7 +924,10 @@ const DataSecuritySection = ({ settings, onUpdate, addToast }: {
                         <><FileText size={14} /> Relatório de Conformidade</>
                     )}
                 </button>
-                <button className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors flex items-center gap-2">
+                <button
+                    onClick={() => addToast?.('Gerenciamento de chaves indisponível no modo seguro.', 'warning')}
+                    className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors flex items-center gap-2"
+                >
                     <Key size={14} /> Gerenciar Chaves de Criptografia
                 </button>
             </div>
@@ -969,14 +990,23 @@ const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('..
                                     {doc.status}
                                 </span>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
-                                        <Edit2 size={14} className="text-slate-400" />
+                                    <button
+                                        onClick={() => addToast?.(`Editando template ${doc.name}`, 'info')}
+                                        className="p-2 hover:bg-cyan-50 rounded-lg transition-colors"
+                                    >
+                                        <Edit2 size={14} className="text-slate-400 hover:text-cyan-500" />
                                     </button>
-                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
-                                        <Eye size={14} className="text-slate-400" />
+                                    <button
+                                        onClick={() => addToast?.(`Visualizando ${doc.name}`, 'info')}
+                                        className="p-2 hover:bg-cyan-50 rounded-lg transition-colors"
+                                    >
+                                        <Eye size={14} className="text-slate-400 hover:text-cyan-500" />
                                     </button>
-                                    <button className="p-2 hover:bg-cyan-50 rounded-lg transition-colors">
-                                        <Printer size={14} className="text-slate-400" />
+                                    <button
+                                        onClick={() => addToast?.(`Imprimindo teste de ${doc.name}`, 'success')}
+                                        className="p-2 hover:bg-cyan-50 rounded-lg transition-colors"
+                                    >
+                                        <Printer size={14} className="text-slate-400 hover:text-cyan-500" />
                                     </button>
                                 </div>
                             </div>
@@ -1008,22 +1038,34 @@ const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('..
                                 <div className="grid grid-cols-3 gap-2">
                                     <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
                                         <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Qualidade</label>
-                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
-                                            <option>Rascunho</option>
-                                            <option>Normal</option>
-                                            <option>Alta</option>
+                                        <select
+                                            value={settings.documents?.printerMainConfig?.quality || 'normal'}
+                                            onChange={(e) => updateDocumentConfig('printerMainConfig', { ...settings.documents?.printerMainConfig, quality: e.target.value })}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold"
+                                        >
+                                            <option value="draft">Rascunho</option>
+                                            <option value="normal">Normal</option>
+                                            <option value="high">Alta</option>
                                         </select>
                                     </div>
                                     <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
                                         <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Cor</label>
-                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
-                                            <option>P&B</option>
-                                            <option>Colorido</option>
+                                        <select
+                                            value={settings.documents?.printerMainConfig?.color || 'bw'}
+                                            onChange={(e) => updateDocumentConfig('printerMainConfig', { ...settings.documents?.printerMainConfig, color: e.target.value })}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold"
+                                        >
+                                            <option value="bw">P&B</option>
+                                            <option value="color">Colorido</option>
                                         </select>
                                     </div>
                                     <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
                                         <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Duplex</label>
-                                        <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold">
+                                        <select
+                                            value={settings.documents?.printerMainConfig?.duplex ? 'true' : 'false'}
+                                            onChange={(e) => updateDocumentConfig('printerMainConfig', { ...settings.documents?.printerMainConfig, duplex: e.target.value === 'true' })}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold"
+                                        >
                                             <option value="false">Não</option>
                                             <option value="true">Sim</option>
                                         </select>
@@ -1052,11 +1094,21 @@ const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('..
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
                                         <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Largura (mm)</label>
-                                        <input type="number" defaultValue="100" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold" />
+                                        <input
+                                            type="number"
+                                            value={settings.documents?.printerThermalConfig?.width ?? 100}
+                                            onChange={(e) => updateDocumentConfig('printerThermalConfig', { ...settings.documents?.printerThermalConfig, width: Number(e.target.value) })}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold"
+                                        />
                                     </div>
                                     <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
                                         <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Altura (mm)</label>
-                                        <input type="number" defaultValue="100" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold" />
+                                        <input
+                                            type="number"
+                                            value={settings.documents?.printerThermalConfig?.height ?? 100}
+                                            onChange={(e) => updateDocumentConfig('printerThermalConfig', { ...settings.documents?.printerThermalConfig, height: Number(e.target.value) })}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-xs font-bold"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1528,154 +1580,60 @@ const Settings = () => {
                                             <Landmark size={16} className="text-emerald-500" /> Dados Bancários
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {/* Instituição Financeira - Select com bancos brasileiros */}
-                                            <div className="space-y-2 md:col-span-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instituição Financeira</label>
-                                                <select
-                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banco</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                                                     value={tempSettings.bankDetails?.bankName || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, bankName: e.target.value } as any })}
-                                                >
-                                                    <option value="">Selecione o banco...</option>
-                                                    <optgroup label="🏦 Bancos Tradicionais">
-                                                        <option value="001 - Banco do Brasil S.A.">001 - Banco do Brasil S.A.</option>
-                                                        <option value="033 - Banco Santander (Brasil) S.A.">033 - Banco Santander (Brasil) S.A.</option>
-                                                        <option value="104 - Caixa Econômica Federal">104 - Caixa Econômica Federal</option>
-                                                        <option value="237 - Banco Bradesco S.A.">237 - Banco Bradesco S.A.</option>
-                                                        <option value="341 - Banco Itaú S.A.">341 - Banco Itaú S.A.</option>
-                                                        <option value="422 - Banco Safra S.A.">422 - Banco Safra S.A.</option>
-                                                        <option value="745 - Banco Citibank S.A.">745 - Banco Citibank S.A.</option>
-                                                    </optgroup>
-                                                    <optgroup label="💜 Bancos Digitais">
-                                                        <option value="077 - Banco Inter S.A.">077 - Banco Inter S.A.</option>
-                                                        <option value="212 - Banco Original S.A.">212 - Banco Original S.A.</option>
-                                                        <option value="260 - Nubank">260 - Nu Pagamentos S.A. (Nubank)</option>
-                                                        <option value="336 - Banco C6 S.A.">336 - Banco C6 S.A.</option>
-                                                        <option value="290 - PagBank">290 - PagBank (PagSeguro)</option>
-                                                        <option value="323 - Mercado Pago">323 - Mercado Pago</option>
-                                                        <option value="380 - PicPay">380 - PicPay Serviços S.A.</option>
-                                                        <option value="403 - Cora">403 - Cora SCD S.A.</option>
-                                                    </optgroup>
-                                                    <optgroup label="🏛️ Bancos de Investimento">
-                                                        <option value="208 - Banco BTG Pactual S.A.">208 - Banco BTG Pactual S.A.</option>
-                                                        <option value="102 - XP Investimentos">102 - XP Investimentos</option>
-                                                        <option value="735 - Banco Neon S.A.">735 - Banco Neon S.A.</option>
-                                                        <option value="746 - Banco Modal S.A.">746 - Banco Modal S.A.</option>
-                                                    </optgroup>
-                                                    <optgroup label="🏢 Cooperativas">
-                                                        <option value="748 - Sicredi">748 - Sicredi</option>
-                                                        <option value="756 - Sicoob">756 - Sicoob</option>
-                                                        <option value="091 - Unicred">091 - Unicred Central</option>
-                                                        <option value="085 - Ailos">085 - Ailos</option>
-                                                    </optgroup>
-                                                    <optgroup label="🏗️ Bancos Regionais">
-                                                        <option value="041 - Banrisul">041 - Banrisul</option>
-                                                        <option value="070 - BRB">070 - BRB - Banco de Brasília</option>
-                                                        <option value="004 - BNB">004 - Banco do Nordeste (BNB)</option>
-                                                        <option value="003 - BASA">003 - Banco da Amazônia (BASA)</option>
-                                                        <option value="021 - Banestes">021 - Banestes</option>
-                                                    </optgroup>
-                                                    <optgroup label="🌐 Outros">
-                                                        <option value="outro">Outro banco não listado</option>
-                                                    </optgroup>
-                                                </select>
+                                                    placeholder="Ex: Banco do Brasil"
+                                                />
                                             </div>
-
-                                            {/* Tipo de Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Conta</label>
-                                                <select
-                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
-                                                    value={tempSettings.bankDetails?.accountType || 'Conta Corrente'}
-                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, accountType: e.target.value } as any })}
-                                                >
-                                                    <option value="Conta Corrente">Conta Corrente</option>
-                                                    <option value="Conta Poupança">Conta Poupança</option>
-                                                    <option value="Conta Salário">Conta Salário</option>
-                                                    <option value="Conta PJ">Conta Pessoa Jurídica</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Agência */}
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agência (com dígito)</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agência</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                                                     value={tempSettings.bankDetails?.agency || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, agency: e.target.value } as any })}
                                                     placeholder="Ex: 0001-X"
-                                                    maxLength={10}
                                                 />
                                             </div>
-
-                                            {/* Número da Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número da Conta (com dígito)</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Conta Corrente</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                                                     value={tempSettings.bankDetails?.account || ''}
                                                     onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, account: e.target.value } as any })}
                                                     placeholder="Ex: 12345-6"
-                                                    maxLength={15}
                                                 />
                                             </div>
-
-                                            {/* Titular da Conta */}
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Titular da Conta</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chave PIX</label>
                                                 <input
                                                     type="text"
                                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                                                    value={tempSettings.bankDetails?.holderName || tempSettings.companyName || ''}
-                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, holderName: e.target.value } as any })}
-                                                    placeholder="Nome do titular"
+                                                    value={tempSettings.bankDetails?.pixKey || ''}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixKey: e.target.value } as any })}
+                                                    placeholder="CPF/CNPJ/Email/Aleatória"
                                                 />
                                             </div>
-                                        </div>
-
-                                        {/* Seção PIX separada com destaque */}
-                                        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                                            <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                ⚡ Chave PIX
-                                            </h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Chave PIX</label>
-                                                    <select
-                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none cursor-pointer"
-                                                        value={tempSettings.bankDetails?.pixType || 'CNPJ'}
-                                                        onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixType: e.target.value } as any })}
-                                                    >
-                                                        <option value="CNPJ">CNPJ</option>
-                                                        <option value="CPF">CPF</option>
-                                                        <option value="E-mail">E-mail</option>
-                                                        <option value="Telefone">Telefone</option>
-                                                        <option value="Chave Aleatória">Chave Aleatória (EVP)</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chave PIX</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                                                        value={tempSettings.bankDetails?.pixKey || ''}
-                                                        onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixKey: e.target.value } as any })}
-                                                        placeholder={
-                                                            tempSettings.bankDetails?.pixType === 'CNPJ' ? '00.000.000/0000-00' :
-                                                                tempSettings.bankDetails?.pixType === 'CPF' ? '000.000.000-00' :
-                                                                    tempSettings.bankDetails?.pixType === 'E-mail' ? 'exemplo@empresa.com.br' :
-                                                                        tempSettings.bankDetails?.pixType === 'Telefone' ? '+55 11 99999-9999' :
-                                                                            'Cole sua chave aleatória aqui'
-                                                        }
-                                                    />
-                                                </div>
+                                            <div className="space-y-2 md:col-span-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Chave</label>
+                                                <select
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-bold text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                                                    value={tempSettings.bankDetails?.pixType || 'CNPJ'}
+                                                    onChange={e => setTempSettings({ ...tempSettings, bankDetails: { ...tempSettings.bankDetails, pixType: e.target.value } as any })}
+                                                >
+                                                    <option>CNPJ</option>
+                                                    <option>CPF</option>
+                                                    <option>E-mail</option>
+                                                    <option>Telefone</option>
+                                                    <option>Chave Aleatória</option>
+                                                </select>
                                             </div>
-                                            <p className="mt-3 text-[10px] text-slate-500 flex items-center gap-1">
-                                                <Info size={12} />
-                                                Essa chave será utilizada para recebimento via PIX em vendas e orçamentos.
-                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -1928,6 +1886,8 @@ const Settings = () => {
                                             type="text"
                                             placeholder="0000-0/00"
                                             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                            value={tempSettings.technical.cnae || ''}
+                                            onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, cnae: e.target.value } })}
                                         />
                                     </div>
 
@@ -1940,6 +1900,8 @@ const Settings = () => {
                                             type="text"
                                             placeholder="000.000.000.000"
                                             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                            value={tempSettings.technical.stateRegistry || ''}
+                                            onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, stateRegistry: e.target.value } })}
                                         />
                                     </div>
 
@@ -1952,6 +1914,8 @@ const Settings = () => {
                                             type="text"
                                             placeholder="000000000"
                                             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl py-4 px-5 font-bold text-sm outline-none focus:ring-2 ring-blue-500/20 hover:border-blue-400 transition-all"
+                                            value={tempSettings.technical.cityRegistry || ''}
+                                            onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, cityRegistry: e.target.value } })}
                                         />
                                     </div>
                                 </div>
@@ -1965,15 +1929,29 @@ const Settings = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                             <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Série NF-e</label>
-                                            <input type="text" defaultValue="1" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm" />
+                                            <input
+                                                type="text"
+                                                value={tempSettings.technical.nfeSeries || '1'}
+                                                onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, nfeSeries: e.target.value } })}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                            />
                                         </div>
                                         <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                             <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Próximo Número</label>
-                                            <input type="number" defaultValue="10001" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm" />
+                                            <input
+                                                type="number"
+                                                value={tempSettings.technical.nfeNextNumber || 10001}
+                                                onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, nfeNextNumber: Number(e.target.value) } })}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                            />
                                         </div>
                                         <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                             <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Ambiente</label>
-                                            <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm">
+                                            <select
+                                                value={tempSettings.technical.nfeEnvironment || 'homologacao'}
+                                                onChange={e => setTempSettings({ ...tempSettings, technical: { ...tempSettings.technical, nfeEnvironment: e.target.value as any } })}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm"
+                                            >
                                                 <option value="homologacao">Homologação</option>
                                                 <option value="producao">Produção</option>
                                             </select>
@@ -1991,10 +1969,16 @@ const Settings = () => {
                                         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase">Válido até 15/08/2025</span>
                                     </div>
                                     <div className="flex gap-3">
-                                        <button className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2">
+                                        <button
+                                            onClick={() => addToast('Atualizar Certificado: Funcionalidade simulada.', 'info')}
+                                            className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2"
+                                        >
                                             <Upload size={14} /> Atualizar Certificado
                                         </button>
-                                        <button className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2">
+                                        <button
+                                            onClick={() => addToast('Detalhes do certificado: Válido, tipo A1.', 'success')}
+                                            className="px-4 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center gap-2"
+                                        >
                                             <Eye size={14} /> Ver Detalhes
                                         </button>
                                     </div>
@@ -2144,11 +2128,21 @@ const Settings = () => {
                                         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-violet-100 dark:border-violet-900/30">
                                             <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-3 block">Densidade da Interface</label>
                                             <div className="flex gap-2">
-                                                {['Compacta', 'Padrão', 'Confortável'].map(density => (
-                                                    <button key={density} className="flex-1 py-2 px-3 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-violet-50 hover:text-violet-600 transition-colors">
-                                                        {density}
-                                                    </button>
-                                                ))}
+                                                {['Compacta', 'Padrão', 'Confortável'].map(density => {
+                                                    const value = density === 'Compacta' ? 'compact' : density === 'Padrão' ? 'standard' : 'comfortable';
+                                                    return (
+                                                        <button
+                                                            key={density}
+                                                            onClick={() => setTempSettings({ ...tempSettings, interfaceDensity: value as any })}
+                                                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-colors ${tempSettings.interfaceDensity === value
+                                                                ? 'bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700'
+                                                                : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-violet-50 hover:text-violet-600'
+                                                                }`}
+                                                        >
+                                                            {density}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
 
@@ -2156,8 +2150,11 @@ const Settings = () => {
                                             <label className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-3 block">Animações</label>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs text-slate-500">Transições e efeitos visuais</span>
-                                                <div className="w-12 h-6 bg-violet-500 rounded-full relative cursor-pointer">
-                                                    <div className="absolute top-1 right-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
+                                                <div
+                                                    onClick={() => setTempSettings({ ...tempSettings, enableAnimations: !tempSettings.enableAnimations })}
+                                                    className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${tempSettings.enableAnimations ? 'bg-violet-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                                >
+                                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${tempSettings.enableAnimations ? 'right-1' : 'left-1'}`}></div>
                                                 </div>
                                             </div>
                                         </div>

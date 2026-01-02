@@ -520,21 +520,217 @@ const Reports = () => {
                     </div>
                 </div>
             ) : selectedModule === null ? (
-                /* --- REPORT LIBRARY VIEW --- */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom duration-300">
-                    {modules.map(m => (
-                        <button
-                            key={m.id}
-                            onClick={() => setSelectedModule(m.id)}
-                            className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-cyan-200 dark:hover:border-cyan-800 transition-all text-left group"
-                        >
-                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-cyan-600 group-hover:text-white transition-colors mb-6">
-                                {React.cloneElement(m.icon as any, { size: 24 })}
+                /* --- REPORT LIBRARY VIEW - Enhanced with Preferences --- */
+                <div className="flex flex-col gap-6 animate-in slide-in-from-bottom duration-300">
+                    {/* Quick Stats Bar */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Total de Relatórios</p>
+                            <p className="text-2xl font-black">{modules.length}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Favoritos</p>
+                            <p className="text-2xl font-black">4</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Gerados Hoje</p>
+                            <p className="text-2xl font-black">12</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-5 rounded-2xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Agendamentos</p>
+                            <p className="text-2xl font-black">3</p>
+                        </div>
+                    </div>
+
+                    {/* Search and Filter Bar */}
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-center">
+                        <div className="flex-1 relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Buscar relatório por nome, módulo ou descrição..."
+                                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20"
+                            />
+                            <FileText size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-200 transition-colors">
+                                <Activity size={14} /> Todos
+                            </button>
+                            <button className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-amber-200 transition-colors">
+                                ★ Favoritos
+                            </button>
+                            <button className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-emerald-200 transition-colors">
+                                <RefreshCw size={14} /> Agendados
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Reports List */}
+                    <div className="space-y-4">
+                        {modules.map((m, idx) => {
+                            // Mock preferences - in real implementation these would come from state/storage
+                            const isFavorite = ['sales', 'finance', 'dre', 'inventory'].includes(m.id);
+                            const schedules: Record<string, string> = { sales: 'Diário', finance: 'Semanal', dre: 'Mensal' };
+                            const formats: Record<string, string> = { sales: 'Excel', finance: 'PDF', dre: 'PDF', inventory: 'Excel' };
+                            const lastGenerated: Record<string, string> = {
+                                sales: 'Hoje, 14:32',
+                                finance: 'Ontem, 09:15',
+                                dre: '28/12/2025',
+                                inventory: 'Hoje, 08:00'
+                            };
+
+                            return (
+                                <div
+                                    key={m.id}
+                                    className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden group hover:shadow-lg hover:border-cyan-200 dark:hover:border-cyan-800 transition-all"
+                                >
+                                    <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-4">
+                                        {/* Icon and Main Info */}
+                                        <div className="flex items-center gap-4 flex-1">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${idx % 5 === 0 ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
+                                                    idx % 5 === 1 ? 'bg-gradient-to-br from-emerald-500 to-green-600' :
+                                                        idx % 5 === 2 ? 'bg-gradient-to-br from-violet-500 to-purple-600' :
+                                                            idx % 5 === 3 ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
+                                                                'bg-gradient-to-br from-rose-500 to-pink-600'
+                                                }`}>
+                                                {React.cloneElement(m.icon as any, { size: 24 })}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className="text-lg font-black text-slate-900 dark:text-white">{m.name}</h3>
+                                                    {isFavorite && (
+                                                        <span className="text-amber-500">★</span>
+                                                    )}
+                                                    {schedules[m.id] && (
+                                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-black uppercase">{schedules[m.id]}</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                    Gerar relatórios detalhados, exportar dados e analisar métricas de {m.name.toLowerCase()}.
+                                                </p>
+                                                {lastGenerated[m.id] && (
+                                                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                                        <Calendar size={10} /> Último: {lastGenerated[m.id]}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Preferences Section */}
+                                        <div className="flex flex-wrap items-center gap-3 lg:gap-6 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pl-6">
+                                            {/* Formato Padrão */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Formato</label>
+                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
+                                                    <option selected={formats[m.id] === 'Excel'}>Excel</option>
+                                                    <option selected={formats[m.id] === 'PDF'}>PDF</option>
+                                                    <option>CSV</option>
+                                                    <option>JSON</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Período Padrão */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Período</label>
+                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
+                                                    <option>Hoje</option>
+                                                    <option>Últimos 7 dias</option>
+                                                    <option selected>Mês Atual</option>
+                                                    <option>Trimestre</option>
+                                                    <option>Ano</option>
+                                                    <option>Personalizado</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Agendamento */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Agendar</label>
+                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
+                                                    <option>Desativado</option>
+                                                    <option selected={schedules[m.id] === 'Diário'}>Diário</option>
+                                                    <option selected={schedules[m.id] === 'Semanal'}>Semanal</option>
+                                                    <option selected={schedules[m.id] === 'Mensal'}>Mensal</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Favorito Toggle */}
+                                            <button
+                                                className={`p-2.5 rounded-xl transition-colors ${isFavorite ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`}
+                                                title={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                                            >
+                                                {isFavorite ? '★' : '☆'}
+                                            </button>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex gap-2 lg:ml-4">
+                                            <button
+                                                onClick={() => setSelectedModule(m.id)}
+                                                className="flex-1 lg:flex-none px-5 py-3 bg-cyan-600 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-700 transition-colors shadow-lg shadow-cyan-600/20"
+                                            >
+                                                <FileText size={14} /> Gerar
+                                            </button>
+                                            <button
+                                                onClick={() => exportToCSV(reportData, `Relatorio_${m.id}`)}
+                                                className="p-3 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200 transition-colors"
+                                                title="Exportação Rápida (Excel)"
+                                            >
+                                                <Download size={16} />
+                                            </button>
+                                            <button
+                                                className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-500 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                                title="Configurações Avançadas"
+                                            >
+                                                <Activity size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Expandable Details (Hidden by default, could be toggled) */}
+                                    <div className="hidden group-hover:block bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 p-4">
+                                        <div className="flex flex-wrap items-center gap-6 text-xs text-slate-500">
+                                            <div className="flex items-center gap-2">
+                                                <Activity size={12} className="text-cyan-500" />
+                                                <span><strong>Colunas:</strong> ID, Data, Descrição, Valor, Status</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Circle size={12} className="text-emerald-500" />
+                                                <span><strong>Filtros ativos:</strong> Período, Status</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Mail size={12} className="text-violet-500" />
+                                                <span><strong>Enviar por e-mail:</strong> Desativado</span>
+                                            </div>
+                                            <button className="ml-auto text-cyan-600 font-bold hover:underline">
+                                                Personalizar Colunas →
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-cyan-100 dark:bg-cyan-900/30 rounded-xl text-cyan-600">
+                                <BookOpen size={20} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{m.name}</h3>
-                            <p className="text-sm text-slate-500 font-medium">Gerar relatórios detalhados, exportar dados e analisar métricas de {m.name.toLowerCase()}.</p>
-                        </button>
-                    ))}
+                            <div>
+                                <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Dica: Configure seus relatórios favoritos</p>
+                                <p className="text-xs text-slate-500">Defina período, formato e agendamento padrão para gerar relatórios com 1 clique.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2">
+                                <Download size={14} /> Exportar Configurações
+                            </button>
+                            <button className="px-5 py-2.5 bg-cyan-600 text-white font-bold text-xs rounded-xl hover:bg-cyan-700 transition-colors flex items-center gap-2 shadow-lg shadow-cyan-600/20">
+                                <RefreshCw size={14} /> Sincronizar Preferências
+                            </button>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 /* --- REPORT CONFIGURATOR VIEW --- */

@@ -392,8 +392,6 @@ export interface AppSettings {
     bankName: string;
     agency: string;
     account: string;
-    accountType?: 'Conta Corrente' | 'Conta Poupança' | 'Conta Salário' | 'Conta PJ';
-    holderName?: string;
     pixKey: string;
     pixType: string;
   };
@@ -448,7 +446,6 @@ export interface AppSettings {
     senderPassword?: string;
     smtpPassword?: string;
     templates?: Record<string, string>;
-    automations?: Record<string, boolean>;
   };
   documents: {
     printerMain: string;

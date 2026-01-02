@@ -342,11 +342,11 @@ const Finance = () => {
          {/* New Account Modal */}
          {isAccountModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
-                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
+               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50 sticky top-0 z-10">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Landmark className="text-cyan-600" />
-                        Nova Conta
+                        Nova Conta Bancária
                      </h3>
                      <button onClick={() => setIsAccountModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={24} />
@@ -358,47 +358,248 @@ const Finance = () => {
                      addAccount({ ...accountForm, id: Date.now().toString(), balance: Number(accountForm.balance) });
                      setIsAccountModalOpen(false);
                   }} className="p-6 space-y-5">
+
+                     {/* Instituição Financeira */}
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nome da Conta / Banco</label>
-                        <input
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Instituição Financeira</label>
+                        <select
                            required
+                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+                           value={accountForm.bankCode || ''}
+                           onChange={e => {
+                              const selectedBank = e.target.value;
+                              const bankName = e.target.options[e.target.selectedIndex].text;
+                              setAccountForm({
+                                 ...accountForm,
+                                 bankCode: selectedBank,
+                                 name: selectedBank === 'outro' ? '' : bankName.split(' - ').slice(1).join(' - ') || bankName
+                              });
+                           }}
+                        >
+                           <option value="">Selecione o banco...</option>
+                           <optgroup label="🏦 Bancos Tradicionais">
+                              <option value="001">001 - Banco do Brasil S.A.</option>
+                              <option value="033">033 - Banco Santander (Brasil) S.A.</option>
+                              <option value="104">104 - Caixa Econômica Federal</option>
+                              <option value="237">237 - Banco Bradesco S.A.</option>
+                              <option value="341">341 - Banco Itaú S.A.</option>
+                              <option value="399">399 - HSBC Bank Brasil S.A.</option>
+                              <option value="422">422 - Banco Safra S.A.</option>
+                              <option value="745">745 - Banco Citibank S.A.</option>
+                           </optgroup>
+                           <optgroup label="💜 Bancos Digitais">
+                              <option value="077">077 - Banco Inter S.A.</option>
+                              <option value="212">212 - Banco Original S.A.</option>
+                              <option value="260">260 - Nu Pagamentos S.A. (Nubank)</option>
+                              <option value="336">336 - Banco C6 S.A.</option>
+                              <option value="290">290 - PagBank (PagSeguro)</option>
+                              <option value="323">323 - Mercado Pago</option>
+                              <option value="380">380 - PicPay Serviços S.A.</option>
+                              <option value="403">403 - Cora SCD S.A.</option>
+                           </optgroup>
+                           <optgroup label="🏛️ Bancos de Investimento">
+                              <option value="208">208 - Banco BTG Pactual S.A.</option>
+                              <option value="102">102 - XP Investimentos</option>
+                              <option value="386">386 - Nu Invest (Easynvest)</option>
+                              <option value="735">735 - Banco Neon S.A.</option>
+                              <option value="746">746 - Banco Modal S.A.</option>
+                           </optgroup>
+                           <optgroup label="🏢 Cooperativas">
+                              <option value="748">748 - Sicredi</option>
+                              <option value="756">756 - Sicoob</option>
+                              <option value="091">091 - Unicred Central</option>
+                              <option value="085">085 - Ailos</option>
+                           </optgroup>
+                           <optgroup label="🏗️ Bancos Regionais / Desenvolvimento">
+                              <option value="041">041 - Banrisul</option>
+                              <option value="070">070 - BRB - Banco de Brasília</option>
+                              <option value="004">004 - Banco do Nordeste (BNB)</option>
+                              <option value="003">003 - Banco da Amazônia (BASA)</option>
+                              <option value="021">021 - Banestes</option>
+                              <option value="047">047 - Banese</option>
+                           </optgroup>
+                           <optgroup label="💵 Caixa / Outros">
+                              <option value="caixa">Caixa Físico (Dinheiro)</option>
+                              <option value="cofre">Cofre</option>
+                              <option value="outro">Outro (digitar nome)</option>
+                           </optgroup>
+                        </select>
+                     </div>
+
+                     {/* Nome personalizado se "outro" */}
+                     {accountForm.bankCode === 'outro' && (
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nome da Conta / Banco</label>
+                           <input
+                              required
+                              type="text"
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                              placeholder="Ex: Banco XYZ"
+                              value={accountForm.name}
+                              onChange={e => setAccountForm({ ...accountForm, name: e.target.value })}
+                           />
+                        </div>
+                     )}
+
+                     {/* Apelido da Conta */}
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Apelido da Conta (opcional)</label>
+                        <input
                            type="text"
                            className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
-                           placeholder="Ex: Nubank Principal"
-                           value={accountForm.name}
-                           onChange={e => setAccountForm({ ...accountForm, name: e.target.value })}
+                           placeholder="Ex: Conta Principal, Reserva, etc."
+                           value={accountForm.nickname || ''}
+                           onChange={e => setAccountForm({ ...accountForm, nickname: e.target.value })}
                         />
                      </div>
+
+                     {/* Tipo de Conta e Agência/Conta */}
+                     {!['caixa', 'cofre'].includes(accountForm.bankCode) && accountForm.bankCode && (
+                        <>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Tipo de Conta</label>
+                                 <select
+                                    className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+                                    value={accountForm.type || 'Conta Corrente'}
+                                    onChange={e => setAccountForm({ ...accountForm, type: e.target.value })}
+                                 >
+                                    <option value="Conta Corrente">Conta Corrente</option>
+                                    <option value="Conta Poupança">Conta Poupança</option>
+                                    <option value="Conta Salário">Conta Salário</option>
+                                    <option value="Conta PJ">Conta Pessoa Jurídica</option>
+                                    <option value="Conta Investimento">Conta Investimento</option>
+                                 </select>
+                              </div>
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Agência</label>
+                                 <input
+                                    type="text"
+                                    className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                                    placeholder="0001-X"
+                                    value={accountForm.agency || ''}
+                                    onChange={e => setAccountForm({ ...accountForm, agency: e.target.value })}
+                                    maxLength={10}
+                                 />
+                              </div>
+                           </div>
+
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Número da Conta (com dígito)</label>
+                              <input
+                                 type="text"
+                                 className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                                 placeholder="12345-6"
+                                 value={accountForm.accountNumber || ''}
+                                 onChange={e => setAccountForm({ ...accountForm, accountNumber: e.target.value })}
+                                 maxLength={15}
+                              />
+                           </div>
+                        </>
+                     )}
+
+                     {/* Saldo Inicial */}
                      <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Saldo Inicial (R$)</label>
-                        <input
-                           required
-                           type="number"
-                           step="0.01"
-                           className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-bold"
-                           value={accountForm.balance}
-                           onChange={e => setAccountForm({ ...accountForm, balance: e.target.value })}
-                        />
+                        <div className="relative">
+                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                           <input
+                              required
+                              type="number"
+                              step="0.01"
+                              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white pl-12 pr-4 py-3 font-bold focus:ring-2 focus:ring-cyan-500"
+                              placeholder="0,00"
+                              value={accountForm.balance}
+                              onChange={e => setAccountForm({ ...accountForm, balance: e.target.value })}
+                           />
+                        </div>
                      </div>
+
+                     {/* Chave PIX */}
+                     {!['caixa', 'cofre'].includes(accountForm.bankCode) && accountForm.bankCode && (
+                        <div className="pt-4 border-t border-slate-200 dark:border-gray-600">
+                           <h4 className="text-xs font-black text-cyan-600 uppercase mb-3 flex items-center gap-2">
+                              ⚡ Chave PIX (opcional)
+                           </h4>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Tipo de Chave</label>
+                                 <select
+                                    className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+                                    value={accountForm.pixType || ''}
+                                    onChange={e => setAccountForm({ ...accountForm, pixType: e.target.value })}
+                                 >
+                                    <option value="">Nenhuma</option>
+                                    <option value="CNPJ">CNPJ</option>
+                                    <option value="CPF">CPF</option>
+                                    <option value="E-mail">E-mail</option>
+                                    <option value="Telefone">Telefone</option>
+                                    <option value="Aleatória">Chave Aleatória</option>
+                                 </select>
+                              </div>
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Chave PIX</label>
+                                 <input
+                                    type="text"
+                                    className="w-full rounded-xl border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-4 py-3 font-semibold focus:ring-2 focus:ring-cyan-500"
+                                    placeholder={
+                                       accountForm.pixType === 'CNPJ' ? '00.000.000/0000-00' :
+                                          accountForm.pixType === 'CPF' ? '000.000.000-00' :
+                                             accountForm.pixType === 'E-mail' ? 'email@empresa.com' :
+                                                accountForm.pixType === 'Telefone' ? '+55 11 99999-9999' :
+                                                   accountForm.pixType === 'Aleatória' ? 'Cole a chave' : ''
+                                    }
+                                    value={accountForm.pixKey || ''}
+                                    onChange={e => setAccountForm({ ...accountForm, pixKey: e.target.value })}
+                                    disabled={!accountForm.pixType}
+                                 />
+                              </div>
+                           </div>
+                        </div>
+                     )}
+
+                     {/* Cor do Card */}
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cor do Card</label>
-                        <div className="flex gap-2">
-                           {['bg-blue-600', 'bg-green-600', 'bg-orange-600', 'bg-purple-600', 'bg-slate-900'].map(color => (
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cor de Identificação</label>
+                        <div className="flex gap-2 flex-wrap">
+                           {[
+                              { color: 'bg-blue-600', label: 'Azul' },
+                              { color: 'bg-green-600', label: 'Verde' },
+                              { color: 'bg-orange-600', label: 'Laranja' },
+                              { color: 'bg-purple-600', label: 'Roxo' },
+                              { color: 'bg-pink-600', label: 'Rosa' },
+                              { color: 'bg-cyan-600', label: 'Ciano' },
+                              { color: 'bg-amber-600', label: 'Âmbar' },
+                              { color: 'bg-slate-900', label: 'Escuro' }
+                           ].map(({ color, label }) => (
                               <button
                                  type="button"
                                  key={color}
                                  onClick={() => setAccountForm({ ...accountForm, color })}
-                                 className={`w-8 h-8 rounded-full ${color} ${accountForm.color === color ? 'ring-4 ring-offset-2 ring-cyan-500' : 'opacity-70 hover:opacity-100'}`}
+                                 className={`w-8 h-8 rounded-full ${color} transition-all ${accountForm.color === color ? 'ring-4 ring-offset-2 ring-cyan-500 scale-110' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
+                                 title={label}
                               />
                            ))}
                         </div>
                      </div>
-                     <button
-                        type="submit"
-                        className="w-full py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 mt-4"
-                     >
-                        Criar Conta
-                     </button>
+
+                     {/* Botões de Ação */}
+                     <div className="pt-4 flex gap-3">
+                        <button
+                           type="button"
+                           onClick={() => setIsAccountModalOpen(false)}
+                           className="flex-1 py-3 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                        >
+                           Cancelar
+                        </button>
+                        <button
+                           type="submit"
+                           className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-2"
+                        >
+                           <Plus size={18} />
+                           Criar Conta
+                        </button>
+                     </div>
                   </form>
                </div>
             </div>

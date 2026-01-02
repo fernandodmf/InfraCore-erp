@@ -849,7 +849,7 @@ const Fleet = () => {
                             >
                                 <Download size={16} />
                             </button>
-                            <button onClick={() => setIsMaintModalOpen(true)} className="px-4 py-2 bg-teal-600 text-white font-black rounded-xl text-xs uppercase shadow-lg shadow-teal-600/20">Nova Ordem</button>
+
                         </div>
                     </div>
                     <div className="overflow-x-auto">

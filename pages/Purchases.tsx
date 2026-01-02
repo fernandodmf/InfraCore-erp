@@ -36,11 +36,12 @@ import {
    Printer,
    Edit2,
    ClipboardCheck,
-   ShieldCheck
+   ShieldCheck,
+   Settings
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, Cell } from 'recharts';
 import { useApp } from '../context/AppContext';
-import { PurchaseOrder, PurchaseItem, Supplier, InventoryItem } from '../types';
+import { PurchaseOrder, PurchaseItem, Supplier, InventoryItem, MaintenanceRecord } from '../types';
 import { printDocument } from '../utils/exportUtils';
 
 const Purchases = () => {
@@ -61,7 +62,8 @@ const Purchases = () => {
       updateStockItem,
       deleteStockItem,
       accounts,
-      currentUser
+      currentUser,
+      addMaintenanceRecord
    } = useApp();
 
    const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('dashboard');
@@ -98,6 +100,41 @@ const Purchases = () => {
    // Search & Filter
    const [searchTerm, setSearchTerm] = useState('');
    const [statusFilter, setStatusFilter] = useState<string>('Todos');
+
+   // OSM States (Maintenance)
+   const [isOSMModalOpen, setIsOSMModalOpen] = useState(false);
+   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+   const [osmForm, setOsmForm] = useState<Partial<MaintenanceRecord>>({
+      type: 'Preventiva',
+      date: new Date().toISOString().split('T')[0],
+      cost: 0,
+      km: 0,
+      attachments: []
+   });
+
+   // ODO States (Operational Expense)
+   const [isODOModalOpen, setIsODOModalOpen] = useState(false);
+   const [odoForm, setOdoForm] = useState<{
+      description: string;
+      date: string;
+      value: number;
+      category: string;
+      supplierName: string;
+      paymentMethod: string;
+      installments: number;
+      account: string;
+      attachments: any[];
+   }>({
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      value: 0,
+      category: 'Despesa Operacional',
+      supplierName: 'Fornecedor Diverso',
+      paymentMethod: 'Boleto',
+      installments: 1,
+      account: '',
+      attachments: []
+   });
 
    // Cart Management
    const addItemToOrder = (product: InventoryItem) => {
@@ -309,6 +346,80 @@ const Purchases = () => {
       }
    };
 
+   const handleSaveOSM = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedVehicleId) return;
+
+      const record: MaintenanceRecord = {
+         id: `M-${Date.now()}`,
+         vehicleId: selectedVehicleId,
+         date: osmForm.date || '',
+         type: osmForm.type as any || 'Preventiva',
+         description: osmForm.description || '',
+         cost: Number(osmForm.cost) || 0,
+         km: Number(osmForm.km) || 0,
+         mechanic: osmForm.mechanic,
+         attachments: osmForm.attachments,
+         productId: osmForm.productId,
+         productQuantity: osmForm.productQuantity,
+         debitAccountId: osmForm.debitAccountId,
+         ledgerCode: osmForm.ledgerCode,
+         ledgerName: osmForm.ledgerName
+      };
+
+      addMaintenanceRecord(selectedVehicleId, record);
+      setIsOSMModalOpen(false);
+      setOsmForm({
+         type: 'Preventiva',
+         date: new Date().toISOString().split('T')[0],
+         cost: 0,
+         km: 0,
+         attachments: []
+      });
+      alert("OSM gerada com sucesso!");
+   };
+
+   const handleSaveODO = (e: React.FormEvent) => {
+      e.preventDefault();
+
+      const newOrder: PurchaseOrder = {
+         id: `ODO-${Date.now()}`,
+         supplierId: 'DVERSO',
+         supplierName: odoForm.supplierName,
+         date: new Date(odoForm.date).toLocaleDateString('pt-BR'),
+         items: [{
+            id: `SERV-${Date.now()}`,
+            name: odoForm.description,
+            quantity: 1,
+            unit: 'SV',
+            price: odoForm.value
+         }],
+         subtotal: odoForm.value,
+         total: odoForm.value,
+         status: 'Pendente',
+         attachments: odoForm.attachments,
+         paymentTerms: odoForm.paymentMethod,
+         shippingCost: 0,
+         ledgerName: odoForm.category,
+         targetAccountId: odoForm.account
+      };
+
+      addPurchaseOrder(newOrder);
+      setIsODOModalOpen(false);
+      setOdoForm({
+         description: '',
+         date: new Date().toISOString().split('T')[0],
+         value: 0,
+         category: 'Despesa Operacional',
+         supplierName: 'Fornecedor Diverso',
+         paymentMethod: 'Boleto',
+         installments: 1,
+         account: '',
+         attachments: []
+      });
+      alert("ODO gerada e enviada para aprovação!");
+   };
+
    return (
       <div className="flex flex-col gap-6">
          {/* Header */}
@@ -372,13 +483,29 @@ const Purchases = () => {
                         </h2>
                         <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
                      </div>
-                     <button
-                        onClick={() => setActiveTab('new-order')}
-                        className="flex items-center gap-2 px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
-                     >
-                        <Plus size={20} />
-                        Gerar Pedido de Compra
-                     </button>
+                     <div className="flex flex-wrap gap-4">
+                        <button
+                           onClick={() => setActiveTab('new-order')}
+                           className="flex items-center gap-2 px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                        >
+                           <Plus size={20} />
+                           Gerar Pedido de Compra
+                        </button>
+                        <button
+                           onClick={() => setIsOSMModalOpen(true)}
+                           className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                        >
+                           <Wrench size={20} />
+                           Gerar OSM
+                        </button>
+                        <button
+                           onClick={() => setIsODOModalOpen(true)}
+                           className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95"
+                        >
+                           <FileText size={20} />
+                           Gerar ODO
+                        </button>
+                     </div>
                   </div>
                   <div className="text-right bg-white/5 p-4 rounded-2xl border border-white/10">
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Pendente</p>
@@ -1284,6 +1411,201 @@ const Purchases = () => {
                         </div>
                      </div>
                      <button type="submit" className="w-full py-4 bg-cyan-600 text-white font-black rounded-xl uppercase tracking-widest text-xs shadow-lg mt-4">Salvar Item</button>
+                  </form>
+               </div>
+            </div>
+
+         )}
+         {/* OSM Modal (Maintenance) */}
+         {isOSMModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+               <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-4xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
+                  <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                     <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gerar Ordem de Serviço de Manutenção (OSM)</h3>
+                     <button onClick={() => setIsOSMModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                  </div>
+                  <form onSubmit={handleSaveOSM} className="p-10 space-y-8">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Veículo / Equipamento</label>
+                              <select
+                                 className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                 value={selectedVehicleId}
+                                 onChange={e => setSelectedVehicleId(e.target.value)}
+                                 required
+                              >
+                                 <option value="">Selecione o ativo...</option>
+                                 {fleet.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.name}</option>)}
+                              </select>
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
+                                 <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={osmForm.date} onChange={e => setOsmForm({ ...osmForm, date: e.target.value })} required />
+                              </div>
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Tipo</label>
+                                 <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={osmForm.type} onChange={e => setOsmForm({ ...osmForm, type: e.target.value as any })} required>
+                                    <option value="Preventiva">Preventiva</option>
+                                    <option value="Corretiva">Corretiva</option>
+                                    <option value="Preditiva">Preditiva</option>
+                                 </select>
+                              </div>
+                           </div>
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição do Serviço</label>
+                              <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Ex: Troca de óleo, filtros, reparo mecânico..." value={osmForm.description} onChange={e => setOsmForm({ ...osmForm, description: e.target.value })} required rows={4}></textarea>
+                           </div>
+                           {/* Account Selection */}
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Conta de Débito</label>
+                              <select
+                                 className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm"
+                                 value={osmForm.debitAccountId || ''}
+                                 onChange={e => setOsmForm({ ...osmForm, debitAccountId: e.target.value })}
+                                 required
+                              >
+                                 <option value="">Selecione a conta...</option>
+                                 {accounts.map(acc => (
+                                    <option key={acc.id} value={acc.id}>{acc.name} ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(acc.balance)})</option>
+                                 ))}
+                              </select>
+                           </div>
+                        </div>
+
+                        <div className="space-y-6">
+                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Custo Estimado (R$)</label>
+                                 <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={osmForm.cost || ''} onChange={e => setOsmForm({ ...osmForm, cost: Number(e.target.value) })} required />
+                              </div>
+                              <div>
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">KM Atual</label>
+                                 <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0" value={osmForm.km || ''} onChange={e => setOsmForm({ ...osmForm, km: Number(e.target.value) })} required />
+                              </div>
+                           </div>
+
+                           {/* Parts/Products Logic from Inventory */}
+                           <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                              <h4 className="text-xs font-black text-teal-600 uppercase mb-4">Peças e Insumos (Opcional)</h4>
+                              <div className="grid grid-cols-1 gap-4">
+                                 <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Produto</label>
+                                    <select
+                                       className="w-full bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-xl py-3 font-bold text-sm"
+                                       value={osmForm.productId || ''}
+                                       onChange={e => setOsmForm({ ...osmForm, productId: e.target.value })}
+                                    >
+                                       <option value="">Nenhum produto...</option>
+                                       {inventory.map(item => (
+                                          <option key={item.id} value={item.id}>{item.name} (Estoque: {item.quantity})</option>
+                                       ))}
+                                    </select>
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Ledger Code */}
+                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Plano de Contas</label>
+                              <select
+                                 className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm"
+                                 value={osmForm.ledgerCode}
+                                 onChange={e => {
+                                    const options: any = {
+                                       '2.02.02': 'Manutenção de Frota',
+                                       '2.02.03': 'IPVA / Taxas / Seguros',
+                                       '2.02.04': 'Pneus / Rodagem'
+                                    };
+                                    setOsmForm({ ...osmForm, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
+                                 }}
+                              >
+                                 <option value="2.02.02">2.02.02 - Manutenção de Frota</option>
+                                 <option value="2.02.03">2.02.03 - IPVA / Taxas / Seguros</option>
+                                 <option value="2.02.04">2.02.04 - Pneus / Rodagem</option>
+                              </select>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="pt-8 border-t dark:border-slate-700 flex gap-4">
+                        <button
+                           type="button"
+                           onClick={() => setIsOSMModalOpen(false)}
+                           className="flex-1 py-5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-3xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+                        >
+                           Cancelar
+                        </button>
+                        <button
+                           type="submit"
+                           className="flex-[2] py-5 bg-teal-600 text-white font-black rounded-3xl uppercase tracking-widest text-[10px] shadow-2xl shadow-teal-600/30 hover:bg-teal-500 transition-all flex items-center justify-center gap-3"
+                        >
+                           <Save size={18} /> Confirmar OSM
+                        </button>
+                     </div>
+                  </form>
+               </div>
+            </div>
+         )}
+
+         {/* ODO Modal (Operational Expense) */}
+         {isODOModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+               <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl border dark:border-slate-700 animate-in zoom-in duration-200 my-8">
+                  <div className="px-10 py-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                     <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tight">Gerar Ordem de Despesa (ODO)</h3>
+                     <button onClick={() => setIsODOModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                  </div>
+                  <form onSubmit={handleSaveODO} className="p-10 space-y-6">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Descrição da Despesa</label>
+                        <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 px-4 font-bold text-sm" placeholder="Ex: Material de escritório, Serviço de Limpeza..." value={odoForm.description} onChange={e => setOdoForm({ ...odoForm, description: e.target.value })} required />
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Valor (R$)</label>
+                           <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" placeholder="0.00" value={odoForm.value || ''} onChange={e => setOdoForm({ ...odoForm, value: Number(e.target.value) })} required />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data de Vencimento</label>
+                           <input type="date" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={odoForm.date} onChange={e => setOdoForm({ ...odoForm, date: e.target.value })} required />
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Beneficiário / Fornecedor</label>
+                           <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={odoForm.supplierName} onChange={e => setOdoForm({ ...odoForm, supplierName: e.target.value })} />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Categoria</label>
+                           <select className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-4 font-bold text-sm" value={odoForm.category} onChange={e => setOdoForm({ ...odoForm, category: e.target.value })}>
+                              <option value="Despesa Operacional">Despesa Operacional</option>
+                              <option value="Serviços Terceiros">Serviços de Terceiros</option>
+                              <option value="Impostos e Taxas">Impostos e Taxas</option>
+                              <option value="Aluguel">Aluguel / Condomínio</option>
+                              <option value="Outros">Outras Despesas</option>
+                           </select>
+                        </div>
+                     </div>
+
+                     <div className="pt-6 border-t dark:border-slate-700 flex gap-4">
+                        <button
+                           type="button"
+                           onClick={() => setIsODOModalOpen(false)}
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+                        >
+                           Cancelar
+                        </button>
+                        <button
+                           type="submit"
+                           className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-indigo-600/30 hover:bg-indigo-500 transition-all flex items-center justify-center gap-2"
+                        >
+                           <Save size={18} /> Lançar Despesa
+                        </button>
+                     </div>
                   </form>
                </div>
             </div>

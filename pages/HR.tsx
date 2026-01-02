@@ -5,7 +5,7 @@ import {
     Plane, TrendingUp, AlertCircle, Filter, ChevronDown, FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Employee, PayrollRecord, TimeLog, Vacation, SalaryAdvance } from '../types';
+import { Employee, PayrollRecord, TimeLog, Vacation, SalaryAdvance, PurchaseOrder } from '../types';
 import { exportToCSV } from '../utils/exportUtils';
 
 const HR = () => {
@@ -17,7 +17,7 @@ const HR = () => {
         salaryAdvances, addSalaryAdvance, updateAdvanceStatus, paySalaryAdvance, deleteAdvance,
         users
     } = useApp();
-    const { addTransaction, accounts, hasPermission, currentUser, transactions } = useApp();
+    const { addTransaction, accounts, hasPermission, currentUser, transactions, addPurchaseOrder } = useApp();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'payroll' | 'vacations' | 'advances' | 'time'>('employees');
     const [searchTerm, setSearchTerm] = useState('');
@@ -28,9 +28,9 @@ const HR = () => {
     const [isVacationModalOpen, setIsVacationModalOpen] = useState(false);
     const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
 
-    // Payment Modal State
-    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-    const [paymentRecord, setPaymentRecord] = useState<PayrollRecord | null>(null);
+    // Payment Modal State (Removed - Integrated with Purchases)
+    // const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    // const [paymentRecord, setPaymentRecord] = useState<PayrollRecord | null>(null);
     const [selectedAccount, setSelectedAccount] = useState<string>('');
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -144,54 +144,42 @@ const HR = () => {
                 discounts: parseFloat(totalDiscounts.toFixed(2)),
                 totalNet: parseFloat((emp.salary + benefits - totalDiscounts).toFixed(2)),
                 status: 'Pendente'
+
             };
             addPayroll(record);
+
+            // Create ODP (Purchase Order) for Authorization in Purchases Module
+            const odp: PurchaseOrder = {
+                id: `ODP-FOLHA-${record.id}`,
+                supplierId: emp.id,
+                supplierName: emp.name,
+                date: new Date().toLocaleDateString('pt-BR'),
+                items: [{
+                    id: `PAY-${record.id}`,
+                    name: `Salário Mensal - Competência ${month}`,
+                    quantity: 1,
+                    unit: 'UN',
+                    price: record.totalNet
+                }],
+                subtotal: record.totalNet,
+                total: record.totalNet,
+                status: 'Pendente',
+                attachments: [],
+                paymentTerms: 'Transferência Bancária',
+                shippingCost: 0,
+                ledgerName: 'Salários e Ordenados',
+                targetAccountId: '', // To be selected in Authorization
+                ledgerCode: '2.03.01'
+            };
+            addPurchaseOrder(odp);
+
             count++;
         });
         alert(`Folha de ${month} gerada com sucesso para ${count} colaboradores!`);
         setIsPayrollModalOpen(false);
     };
 
-    const openPaymentModal = (record: PayrollRecord) => {
-        setPaymentRecord(record);
-        setSelectedAccount(accounts[0]?.id || '');
-        setPaymentModalOpen(true);
-    };
 
-    const confirmPayment = () => {
-        if (!paymentRecord || !selectedAccount) return;
-
-        // 1. Check if transaction already exists
-        const txId = `tx-pay-${paymentRecord.id}`;
-        if (transactions.some(t => t.id === txId)) {
-            alert("Este pagamento já foi processado no financeiro.");
-            setPaymentModalOpen(false);
-            return;
-        }
-
-        const account = accounts.find(a => a.id === selectedAccount);
-
-        // 2. Create Financial Transaction
-        addTransaction({
-            id: txId,
-            date: new Date().toLocaleDateString('pt-BR'),
-            description: `Pagamento Salário - ${paymentRecord.employeeName} (${paymentRecord.month})`,
-            category: 'Salários e Ordenados',
-            type: 'Despesa',
-            amount: paymentRecord.totalNet,
-            status: 'Conciliado',
-            account: account?.name || 'Caixa',
-            accountId: account?.id || 'acc-1',
-            ledgerCode: '2.03.01',
-            ledgerName: 'Salários e Ordenados'
-        });
-
-        // 3. Update Payroll Status
-        payPayroll(paymentRecord.id);
-        alert("Pagamento registrado com sucesso!");
-        setPaymentModalOpen(false);
-        setPaymentRecord(null);
-    };
 
     const handlePrintReceipt = (record: PayrollRecord) => {
         const settings = useApp().settings; // Assuming settings is available in hook or we fetch it
@@ -766,13 +754,15 @@ const HR = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-5 text-right">
-                                                            {p.status === 'Pendente' && hasPermission('finance.transact') ? (
-                                                                <button onClick={() => openPaymentModal(p)} className="px-4 py-1.5 bg-emerald-600 text-white font-black text-[10px] rounded-lg shadow-sm hover:scale-105 transition-transform uppercase">Pagar</button>
-                                                            ) : p.status === 'Pago' ? (
+                                                            {p.status === 'Pendente' && (
+                                                                <span className="text-[10px] text-slate-400 font-bold italic">Aguardando Autorização (Central de Compras)</span>
+                                                            )
+                                                            }
+                                                            {p.status === 'Pago' && (
                                                                 <button onClick={() => handlePrintReceipt(p)} className="px-4 py-1.5 bg-white border border-slate-200 text-slate-600 font-bold text-[10px] rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-1 uppercase">
                                                                     <FileText size={12} /> Recibo
                                                                 </button>
-                                                            ) : null}
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1098,43 +1088,7 @@ const HR = () => {
                     </>
                 )
             }
-            {/* Payment Modal */}
-            {paymentModalOpen && paymentRecord && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-                            <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                                <DollarSign className="text-emerald-500" /> Confirmar Pagamento
-                            </h3>
-                            <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"><X size={18} /></button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800 text-center">
-                                <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase mb-1">Valor Líquido</p>
-                                <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(paymentRecord.totalNet)}</p>
-                                <p className="text-xs text-slate-500 mt-2 font-medium">{paymentRecord.employeeName}</p>
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase">Conta de Saída</label>
-                                <select
-                                    className="w-full p-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold shadow-inner focus:ring-2 focus:ring-emerald-500"
-                                    value={selectedAccount}
-                                    onChange={(e) => setSelectedAccount(e.target.value)}
-                                >
-                                    {accounts.map(acc => (
-                                        <option key={acc.id} value={acc.id}>{acc.name} (Saldo: {formatCurrency(acc.balance || 0)})</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 flex gap-3">
-                            <button onClick={() => setPaymentModalOpen(false)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={confirmPayment} className="flex-1 py-3 bg-emerald-600 text-white font-black rounded-xl shadow-lg hover:bg-emerald-500 transition-colors uppercase text-sm">Confirmar Pagamento</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div >
     );
 };

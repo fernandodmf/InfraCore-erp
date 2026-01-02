@@ -25,7 +25,8 @@ import {
    AlertCircle,
    Search,
    PieChart,
-   ChevronRight
+   ChevronRight,
+   Printer
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { CHART_DATA_CASHFLOW } from '../constants';
@@ -843,7 +844,7 @@ const Finance = () => {
                               </td>
                               <td className="px-6 py-4 text-center">
                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${tx.status === 'Conciliado' ? 'bg-green-100 text-green-700' :
-                                    tx.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                    tx.status === 'Pendente' ? 'bg-amber-100 text-amber-700' :
                                        'bg-slate-100 text-slate-600'
                                     }`}>
                                     <div className={`w-1.5 h-1.5 rounded-full ${tx.status === 'Conciliado' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
@@ -893,6 +894,57 @@ const Finance = () => {
                                           <Trash2 size={16} />
                                        </button>
                                     )}
+
+                                    <button
+                                       onClick={() => {
+                                          const printWindow = window.open('', '_blank');
+                                          if (printWindow) {
+                                             printWindow.document.write(`
+                                                <html>
+                                                   <head>
+                                                      <title>Comprovante de Transação #${tx.id}</title>
+                                                      <style>
+                                                         body { font-family: 'Courier New', monospace; padding: 20px; max-width: 400px; margin: 0 auto; }
+                                                         .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+                                                         .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+                                                         .label { font-weight: bold; }
+                                                         .footer { margin-top: 20px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+                                                         .amount { font-size: 1.2em; font-weight: bold; margin: 10px 0; text-align: center; }
+                                                      </style>
+                                                   </head>
+                                                   <body>
+                                                      <div class="header">
+                                                         <h3>InfraCore ERP</h3>
+                                                         <p>Comprovante de Movimentação</p>
+                                                      </div>
+                                                      <div class="content">
+                                                         <div class="row"><span class="label">Data:</span> <span>${tx.date}</span></div>
+                                                         <div class="row"><span class="label">ID:</span> <span>${tx.id}</span></div>
+                                                         <div class="row"><span class="label">Tipo:</span> <span>${tx.type}</span></div>
+                                                         <div class="row"><span class="label">Categoria:</span> <span>${tx.category}</span></div>
+                                                         <div class="row"><span class="label">Conta:</span> <span>${tx.account}</span></div>
+                                                         <hr style="border: 0; border-top: 1px dashed #ccc; margin: 10px 0;">
+                                                         <div class="label">Descrição:</div>
+                                                         <div>${tx.description}</div>
+                                                         <div class="amount">R$ ${Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                                         <div class="row"><span class="label">Status:</span> <span>${tx.status}</span></div>
+                                                      </div>
+                                                      <div class="footer">
+                                                         <p>Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+                                                         <p>InfraCore Systems</p>
+                                                      </div>
+                                                      <script>window.print();</script>
+                                                   </body>
+                                                </html>
+                                             `);
+                                             printWindow.document.close();
+                                          }
+                                       }}
+                                       className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                                       title="Imprimir Comprovante"
+                                    >
+                                       <Printer size={16} />
+                                    </button>
                                  </div>
                               </td>
                            </tr>

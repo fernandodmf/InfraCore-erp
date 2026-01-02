@@ -25,7 +25,8 @@ import {
     Check,
     Edit2,
     Settings,
-    Clock
+    Clock,
+    Printer
 } from 'lucide-react';
 import { ProductionOrder, InventoryItem, ProductionFormula, QualityTest, ProductionUnit } from '../types';
 import { useApp } from '../context/AppContext';
@@ -444,6 +445,94 @@ const Production = () => {
                                                             title="Excluir O.P."
                                                         >
                                                             <Trash2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const printWindow = window.open('', '_blank');
+                                                                if (printWindow) {
+                                                                    printWindow.document.write(`
+                                                                     <html>
+                                                                        <head>
+                                                                           <title>Ordem de Produção #${o.orderNumber}</title>
+                                                                           <style>
+                                                                              body { font-family: sans-serif; padding: 40px; }
+                                                                              .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                                                                              .title { font-size: 24px; font-weight: bold; text-transform: uppercase; }
+                                                                              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+                                                                              .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+                                                                              .section h3 { margin-top: 0; text-transform: uppercase; font-size: 14px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+                                                                              table { w-full; width: 100%; border-collapse: collapse; }
+                                                                              th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+                                                                              th { text-transform: uppercase; color: #666; font-size: 10px; }
+                                                                              .footer { margin-top: 50px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }
+                                                                              .signature-box { display: flex; justify-content: space-between; margin-top: 60px; }
+                                                                              .signature { width: 45%; border-top: 1px solid #000; padding-top: 10px; text-align: center; font-size: 12px; }
+                                                                           </style>
+                                                                        </head>
+                                                                        <body>
+                                                                           <div class="header">
+                                                                              <div class="title">Ordem de Produção</div>
+                                                                              <div style="text-align: right">
+                                                                                 <div><strong>#${o.orderNumber}</strong></div>
+                                                                                 <div style="font-size: 12px; color: #666;">Emissão: ${o.startDate}</div>
+                                                                              </div>
+                                                                           </div>
+
+                                                                           <div class="info-grid">
+                                                                              <div>
+                                                                                 <p><strong>Produto:</strong> ${o.productName}</p>
+                                                                                 <p><strong>Lote:</strong> ${o.batch}</p>
+                                                                                 <p><strong>Quantidade:</strong> ${o.quantity}</p>
+                                                                              </div>
+                                                                              <div>
+                                                                                 <p><strong>Unidade:</strong> ${productionUnits.find(u => u.id === o.unitId)?.name || o.unitId}</p>
+                                                                                 <p><strong>Operador:</strong> ${o.operator || 'N/A'}</p>
+                                                                                 <p><strong>Status:</strong> ${o.status}</p>
+                                                                              </div>
+                                                                           </div>
+
+                                                                           <div class="section">
+                                                                              <h3>Especificações da Fórmula</h3>
+                                                                              <table>
+                                                                                 <thead>
+                                                                                    <tr>
+                                                                                       <th>Ingrediente</th>
+                                                                                       <th>Qtd/UN</th>
+                                                                                       <th>Total Necessário</th>
+                                                                                    </tr>
+                                                                                 </thead>
+                                                                                 <tbody>
+                                                                                    ${(formulas.find(f => f.id === o.formulaId)?.ingredients || []).map(ing => `
+                                                                                       <tr>
+                                                                                          <td>${ing.name}</td>
+                                                                                          <td>${ing.qty} ${ing.unit}</td>
+                                                                                          <td><strong>${(ing.qty * o.quantity).toFixed(2)} ${ing.unit}</strong></td>
+                                                                                       </tr>
+                                                                                    `).join('')}
+                                                                                 </tbody>
+                                                                              </table>
+                                                                           </div>
+
+                                                                           <div class="signature-box">
+                                                                              <div class="signature">Responsável pela Produção</div>
+                                                                              <div class="signature">Controle de Qualidade</div>
+                                                                           </div>
+
+                                                                           <div class="footer">
+                                                                              <p>Documento gerado eletronicamente pelo InfraCore ERP em ${new Date().toLocaleString('pt-BR')}</p>
+                                                                           </div>
+                                                                           <script>window.print();</script>
+                                                                        </body>
+                                                                     </html>
+                                                                  `);
+                                                                    printWindow.document.close();
+                                                                }
+                                                            }}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                            title="Imprimir Ordem de Serviço"
+                                                        >
+                                                            <Printer size={16} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -878,7 +967,7 @@ const Production = () => {
                                                     name: selected ? selected.name : (formulaForm.name || '')
                                                 });
                                             }}
-                                            required={formulaForm.type !== 'Britagem'}
+                                            required={(formulaForm.type as string) !== 'Britagem'}
                                         >
                                             <option value="">Selecione o produto...</option>
                                             {inventory.map(item => (

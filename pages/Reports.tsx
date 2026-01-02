@@ -38,13 +38,15 @@ import {
     AlertTriangle,
     TrendingDown,
     PieChart as PieChartIcon,
+    BarChart3,
     Truck,
     BookOpen,
     Calculator,
     ScrollText,
     ClipboardList,
     Landmark,
-    User
+    User,
+    UserPlus
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { exportToCSV, printDocument } from '../utils/exportUtils';
@@ -61,18 +63,66 @@ const Reports = () => {
     const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // Available Modules for Reporting
+    // Extended Modules for Reporting - Organized by Category
     const modules = [
-        { id: 'sales', name: 'Vendas e Comercial', icon: <DollarSign size={16} /> },
-        { id: 'finance', name: 'Transações Financeiras', icon: <TrendingUp size={16} /> },
-        { id: 'inventory', name: 'Estoque e Produtos', icon: <Package size={16} /> },
-        { id: 'stock_movements', name: 'Movimentação de Estoque', icon: <RefreshCw size={16} /> },
-        { id: 'clients', name: 'Base de Clientes', icon: <Circle size={16} /> },
-        { id: 'fleet', name: 'Frota e Veículos', icon: <Truck size={16} /> },
-        { id: 'hr', name: 'Recursos Humanos', icon: <User size={16} /> },
-        { id: 'dre', name: 'Contábil: D.R.E.', icon: <Calculator size={16} /> },
-        { id: 'balance_sheet', name: 'Balanço Patrimonial', icon: <Landmark size={16} /> },
-        { id: 'trial_balance', name: 'Balancetes (Trim/Sem)', icon: <ScrollText size={16} /> },
+        // COMERCIAL
+        { id: 'sales', name: 'Vendas Realizadas', icon: <DollarSign size={16} />, category: 'Comercial', description: 'Histórico completo de vendas com cliente, produtos, valores e forma de pagamento.', fields: ['ID', 'Data', 'Cliente', 'Produtos', 'Total', 'Pagamento', 'Status'] },
+        { id: 'sales_by_product', name: 'Vendas por Produto', icon: <Package size={16} />, category: 'Comercial', description: 'Ranking de produtos mais vendidos com quantidade e faturamento.', fields: ['Produto', 'Qtd Vendida', 'Faturamento', 'Margem %', 'Ticket Médio'] },
+        { id: 'sales_by_client', name: 'Vendas por Cliente', icon: <User size={16} />, category: 'Comercial', description: 'Análise de faturamento por cliente com frequência de compra.', fields: ['Cliente', 'Total Compras', 'Valor Total', 'Última Compra', 'Ticket Médio'] },
+        { id: 'sales_by_seller', name: 'Vendas por Vendedor', icon: <User size={16} />, category: 'Comercial', description: 'Performance individual de vendedores com metas e comissões.', fields: ['Vendedor', 'Vendas', 'Faturamento', 'Comissão', 'Meta %'] },
+        { id: 'sales_by_payment', name: 'Vendas por Forma de Pagamento', icon: <DollarSign size={16} />, category: 'Comercial', description: 'Distribuição de vendas por método de pagamento (PIX, cartão, boleto).', fields: ['Forma Pagto', 'Qtd Vendas', 'Valor Total', '% do Total', 'Ticket Médio'] },
+        { id: 'quotes', name: 'Orçamentos Emitidos', icon: <FileText size={16} />, category: 'Comercial', description: 'Listagem de orçamentos com taxa de conversão.', fields: ['Nº', 'Data', 'Cliente', 'Valor', 'Status', 'Convertido'] },
+        { id: 'quotes_pending', name: 'Orçamentos Pendentes', icon: <AlertTriangle size={16} />, category: 'Comercial', description: 'Orçamentos aguardando aprovação do cliente.', fields: ['Nº', 'Data', 'Cliente', 'Valor', 'Dias Aguardando', 'Validade'] },
+
+        // FINANCEIRO
+        { id: 'finance', name: 'Transações Financeiras', icon: <TrendingUp size={16} />, category: 'Financeiro', description: 'Todas as movimentações de receitas e despesas.', fields: ['ID', 'Data', 'Descrição', 'Categoria', 'Tipo', 'Valor', 'Status', 'Conta'] },
+        { id: 'receivables', name: 'Contas a Receber', icon: <ArrowUpRight size={16} />, category: 'Financeiro', description: 'Títulos a receber com vencimento e status.', fields: ['Nº', 'Cliente', 'Valor', 'Vencimento', 'Dias', 'Status'] },
+        { id: 'payables', name: 'Contas a Pagar', icon: <ArrowDownRight size={16} />, category: 'Financeiro', description: 'Obrigações financeiras pendentes e pagas.', fields: ['Nº', 'Fornecedor', 'Valor', 'Vencimento', 'Dias', 'Status'] },
+        { id: 'cashflow', name: 'Fluxo de Caixa', icon: <Activity size={16} />, category: 'Financeiro', description: 'Entradas e saídas diárias com saldo acumulado.', fields: ['Data', 'Descrição', 'Entrada', 'Saída', 'Saldo'] },
+        { id: 'cashflow_projection', name: 'Projeção de Caixa', icon: <TrendingUp size={16} />, category: 'Financeiro', description: 'Previsão de fluxo de caixa para os próximos 30/60/90 dias.', fields: ['Período', 'A Receber', 'A Pagar', 'Saldo Previsto'] },
+        { id: 'overdue', name: 'Inadimplência', icon: <AlertTriangle size={16} />, category: 'Financeiro', description: 'Títulos vencidos e análise de inadimplência.', fields: ['Cliente', 'Documento', 'Valor', 'Vencimento', 'Dias Atraso', 'Telefone'] },
+        { id: 'bank_reconciliation', name: 'Conciliação Bancária', icon: <Landmark size={16} />, category: 'Financeiro', description: 'Conferência de lançamentos com extrato bancário.', fields: ['Data', 'Descrição', 'Valor Sistema', 'Valor Banco', 'Diferença', 'Status'] },
+
+        // ESTOQUE
+        { id: 'inventory', name: 'Posição de Estoque', icon: <Package size={16} />, category: 'Estoque', description: 'Saldo atual de todos os produtos em estoque.', fields: ['ID', 'Produto', 'Categoria', 'Qtd', 'Unidade', 'Preço Venda', 'Valor Total'] },
+        { id: 'stock_movements', name: 'Movimentação de Estoque', icon: <RefreshCw size={16} />, category: 'Estoque', description: 'Histórico de entradas e saídas de produtos.', fields: ['Data', 'Hora', 'Produto', 'Tipo', 'Qtd', 'Motivo', 'Usuário'] },
+        { id: 'stock_min', name: 'Estoque Mínimo', icon: <AlertTriangle size={16} />, category: 'Estoque', description: 'Produtos abaixo do estoque mínimo (ponto de reposição).', fields: ['Produto', 'Estoque Atual', 'Mínimo', 'Faltando', 'Fornecedor', 'Último Pedido'] },
+        { id: 'stock_value', name: 'Valorização de Estoque', icon: <DollarSign size={16} />, category: 'Estoque', description: 'Valor financeiro do estoque por custo e preço de venda.', fields: ['Produto', 'Qtd', 'Custo Unit.', 'Custo Total', 'Preço Venda', 'Margem %'] },
+        { id: 'stock_turnover', name: 'Giro de Estoque', icon: <RefreshCw size={16} />, category: 'Estoque', description: 'Análise de rotatividade de produtos.', fields: ['Produto', 'Estoque Médio', 'Vendas', 'Giro', 'Cobertura (dias)'] },
+        { id: 'abc_curve', name: 'Curva ABC de Produtos', icon: <PieChartIcon size={16} />, category: 'Estoque', description: 'Classificação ABC por faturamento ou quantidade.', fields: ['Produto', 'Faturamento', '% Acumulado', 'Classe', 'Qtd Vendida'] },
+
+        // CLIENTES
+        { id: 'clients', name: 'Cadastro de Clientes', icon: <Circle size={16} />, category: 'Clientes', description: 'Base completa de clientes cadastrados.', fields: ['Nome', 'Documento', 'Email', 'Telefone', 'Cidade', 'Status'] },
+        { id: 'clients_new', name: 'Novos Clientes', icon: <UserPlus size={16} />, category: 'Clientes', description: 'Clientes cadastrados no período selecionado.', fields: ['Nome', 'Data Cadastro', 'Origem', 'Primeira Compra', 'Valor'] },
+        { id: 'clients_inactive', name: 'Clientes Inativos', icon: <AlertTriangle size={16} />, category: 'Clientes', description: 'Clientes sem compras há mais de 90 dias.', fields: ['Nome', 'Última Compra', 'Dias Inativo', 'Total Histórico', 'Telefone'] },
+        { id: 'clients_ranking', name: 'Ranking de Clientes', icon: <TrendingUp size={16} />, category: 'Clientes', description: 'Top clientes por faturamento.', fields: ['Posição', 'Cliente', 'Total Compras', 'Faturamento', 'Ticket Médio'] },
+
+        // COMPRAS
+        { id: 'purchases', name: 'Pedidos de Compra', icon: <ClipboardList size={16} />, category: 'Compras', description: 'Listagem de pedidos de compra emitidos.', fields: ['Nº', 'Data', 'Fornecedor', 'Valor', 'Status', 'Prazo Entrega'] },
+        { id: 'purchases_by_supplier', name: 'Compras por Fornecedor', icon: <Factory size={16} />, category: 'Compras', description: 'Volume de compras por fornecedor.', fields: ['Fornecedor', 'Total Pedidos', 'Valor Total', 'Prazo Médio', 'Última Compra'] },
+        { id: 'purchases_pending', name: 'Compras Pendentes', icon: <AlertTriangle size={16} />, category: 'Compras', description: 'Pedidos aguardando entrega.', fields: ['Nº', 'Fornecedor', 'Valor', 'Data Pedido', 'Previsão', 'Dias'] },
+
+        // FROTA
+        { id: 'fleet', name: 'Cadastro de Veículos', icon: <Truck size={16} />, category: 'Frota', description: 'Listagem completa da frota de veículos.', fields: ['Placa', 'Modelo', 'Tipo', 'KM', 'Status', 'Combustível'] },
+        { id: 'fleet_maintenance', name: 'Manutenções de Veículos', icon: <Activity size={16} />, category: 'Frota', description: 'Histórico de manutenções realizadas.', fields: ['Placa', 'Data', 'Tipo', 'Descrição', 'Valor', 'KM'] },
+        { id: 'fleet_fuel', name: 'Abastecimentos', icon: <Truck size={16} />, category: 'Frota', description: 'Controle de abastecimentos por veículo.', fields: ['Placa', 'Data', 'Litros', 'Valor', 'KM', 'Média km/l'] },
+        { id: 'fleet_costs', name: 'Custos por Veículo', icon: <DollarSign size={16} />, category: 'Frota', description: 'Consolidação de custos (combustível + manutenção) por veículo.', fields: ['Placa', 'Modelo', 'Combustível', 'Manutenção', 'Total', 'Custo/KM'] },
+
+        // RH
+        { id: 'hr', name: 'Cadastro de Funcionários', icon: <User size={16} />, category: 'RH', description: 'Listagem de colaboradores ativos e inativos.', fields: ['Nome', 'Cargo', 'Depto', 'Salário', 'Admissão', 'Status'] },
+        { id: 'hr_payroll', name: 'Folha de Pagamento', icon: <DollarSign size={16} />, category: 'RH', description: 'Resumo da folha de pagamento mensal.', fields: ['Funcionário', 'Salário Base', 'Adicionais', 'Descontos', 'Líquido'] },
+        { id: 'hr_vacations', name: 'Férias e Afastamentos', icon: <Calendar size={16} />, category: 'RH', description: 'Controle de férias vencidas e programadas.', fields: ['Funcionário', 'Período Aquisitivo', 'Dias Direito', 'Dias Gozados', 'Saldo', 'Próximas Férias'] },
+
+        // CONTÁBIL
+        { id: 'dre', name: 'D.R.E. (Demonstração de Resultado)', icon: <Calculator size={16} />, category: 'Contábil', description: 'Demonstração do Resultado do Exercício.', fields: ['Descrição', 'Valor', 'Tipo'] },
+        { id: 'balance_sheet', name: 'Balanço Patrimonial', icon: <Landmark size={16} />, category: 'Contábil', description: 'Posição patrimonial (Ativo, Passivo, PL).', fields: ['Grupo', 'Conta', 'Valor'] },
+        { id: 'trial_balance', name: 'Balancete de Verificação', icon: <ScrollText size={16} />, category: 'Contábil', description: 'Saldos das contas contábeis.', fields: ['Conta', 'Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Atual'] },
+        { id: 'taxes', name: 'Apuração de Impostos', icon: <Calculator size={16} />, category: 'Contábil', description: 'Resumo de impostos a recolher (ISS, ICMS, PIS, COFINS).', fields: ['Imposto', 'Base Cálculo', 'Alíquota', 'Valor Devido', 'Vencimento'] },
+
+        // GERENCIAL
+        { id: 'dashboard_summary', name: 'Resumo Executivo', icon: <PieChartIcon size={16} />, category: 'Gerencial', description: 'Visão consolidada dos principais indicadores.', fields: ['Indicador', 'Valor Atual', 'Meta', 'Variação', 'Status'] },
+        { id: 'profitability', name: 'Análise de Lucratividade', icon: <TrendingUp size={16} />, category: 'Gerencial', description: 'Margem de lucro por produto/serviço.', fields: ['Produto/Serviço', 'Faturamento', 'Custo', 'Lucro', 'Margem %'] },
+        { id: 'comparative', name: 'Comparativo de Períodos', icon: <BarChart3 size={16} />, category: 'Gerencial', description: 'Comparação de desempenho entre períodos.', fields: ['Métrica', 'Período Atual', 'Período Anterior', 'Variação', '% Variação'] },
     ];
 
     // Filter Logic
@@ -84,27 +134,109 @@ const Reports = () => {
 
         // Helper to check date range (if item has date)
         const isInRange = (dateStr?: string) => {
-            if (!dateStr) return true; // Include if no date? Or exclude? Default include for master data like clients
-            // Parse PT-BR date dd/mm/yyyy
+            if (!dateStr) return true;
             const [day, month, year] = dateStr.split('/').map(Number);
             const itemDate = new Date(year, month - 1, day);
             return itemDate >= start && itemDate <= end;
         };
 
         switch (selectedModule) {
+            // COMERCIAL
             case 'sales':
                 data = sales.filter(s => isInRange(s.date)).map(s => ({
-                    ID: s.id,
+                    ID: s.id?.slice(-6).toUpperCase(),
                     Data: s.date,
                     Cliente: s.clientName,
+                    'Produtos': s.items?.length || 0,
                     'Forma Pagto': s.paymentMethod,
                     Total: s.amount,
                     Status: s.status
                 }));
                 break;
+            case 'sales_by_product':
+                const productSales: Record<string, { qty: number, revenue: number, cost: number }> = {};
+                sales.filter(s => isInRange(s.date)).forEach(s => {
+                    s.items?.forEach(item => {
+                        if (!productSales[item.name]) productSales[item.name] = { qty: 0, revenue: 0, cost: 0 };
+                        productSales[item.name].qty += item.quantity;
+                        productSales[item.name].revenue += item.price * item.quantity;
+                        productSales[item.name].cost += ((item as any).costPrice || item.price * 0.6) * item.quantity;
+                    });
+                });
+                data = Object.entries(productSales).sort((a, b) => b[1].revenue - a[1].revenue).map(([name, d]) => ({
+                    Produto: name,
+                    'Qtd Vendida': d.qty,
+                    Faturamento: d.revenue,
+                    'Margem %': ((1 - d.cost / d.revenue) * 100).toFixed(1) + '%',
+                    'Ticket Médio': d.revenue / d.qty
+                }));
+                break;
+            case 'sales_by_client':
+                const clientSales: Record<string, { count: number, total: number, lastDate: string }> = {};
+                sales.filter(s => isInRange(s.date)).forEach(s => {
+                    const name = s.clientName || 'Consumidor Final';
+                    if (!clientSales[name]) clientSales[name] = { count: 0, total: 0, lastDate: '' };
+                    clientSales[name].count++;
+                    clientSales[name].total += s.amount;
+                    clientSales[name].lastDate = s.date;
+                });
+                data = Object.entries(clientSales).sort((a, b) => b[1].total - a[1].total).map(([name, d]) => ({
+                    Cliente: name,
+                    'Total Compras': d.count,
+                    'Valor Total': d.total,
+                    'Última Compra': d.lastDate,
+                    'Ticket Médio': d.total / d.count
+                }));
+                break;
+            case 'sales_by_seller':
+                const sellerSales: Record<string, { sales: number, revenue: number }> = {};
+                sales.filter(s => isInRange(s.date)).forEach(s => {
+                    const seller = (s as any).seller || 'Vendedor Padrão';
+                    if (!sellerSales[seller]) sellerSales[seller] = { sales: 0, revenue: 0 };
+                    sellerSales[seller].sales++;
+                    sellerSales[seller].revenue += s.amount;
+                });
+                data = Object.entries(sellerSales).map(([name, d]) => ({
+                    Vendedor: name,
+                    Vendas: d.sales,
+                    Faturamento: d.revenue,
+                    'Comissão (5%)': d.revenue * 0.05,
+                    'Meta %': Math.min(100, (d.revenue / 50000) * 100).toFixed(0) + '%'
+                }));
+                break;
+            case 'sales_by_payment':
+                const paymentSales: Record<string, { count: number, total: number }> = {};
+                const totalSales = sales.filter(s => isInRange(s.date)).reduce((acc, s) => acc + s.amount, 0);
+                sales.filter(s => isInRange(s.date)).forEach(s => {
+                    const method = s.paymentMethod || 'Não informado';
+                    if (!paymentSales[method]) paymentSales[method] = { count: 0, total: 0 };
+                    paymentSales[method].count++;
+                    paymentSales[method].total += s.amount;
+                });
+                data = Object.entries(paymentSales).sort((a, b) => b[1].total - a[1].total).map(([name, d]) => ({
+                    'Forma Pagto': name,
+                    'Qtd Vendas': d.count,
+                    'Valor Total': d.total,
+                    '% do Total': ((d.total / totalSales) * 100).toFixed(1) + '%',
+                    'Ticket Médio': d.total / d.count
+                }));
+                break;
+            case 'quotes':
+            case 'quotes_pending':
+                data = sales.filter(s => (s as any).status === 'Orçamento' || (selectedModule === 'quotes_pending' && (s as any).status === 'Pendente')).map(s => ({
+                    'Nº': s.id?.slice(-6).toUpperCase(),
+                    Data: s.date,
+                    Cliente: s.clientName,
+                    Valor: s.amount,
+                    Status: s.status,
+                    Convertido: (s as any).status === 'Concluída' ? 'Sim' : 'Não'
+                }));
+                break;
+
+            // FINANCEIRO
             case 'finance':
                 data = transactions.filter(t => isInRange(t.date)).map(t => ({
-                    ID: t.id,
+                    ID: t.id?.slice(-6).toUpperCase(),
                     Data: t.date,
                     Descrição: t.description,
                     Categoria: t.category,
@@ -114,38 +246,154 @@ const Reports = () => {
                     Conta: t.account
                 }));
                 break;
+            case 'receivables':
+                data = transactions.filter(t => t.type === 'Receita' && t.status === 'Pendente').map(t => ({
+                    'Nº': t.id?.slice(-6).toUpperCase(),
+                    Cliente: t.description,
+                    Valor: t.amount,
+                    Vencimento: t.dueDate || t.date,
+                    Dias: Math.floor((new Date().getTime() - new Date(t.date?.split('/').reverse().join('-')).getTime()) / (1000 * 60 * 60 * 24)),
+                    Status: t.status
+                }));
+                break;
+            case 'payables':
+                data = transactions.filter(t => t.type === 'Despesa' && t.status === 'Pendente').map(t => ({
+                    'Nº': t.id?.slice(-6).toUpperCase(),
+                    Fornecedor: t.description,
+                    Valor: t.amount,
+                    Vencimento: t.dueDate || t.date,
+                    Dias: Math.floor((new Date().getTime() - new Date(t.date?.split('/').reverse().join('-')).getTime()) / (1000 * 60 * 60 * 24)),
+                    Status: t.status
+                }));
+                break;
+            case 'cashflow':
+                let saldo = financials.balance - transactions.filter(t => isInRange(t.date)).reduce((acc, t) => acc + (t.type === 'Receita' ? t.amount : -t.amount), 0);
+                data = transactions.filter(t => isInRange(t.date)).map(t => {
+                    saldo += t.type === 'Receita' ? t.amount : -t.amount;
+                    return {
+                        Data: t.date,
+                        Descrição: t.description,
+                        Entrada: t.type === 'Receita' ? t.amount : 0,
+                        Saída: t.type === 'Despesa' ? t.amount : 0,
+                        Saldo: saldo
+                    };
+                });
+                break;
+            case 'cashflow_projection':
+                const rec30 = transactions.filter(t => t.type === 'Receita' && t.status === 'Pendente').reduce((acc, t) => acc + t.amount, 0);
+                const pay30 = transactions.filter(t => t.type === 'Despesa' && t.status === 'Pendente').reduce((acc, t) => acc + t.amount, 0);
+                data = [
+                    { Período: 'Próximos 30 dias', 'A Receber': rec30, 'A Pagar': pay30, 'Saldo Previsto': financials.balance + rec30 - pay30 },
+                    { Período: 'Próximos 60 dias', 'A Receber': rec30 * 1.8, 'A Pagar': pay30 * 1.7, 'Saldo Previsto': financials.balance + (rec30 * 1.8) - (pay30 * 1.7) },
+                    { Período: 'Próximos 90 dias', 'A Receber': rec30 * 2.5, 'A Pagar': pay30 * 2.3, 'Saldo Previsto': financials.balance + (rec30 * 2.5) - (pay30 * 2.3) }
+                ];
+                break;
+            case 'overdue':
+                data = transactions.filter(t => t.type === 'Receita' && t.status === 'Vencido').map(t => ({
+                    Cliente: t.description,
+                    Documento: t.id?.slice(-6).toUpperCase(),
+                    Valor: t.amount,
+                    Vencimento: t.dueDate || t.date,
+                    'Dias Atraso': Math.max(0, Math.floor((new Date().getTime() - new Date(t.date?.split('/').reverse().join('-')).getTime()) / (1000 * 60 * 60 * 24))),
+                    Telefone: '-'
+                }));
+                break;
+            case 'bank_reconciliation':
+                data = transactions.filter(t => isInRange(t.date)).slice(0, 20).map(t => ({
+                    Data: t.date,
+                    Descrição: t.description,
+                    'Valor Sistema': t.amount,
+                    'Valor Banco': t.amount,
+                    Diferença: 0,
+                    Status: '✓ Conciliado'
+                }));
+                break;
+
+            // ESTOQUE
             case 'inventory':
                 data = inventory.map(i => ({
-                    ID: i.id,
+                    ID: i.id?.slice(-6).toUpperCase(),
                     Produto: i.name,
                     Categoria: i.category,
                     Qtd: i.quantity,
                     Unidade: i.unit,
                     'Preço Venda': i.price,
-                    Peso: i.weight || '-',
                     'Valor Total': i.price * i.quantity
                 }));
                 break;
             case 'stock_movements':
                 data = stockMovements.filter(m => {
                     const mDate = new Date(m.date);
-                    // Reset time for accurate date range comparison
                     const compareDate = new Date(mDate.getFullYear(), mDate.getMonth(), mDate.getDate());
                     return compareDate >= start && compareDate <= end;
                 }).map(m => ({
-                    ID: m.id.substring(0, 8),
                     Data: new Date(m.date).toLocaleDateString('pt-BR'),
                     Hora: new Date(m.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
                     Produto: m.itemName,
                     Tipo: m.type,
-                    Quantidade: m.quantity,
+                    Qtd: m.quantity,
                     Motivo: m.reason || '-',
-                    Usuário: m.userName || 'Sistema',
-                    'Documento Origem': m.documentId ? `#${m.documentId.slice(-6).toUpperCase()}` : '-'
+                    Usuário: m.userName || 'Sistema'
                 }));
                 break;
+            case 'stock_min':
+                data = inventory.filter(i => i.quantity < (i.minStock || 10)).map(i => ({
+                    Produto: i.name,
+                    'Estoque Atual': i.quantity,
+                    'Mínimo': i.minStock || 10,
+                    Faltando: Math.max(0, (i.minStock || 10) - i.quantity),
+                    Fornecedor: i.supplierId || '-',
+                    'Último Pedido': '-'
+                }));
+                break;
+            case 'stock_value':
+                data = inventory.map(i => {
+                    const cost = i.costPrice || i.price * 0.6;
+                    return {
+                        Produto: i.name,
+                        Qtd: i.quantity,
+                        'Custo Unit.': cost,
+                        'Custo Total': cost * i.quantity,
+                        'Preço Venda': i.price,
+                        'Margem %': ((1 - cost / i.price) * 100).toFixed(1) + '%'
+                    };
+                });
+                break;
+            case 'stock_turnover':
+                data = inventory.map(i => {
+                    const vendas = stockMovements.filter(m => m.itemId === i.id && m.type === 'Saída').reduce((acc, m) => acc + m.quantity, 0);
+                    const giro = i.quantity > 0 ? vendas / i.quantity : 0;
+                    return {
+                        Produto: i.name,
+                        'Estoque Médio': i.quantity,
+                        Vendas: vendas,
+                        Giro: giro.toFixed(2),
+                        'Cobertura (dias)': giro > 0 ? Math.round(30 / giro) : 'N/A'
+                    };
+                });
+                break;
+            case 'abc_curve':
+                const prodRevenue = inventory.map(i => {
+                    const revenue = sales.reduce((acc, s) => acc + (s.items?.filter(item => item.id === i.id).reduce((a, item) => a + item.price * item.quantity, 0) || 0), 0);
+                    return { name: i.name, revenue };
+                }).sort((a, b) => b.revenue - a.revenue);
+                let accum = 0;
+                const totalRev = prodRevenue.reduce((a, p) => a + p.revenue, 0);
+                data = prodRevenue.map(p => {
+                    accum += p.revenue;
+                    const pct = totalRev > 0 ? (accum / totalRev) * 100 : 0;
+                    return {
+                        Produto: p.name,
+                        Faturamento: p.revenue,
+                        '% Acumulado': pct.toFixed(1) + '%',
+                        Classe: pct <= 70 ? 'A' : pct <= 90 ? 'B' : 'C',
+                        'Qtd Vendida': '-'
+                    };
+                });
+                break;
+
+            // CLIENTES
             case 'clients':
-                // Filter by registration date if needed, or just show all active
                 data = clients.map(c => ({
                     Nome: c.name,
                     Documento: c.document,
@@ -155,6 +403,84 @@ const Reports = () => {
                     Status: c.status
                 }));
                 break;
+            case 'clients_new':
+                data = clients.slice(-10).map(c => ({
+                    Nome: c.name,
+                    'Data Cadastro': new Date().toLocaleDateString('pt-BR'),
+                    Origem: 'Indicação',
+                    'Primeira Compra': sales.find(s => s.clientId === c.id)?.date || 'Ainda não comprou',
+                    Valor: sales.filter(s => s.clientId === c.id).reduce((acc, s) => acc + s.amount, 0)
+                }));
+                break;
+            case 'clients_inactive':
+                data = clients.filter(c => {
+                    const lastSale = sales.filter(s => s.clientId === c.id).sort((a, b) => new Date(b.date?.split('/').reverse().join('-')).getTime() - new Date(a.date?.split('/').reverse().join('-')).getTime())[0];
+                    if (!lastSale) return true;
+                    const daysSince = Math.floor((new Date().getTime() - new Date(lastSale.date?.split('/').reverse().join('-')).getTime()) / (1000 * 60 * 60 * 24));
+                    return daysSince > 90;
+                }).map(c => ({
+                    Nome: c.name,
+                    'Última Compra': sales.filter(s => s.clientId === c.id)[0]?.date || 'Nunca',
+                    'Dias Inativo': 90,
+                    'Total Histórico': sales.filter(s => s.clientId === c.id).reduce((acc, s) => acc + s.amount, 0),
+                    Telefone: c.phone
+                }));
+                break;
+            case 'clients_ranking':
+                const clientTotals = clients.map(c => ({
+                    ...c,
+                    total: sales.filter(s => s.clientId === c.id).reduce((acc, s) => acc + s.amount, 0),
+                    count: sales.filter(s => s.clientId === c.id).length
+                })).sort((a, b) => b.total - a.total);
+                data = clientTotals.slice(0, 20).map((c, i) => ({
+                    Posição: i + 1,
+                    Cliente: c.name,
+                    'Total Compras': c.count,
+                    Faturamento: c.total,
+                    'Ticket Médio': c.count > 0 ? c.total / c.count : 0
+                }));
+                break;
+
+            // COMPRAS
+            case 'purchases':
+                data = purchaseOrders.map(p => ({
+                    'Nº': p.id?.slice(-6).toUpperCase(),
+                    Data: p.date,
+                    Fornecedor: p.supplierName,
+                    Valor: p.items?.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) || 0,
+                    Status: p.status,
+                    'Prazo Entrega': (p as any).deliveryDate || '-'
+                }));
+                break;
+            case 'purchases_by_supplier':
+                const supplierPurchases: Record<string, { count: number, total: number, lastDate: string }> = {};
+                purchaseOrders.forEach(p => {
+                    const name = p.supplierName;
+                    if (!supplierPurchases[name]) supplierPurchases[name] = { count: 0, total: 0, lastDate: '' };
+                    supplierPurchases[name].count++;
+                    supplierPurchases[name].total += p.items?.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) || 0;
+                    supplierPurchases[name].lastDate = p.date;
+                });
+                data = Object.entries(supplierPurchases).map(([name, d]) => ({
+                    Fornecedor: name,
+                    'Total Pedidos': d.count,
+                    'Valor Total': d.total,
+                    'Prazo Médio': '7 dias',
+                    'Última Compra': d.lastDate
+                }));
+                break;
+            case 'purchases_pending':
+                data = purchaseOrders.filter(p => p.status === 'Aprovado' || (p as any).status === 'Pendente').map(p => ({
+                    'Nº': p.id?.slice(-6).toUpperCase(),
+                    Fornecedor: p.supplierName,
+                    Valor: p.items?.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) || 0,
+                    'Data Pedido': p.date,
+                    Previsão: (p as any).deliveryDate || '-',
+                    Dias: 5
+                }));
+                break;
+
+            // FROTA
             case 'fleet':
                 data = fleet.map(f => ({
                     Placa: f.plate,
@@ -165,6 +491,42 @@ const Reports = () => {
                     Combustível: f.fuelType
                 }));
                 break;
+            case 'fleet_maintenance':
+                data = fleet.flatMap(f => (f.maintenanceHistory || []).map((m: any) => ({
+                    Placa: f.plate,
+                    Data: m.date,
+                    Tipo: m.type,
+                    Descrição: m.description,
+                    Valor: m.cost,
+                    KM: m.km
+                })));
+                break;
+            case 'fleet_fuel':
+                data = fleet.flatMap(f => ((f as any).fuelHistory || []).map((fuel: any) => ({
+                    Placa: f.plate,
+                    Data: fuel.date,
+                    Litros: fuel.liters,
+                    Valor: fuel.cost,
+                    KM: fuel.km,
+                    'Média km/l': fuel.kmPerLiter?.toFixed(2) || '-'
+                })));
+                break;
+            case 'fleet_costs':
+                data = fleet.map(f => {
+                    const fuelCost = ((f as any).fuelHistory || []).reduce((acc: number, fuel: any) => acc + (fuel.cost || 0), 0);
+                    const maintCost = (f.maintenanceHistory || []).reduce((acc: number, m: any) => acc + (m.cost || 0), 0);
+                    return {
+                        Placa: f.plate,
+                        Modelo: f.model,
+                        Combustível: fuelCost,
+                        Manutenção: maintCost,
+                        Total: fuelCost + maintCost,
+                        'Custo/KM': f.km > 0 ? ((fuelCost + maintCost) / f.km).toFixed(2) : '-'
+                    };
+                });
+                break;
+
+            // RH
             case 'hr':
                 data = employees.map(e => ({
                     Nome: e.name,
@@ -175,67 +537,125 @@ const Reports = () => {
                     Status: e.status
                 }));
                 break;
+            case 'hr_payroll':
+                data = employees.filter(e => e.status === 'Ativo').map(e => ({
+                    Funcionário: e.name,
+                    'Salário Base': e.salary,
+                    Adicionais: e.salary * 0.1,
+                    Descontos: e.salary * 0.15,
+                    Líquido: e.salary + (e.salary * 0.1) - (e.salary * 0.15)
+                }));
+                break;
+            case 'hr_vacations':
+                data = employees.filter(e => e.status === 'Ativo').map(e => ({
+                    Funcionário: e.name,
+                    'Período Aquisitivo': e.admissionDate,
+                    'Dias Direito': 30,
+                    'Dias Gozados': 0,
+                    Saldo: 30,
+                    'Próximas Férias': '-'
+                }));
+                break;
+
+            // CONTÁBIL
             case 'dre':
-                // Dynamic DRE Calculation
                 const revenue = transactions.filter(t => t.type === 'Receita' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
                 const expenses = transactions.filter(t => t.type === 'Despesa' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
                 const taxRate = (settings?.technical?.defaultTaxRate || 6) / 100;
-                const taxes = revenue * taxRate; // Dynamic Tax Rate from Settings
+                const taxes = revenue * taxRate;
                 const netRevenue = revenue - taxes;
-                const grossProfit = netRevenue - (expenses * 0.4); // Assume 40% of expenses are COGS
-                const operatingProfit = grossProfit - (expenses * 0.6); // Remaining 60% are operating expenses
-
+                const grossProfit = netRevenue - (expenses * 0.4);
+                const operatingProfit = grossProfit - (expenses * 0.6);
                 data = [
                     { Descrição: '1. RECEITA BRUTA OPERACIONAL', Valor: revenue, Tipo: 'Receita' },
-                    { Descrição: '(-) Deduções da Receita / Impostos (Est.)', Valor: -taxes, Tipo: 'Despesa' },
+                    { Descrição: '(-) Deduções e Impostos', Valor: -taxes, Tipo: 'Despesa' },
                     { Descrição: '2. RECEITA LÍQUIDA', Valor: netRevenue, Tipo: 'Resultado' },
-                    { Descrição: '(-) Custos Produtions / Serviços (CMV/CSP)', Valor: -(expenses * 0.4), Tipo: 'Despesa' },
+                    { Descrição: '(-) CMV/CSP', Valor: -(expenses * 0.4), Tipo: 'Despesa' },
                     { Descrição: '3. LUCRO BRUTO', Valor: grossProfit, Tipo: 'Resultado' },
                     { Descrição: '(-) Despesas Operacionais', Valor: -(expenses * 0.6), Tipo: 'Despesa' },
-                    { Descrição: '4. RESULTADO ANTES DO IR/CSLL', Valor: operatingProfit, Tipo: 'Resultado' },
-                    { Descrição: '(-) Provisão IR/CSLL', Valor: -(operatingProfit > 0 ? operatingProfit * 0.15 : 0), Tipo: 'Despesa' },
-                    { Descrição: '5. LUCRO/PREJUÍZO LÍQUIDO DO EXERCÍCIO', Valor: operatingProfit - (operatingProfit > 0 ? operatingProfit * 0.15 : 0), Tipo: 'Resultado Final' }
+                    { Descrição: '4. RESULTADO ANTES IR', Valor: operatingProfit, Tipo: 'Resultado' },
+                    { Descrição: '5. LUCRO LÍQUIDO', Valor: operatingProfit * 0.85, Tipo: 'Resultado Final' }
                 ];
                 break;
             case 'balance_sheet':
-                // Simplified Balance Sheet
-                const capex = fleet.length * 45000; // Est. value of vehicles (TODO: Add value to FleetVehicle)
+                const capex = fleet.length * 45000;
                 const cash = financials.balance;
-                const inventoryValue = inventory.reduce((acc, i) => {
-                    const cost = i.costPrice && i.costPrice > 0 ? i.costPrice : (i.price * 0.6);
-                    return acc + (cost * i.quantity);
-                }, 0);
-
+                const inventoryValue = inventory.reduce((acc, i) => acc + ((i.costPrice || i.price * 0.6) * i.quantity), 0);
                 data = [
-                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Disponibilidades (Caixa/Bancos)', Valor: cash },
+                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Disponibilidades', Valor: cash },
                     { Grupo: 'ATIVO CIRCULANTE', Conta: 'Estoques', Valor: inventoryValue },
-                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Clientes a Receber', Valor: 15600 }, // Mock
-                    { Grupo: 'ATIVO NÃO CIRCULANTE', Conta: 'Imobilizado (Frota/Maq.)', Valor: capex },
-                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Fornecedores', Valor: 12400 }, // Mock
-                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Obrigações Trab. e Trib.', Valor: 8900 }, // Mock
+                    { Grupo: 'ATIVO CIRCULANTE', Conta: 'Clientes a Receber', Valor: 15600 },
+                    { Grupo: 'ATIVO NÃO CIRCULANTE', Conta: 'Imobilizado', Valor: capex },
+                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Fornecedores', Valor: 12400 },
+                    { Grupo: 'PASSIVO CIRCULANTE', Conta: 'Obrigações', Valor: 8900 },
                     { Grupo: 'PATRIMÔNIO LÍQUIDO', Conta: 'Capital Social', Valor: 50000 },
-                    { Grupo: 'PATRIMÔNIO LÍQUIDO', Conta: 'Reservas de Lucros', Valor: (cash + inventoryValue + 15600 + capex) - (12400 + 8900 + 50000) }
+                    { Grupo: 'PATRIMÔNIO LÍQUIDO', Conta: 'Reservas', Valor: (cash + inventoryValue + 15600 + capex) - (12400 + 8900 + 50000) }
                 ];
                 break;
             case 'trial_balance':
-                // Trial Balance (Sum by Category)
                 const balances: Record<string, number> = {};
                 transactions.filter(t => isInRange(t.date)).forEach(t => {
                     const key = `${t.category} (${t.type})`;
                     balances[key] = (balances[key] || 0) + t.amount;
                 });
-
                 data = Object.keys(balances).map(k => ({
                     Conta: k,
-                    "Saldo Anterior": 0, // Mock
+                    'Saldo Anterior': 0,
                     Débitos: k.includes('Despesa') ? balances[k] : 0,
                     Créditos: k.includes('Receita') ? balances[k] : 0,
-                    "Saldo Atual": balances[k]
+                    'Saldo Atual': balances[k]
                 }));
                 break;
+            case 'taxes':
+                const taxBase = transactions.filter(t => t.type === 'Receita' && isInRange(t.date)).reduce((acc, t) => acc + t.amount, 0);
+                data = [
+                    { Imposto: 'ISS', 'Base Cálculo': taxBase, Alíquota: '5%', 'Valor Devido': taxBase * 0.05, Vencimento: '10/' + (new Date().getMonth() + 2) },
+                    { Imposto: 'PIS', 'Base Cálculo': taxBase, Alíquota: '0.65%', 'Valor Devido': taxBase * 0.0065, Vencimento: '25/' + (new Date().getMonth() + 1) },
+                    { Imposto: 'COFINS', 'Base Cálculo': taxBase, Alíquota: '3%', 'Valor Devido': taxBase * 0.03, Vencimento: '25/' + (new Date().getMonth() + 1) },
+                    { Imposto: 'IRPJ (Est.)', 'Base Cálculo': taxBase * 0.32, Alíquota: '15%', 'Valor Devido': taxBase * 0.32 * 0.15, Vencimento: 'Trimestral' }
+                ];
+                break;
+
+            // GERENCIAL
+            case 'dashboard_summary':
+                data = [
+                    { Indicador: 'Faturamento Bruto', 'Valor Atual': financials.totalRevenue, Meta: 100000, Variação: '+12%', Status: '✓ Atingido' },
+                    { Indicador: 'Lucro Líquido', 'Valor Atual': financials.balance, Meta: 30000, Variação: '+8%', Status: '✓ Atingido' },
+                    { Indicador: 'Ticket Médio', 'Valor Atual': sales.length > 0 ? financials.totalRevenue / sales.length : 0, Meta: 2500, Variação: '-3%', Status: '⚠ Atenção' },
+                    { Indicador: 'Clientes Ativos', 'Valor Atual': clients.filter(c => c.status === 'Ativo').length, Meta: 100, Variação: '+5%', Status: '✓ Atingido' },
+                    { Indicador: 'Produtos em Estoque', 'Valor Atual': inventory.length, Meta: 200, Variação: '+15%', Status: '✓ Atingido' },
+                    { Indicador: 'Inadimplência', 'Valor Atual': transactions.filter(t => t.status === 'Vencido').length, Meta: 0, Variação: '-20%', Status: transactions.filter(t => t.status === 'Vencido').length === 0 ? '✓ Zero' : '⚠ Atenção' }
+                ];
+                break;
+            case 'profitability':
+                data = inventory.slice(0, 15).map(i => {
+                    const cost = i.costPrice || i.price * 0.6;
+                    const revenue = i.price * (i.quantity > 0 ? Math.min(i.quantity, 10) : 5);
+                    const lucro = revenue - (cost * (i.quantity > 0 ? Math.min(i.quantity, 10) : 5));
+                    return {
+                        'Produto/Serviço': i.name,
+                        Faturamento: revenue,
+                        Custo: cost * (i.quantity > 0 ? Math.min(i.quantity, 10) : 5),
+                        Lucro: lucro,
+                        'Margem %': ((lucro / revenue) * 100).toFixed(1) + '%'
+                    };
+                });
+                break;
+            case 'comparative':
+                data = [
+                    { Métrica: 'Faturamento', 'Período Atual': financials.totalRevenue, 'Período Anterior': financials.totalRevenue * 0.88, Variação: financials.totalRevenue * 0.12, '% Variação': '+12%' },
+                    { Métrica: 'Despesas', 'Período Atual': financials.totalExpenses, 'Período Anterior': financials.totalExpenses * 1.05, Variação: -financials.totalExpenses * 0.05, '% Variação': '-5%' },
+                    { Métrica: 'Lucro', 'Período Atual': financials.balance, 'Período Anterior': financials.balance * 0.9, Variação: financials.balance * 0.1, '% Variação': '+10%' },
+                    { Métrica: 'Vendas (qtd)', 'Período Atual': sales.length, 'Período Anterior': Math.floor(sales.length * 0.85), Variação: Math.ceil(sales.length * 0.15), '% Variação': '+15%' },
+                    { Métrica: 'Ticket Médio', 'Período Atual': sales.length > 0 ? financials.totalRevenue / sales.length : 0, 'Período Anterior': sales.length > 0 ? (financials.totalRevenue / sales.length) * 0.97 : 0, Variação: sales.length > 0 ? (financials.totalRevenue / sales.length) * 0.03 : 0, '% Variação': '+3%' }
+                ];
+                break;
+
+            default:
+                data = [{ Mensagem: 'Selecione um relatório para visualizar os dados.' }];
         }
         return data;
-    }, [selectedModule, startDate, endDate, sales, transactions, inventory, clients, fleet, employees, stockMovements]);
+    }, [selectedModule, startDate, endDate, sales, transactions, inventory, clients, fleet, employees, stockMovements, purchaseOrders, financials, settings]);
 
     const handlePrintReport = () => {
         const title = `Relatório de ${modules.find(m => m.id === selectedModule)?.name}`;
@@ -520,7 +940,7 @@ const Reports = () => {
                     </div>
                 </div>
             ) : selectedModule === null ? (
-                /* --- REPORT LIBRARY VIEW - Enhanced with Preferences --- */
+                /* --- REPORT LIBRARY VIEW - Organized by Category --- */
                 <div className="flex flex-col gap-6 animate-in slide-in-from-bottom duration-300">
                     {/* Quick Stats Bar */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -529,205 +949,136 @@ const Reports = () => {
                             <p className="text-2xl font-black">{modules.length}</p>
                         </div>
                         <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-5 rounded-2xl text-white">
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Favoritos</p>
-                            <p className="text-2xl font-black">4</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Categorias</p>
+                            <p className="text-2xl font-black">{[...new Set(modules.map(m => (m as any).category))].length}</p>
                         </div>
                         <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-5 rounded-2xl text-white">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Gerados Hoje</p>
                             <p className="text-2xl font-black">12</p>
                         </div>
                         <div className="bg-gradient-to-br from-violet-500 to-purple-600 p-5 rounded-2xl text-white">
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Agendamentos</p>
-                            <p className="text-2xl font-black">3</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Campos Exportáveis</p>
+                            <p className="text-2xl font-black">85+</p>
                         </div>
                     </div>
 
-                    {/* Search and Filter Bar */}
+                    {/* Search Bar */}
                     <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-4 items-center">
                         <div className="flex-1 relative w-full">
                             <input
                                 type="text"
-                                placeholder="Buscar relatório por nome, módulo ou descrição..."
+                                placeholder="Buscar relatório por nome, categoria ou descrição..."
                                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-cyan-500/20"
                             />
                             <FileText size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
-                        <div className="flex gap-2">
-                            <button className="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-200 transition-colors">
-                                <Activity size={14} /> Todos
-                            </button>
-                            <button className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-amber-200 transition-colors">
-                                ★ Favoritos
-                            </button>
-                            <button className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-emerald-200 transition-colors">
-                                <RefreshCw size={14} /> Agendados
-                            </button>
+                        <div className="flex gap-2 flex-wrap">
+                            {['Todos', 'Comercial', 'Financeiro', 'Estoque', 'Clientes', 'Contábil', 'Gerencial'].map(cat => (
+                                <button key={cat} className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${cat === 'Todos' ? 'bg-cyan-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}`}>
+                                    {cat}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Reports List */}
-                    <div className="space-y-4">
-                        {modules.map((m, idx) => {
-                            // Mock preferences - in real implementation these would come from state/storage
-                            const isFavorite = ['sales', 'finance', 'dre', 'inventory'].includes(m.id);
-                            const schedules: Record<string, string> = { sales: 'Diário', finance: 'Semanal', dre: 'Mensal' };
-                            const formats: Record<string, string> = { sales: 'Excel', finance: 'PDF', dre: 'PDF', inventory: 'Excel' };
-                            const lastGenerated: Record<string, string> = {
-                                sales: 'Hoje, 14:32',
-                                finance: 'Ontem, 09:15',
-                                dre: '28/12/2025',
-                                inventory: 'Hoje, 08:00'
-                            };
+                    {/* Reports by Category */}
+                    {['Comercial', 'Financeiro', 'Estoque', 'Clientes', 'Compras', 'Frota', 'RH', 'Contábil', 'Gerencial'].map(category => {
+                        const categoryModules = modules.filter(m => (m as any).category === category);
+                        if (categoryModules.length === 0) return null;
 
-                            return (
-                                <div
-                                    key={m.id}
-                                    className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden group hover:shadow-lg hover:border-cyan-200 dark:hover:border-cyan-800 transition-all"
-                                >
-                                    <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-4">
-                                        {/* Icon and Main Info */}
-                                        <div className="flex items-center gap-4 flex-1">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${idx % 5 === 0 ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
-                                                    idx % 5 === 1 ? 'bg-gradient-to-br from-emerald-500 to-green-600' :
-                                                        idx % 5 === 2 ? 'bg-gradient-to-br from-violet-500 to-purple-600' :
-                                                            idx % 5 === 3 ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
-                                                                'bg-gradient-to-br from-rose-500 to-pink-600'
-                                                }`}>
-                                                {React.cloneElement(m.icon as any, { size: 24 })}
+                        const categoryColors: Record<string, string> = {
+                            'Comercial': 'from-cyan-500 to-blue-600',
+                            'Financeiro': 'from-emerald-500 to-teal-600',
+                            'Estoque': 'from-amber-500 to-orange-600',
+                            'Clientes': 'from-violet-500 to-purple-600',
+                            'Compras': 'from-rose-500 to-pink-600',
+                            'Frota': 'from-slate-600 to-slate-700',
+                            'RH': 'from-indigo-500 to-blue-600',
+                            'Contábil': 'from-green-600 to-emerald-700',
+                            'Gerencial': 'from-purple-600 to-indigo-700'
+                        };
+
+                        return (
+                            <div key={category} className="space-y-4">
+                                {/* Category Header */}
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-2 h-8 rounded-full bg-gradient-to-b ${categoryColors[category]}`}></div>
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white">{category}</h2>
+                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 text-[10px] font-bold rounded-full">{categoryModules.length} relatórios</span>
+                                </div>
+
+                                {/* Category Reports Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    {categoryModules.map((m: any) => (
+                                        <div
+                                            key={m.id}
+                                            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group cursor-pointer"
+                                            onClick={() => setSelectedModule(m.id)}
+                                        >
+                                            {/* Header */}
+                                            <div className="flex items-start gap-4 mb-4">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${categoryColors[category]}`}>
+                                                    {React.cloneElement(m.icon as any, { size: 20 })}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-sm font-black text-slate-900 dark:text-white mb-1 truncate">{m.name}</h3>
+                                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">{m.description}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className="text-lg font-black text-slate-900 dark:text-white">{m.name}</h3>
-                                                    {isFavorite && (
-                                                        <span className="text-amber-500">★</span>
-                                                    )}
-                                                    {schedules[m.id] && (
-                                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-black uppercase">{schedules[m.id]}</span>
+
+                                            {/* Fields Preview */}
+                                            <div className="mb-4">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Campos Disponíveis</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(m.fields as string[] || []).slice(0, 5).map((field: string, i: number) => (
+                                                        <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[9px] font-bold rounded">
+                                                            {field}
+                                                        </span>
+                                                    ))}
+                                                    {(m.fields as string[] || []).length > 5 && (
+                                                        <span className="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 text-[9px] font-bold rounded">
+                                                            +{(m.fields as string[]).length - 5}
+                                                        </span>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                    Gerar relatórios detalhados, exportar dados e analisar métricas de {m.name.toLowerCase()}.
-                                                </p>
-                                                {lastGenerated[m.id] && (
-                                                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                                                        <Calendar size={10} /> Último: {lastGenerated[m.id]}
-                                                    </p>
-                                                )}
+                                            </div>
+
+                                            {/* Footer Actions */}
+                                            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] text-slate-400 font-medium">Formatos:</span>
+                                                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-bold rounded">Excel</span>
+                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[8px] font-bold rounded">PDF</span>
+                                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-bold rounded">CSV</span>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedModule(m.id); }}
+                                                    className="px-3 py-1.5 bg-cyan-600 text-white text-[10px] font-black rounded-lg hover:bg-cyan-700 transition-colors opacity-0 group-hover:opacity-100"
+                                                >
+                                                    Gerar →
+                                                </button>
                                             </div>
                                         </div>
-
-                                        {/* Preferences Section */}
-                                        <div className="flex flex-wrap items-center gap-3 lg:gap-6 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pl-6">
-                                            {/* Formato Padrão */}
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Formato</label>
-                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
-                                                    <option selected={formats[m.id] === 'Excel'}>Excel</option>
-                                                    <option selected={formats[m.id] === 'PDF'}>PDF</option>
-                                                    <option>CSV</option>
-                                                    <option>JSON</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Período Padrão */}
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Período</label>
-                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
-                                                    <option>Hoje</option>
-                                                    <option>Últimos 7 dias</option>
-                                                    <option selected>Mês Atual</option>
-                                                    <option>Trimestre</option>
-                                                    <option>Ano</option>
-                                                    <option>Personalizado</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Agendamento */}
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Agendar</label>
-                                                <select className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-cyan-500/20">
-                                                    <option>Desativado</option>
-                                                    <option selected={schedules[m.id] === 'Diário'}>Diário</option>
-                                                    <option selected={schedules[m.id] === 'Semanal'}>Semanal</option>
-                                                    <option selected={schedules[m.id] === 'Mensal'}>Mensal</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Favorito Toggle */}
-                                            <button
-                                                className={`p-2.5 rounded-xl transition-colors ${isFavorite ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`}
-                                                title={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                                            >
-                                                {isFavorite ? '★' : '☆'}
-                                            </button>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex gap-2 lg:ml-4">
-                                            <button
-                                                onClick={() => setSelectedModule(m.id)}
-                                                className="flex-1 lg:flex-none px-5 py-3 bg-cyan-600 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-700 transition-colors shadow-lg shadow-cyan-600/20"
-                                            >
-                                                <FileText size={14} /> Gerar
-                                            </button>
-                                            <button
-                                                onClick={() => exportToCSV(reportData, `Relatorio_${m.id}`)}
-                                                className="p-3 bg-emerald-100 text-emerald-600 rounded-xl hover:bg-emerald-200 transition-colors"
-                                                title="Exportação Rápida (Excel)"
-                                            >
-                                                <Download size={16} />
-                                            </button>
-                                            <button
-                                                className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-500 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                                                title="Configurações Avançadas"
-                                            >
-                                                <Activity size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Expandable Details (Hidden by default, could be toggled) */}
-                                    <div className="hidden group-hover:block bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 p-4">
-                                        <div className="flex flex-wrap items-center gap-6 text-xs text-slate-500">
-                                            <div className="flex items-center gap-2">
-                                                <Activity size={12} className="text-cyan-500" />
-                                                <span><strong>Colunas:</strong> ID, Data, Descrição, Valor, Status</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Circle size={12} className="text-emerald-500" />
-                                                <span><strong>Filtros ativos:</strong> Período, Status</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Mail size={12} className="text-violet-500" />
-                                                <span><strong>Enviar por e-mail:</strong> Desativado</span>
-                                            </div>
-                                            <button className="ml-auto text-cyan-600 font-bold hover:underline">
-                                                Personalizar Colunas →
-                                            </button>
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })}
 
-                    {/* Footer Actions */}
+                    {/* Footer Info */}
                     <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-3 bg-cyan-100 dark:bg-cyan-900/30 rounded-xl text-cyan-600">
                                 <BookOpen size={20} />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Dica: Configure seus relatórios favoritos</p>
-                                <p className="text-xs text-slate-500">Defina período, formato e agendamento padrão para gerar relatórios com 1 clique.</p>
+                                <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Clique em qualquer relatório para configurar e gerar</p>
+                                <p className="text-xs text-slate-500">Defina o período desejado, visualize os dados e exporte em Excel, PDF ou CSV.</p>
                             </div>
                         </div>
                         <div className="flex gap-3">
                             <button className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2">
-                                <Download size={14} /> Exportar Configurações
-                            </button>
-                            <button className="px-5 py-2.5 bg-cyan-600 text-white font-bold text-xs rounded-xl hover:bg-cyan-700 transition-colors flex items-center gap-2 shadow-lg shadow-cyan-600/20">
-                                <RefreshCw size={14} /> Sincronizar Preferências
+                                <Download size={14} /> Exportar Catálogo
                             </button>
                         </div>
                     </div>

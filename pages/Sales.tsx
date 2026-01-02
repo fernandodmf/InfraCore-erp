@@ -755,6 +755,74 @@ const Sales = () => {
     setActiveTab('history');
   };
 
+  const handlePrintSale = (sale: Sale) => {
+    // Get absolute latest settings
+    const company = settings || {
+      companyName: 'INFRACORE ERP',
+      tradeName: 'Sistemas de Gestão',
+      document: '00.000.000/0000-00',
+      email: 'contato@infracore.com.br',
+      phone: '(11) 99999-9999',
+      address: 'Endereço Padrão do Sistema'
+    } as AppSettings;
+
+    const html = `
+      <div class="header" style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 20px; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 18px; text-transform: uppercase;">${company.tradeName || company.companyName}</h2>
+        <p style="margin: 2px 0; font-size: 11px;">${company.address}</p>
+        <p style="margin: 2px 0; font-size: 11px;">CNPJ: ${company.document}</p>
+        <p style="margin: 2px 0; font-size: 11px;">${company.phone}</p>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 900;">RECIBO</h1>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">Nº ${sale.id.split('-')[1] || sale.id}</p>
+        <p style="margin: 0; font-size: 12px; color: #555;">${sale.date}</p>
+      </div>
+
+      <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #eee; border-radius: 6px;">
+        <p style="margin: 0 0 5px 0; font-size: 12px;"><strong>Cliente:</strong> ${sale.clientName}</p>
+        <p style="margin: 0 0 5px 0; font-size: 12px;"><strong>Método de Pagamento:</strong> ${getPaymentMethodLabel(sale.paymentMethod)}</p>
+        ${sale.vehicleId ? `<p style="margin: 0; font-size: 12px;"><strong>Veículo/Placa:</strong> ${fleet.find(v => v.id === sale.vehicleId)?.plate || 'N/A'}</p>` : ''}
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #000;">
+            <th style="font-size: 10px; text-align: left; padding: 5px 0;">DESCRIÇÃO</th>
+            <th style="font-size: 10px; text-align: right; padding: 5px 0;">QTD</th>
+            <th style="font-size: 10px; text-align: right; padding: 5px 0;">VL UN.</th>
+            <th style="font-size: 10px; text-align: right; padding: 5px 0;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sale.items.map(item => `
+            <tr style="border-bottom: 1px dashed #eee;">
+              <td style="font-size: 11px; padding: 5px 0;">${item.name}</td>
+              <td style="font-size: 11px; text-align: right; padding: 5px 0;">${item.quantity} ${item.unit}</td>
+              <td style="font-size: 11px; text-align: right; padding: 5px 0;">${formatMoney(item.price)}</td>
+              <td style="font-size: 11px; text-align: right; padding: 5px 0;">${formatMoney(item.price * item.quantity)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div style="border-top: 1px solid #000; padding-top: 10px; margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
+          <span>TOTAL PAGO:</span>
+          <span>${formatMoney(sale.amount)}</span>
+        </div>
+      </div>
+
+      <div style="text-align: center; font-size: 10px; color: #555; margin-top: 40px;">
+        <p>Obrigado pela preferência!</p>
+        <p>Documento sem valor fiscal.</p>
+      </div>
+    `;
+
+    printDocument(`Recibo_${sale.id}`, html);
+  };
+
 
   const selectedClientData = clients.find(c => c.id === selectedClient);
 
@@ -1962,7 +2030,7 @@ const Sales = () => {
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => setSelectedSale(sale)} className="p-2.5 bg-white dark:bg-gray-700 rounded-xl shadow-sm border dark:border-gray-600 text-slate-400 hover:text-cyan-600 transition-all"><Eye size={18} /></button>
                           <button onClick={() => setShowNFE({ type: 'sale', data: sale })} className="p-2.5 bg-white dark:bg-gray-700 rounded-xl shadow-sm border dark:border-gray-600 text-slate-400 hover:text-cyan-600 transition-all" title="Gerar DANFE"><FileSearch size={18} /></button>
-                          <button onClick={() => alert('Compartilhando...')} className="p-2.5 bg-white dark:bg-gray-700 rounded-xl shadow-sm border dark:border-gray-600 text-slate-400 hover:text-cyan-600 transition-all"><Printer size={18} /></button>
+                          <button onClick={() => handlePrintSale(sale)} className="p-2.5 bg-white dark:bg-gray-700 rounded-xl shadow-sm border dark:border-gray-600 text-slate-400 hover:text-cyan-600 transition-all" title="Imprimir Recibo"><Printer size={18} /></button>
                         </div>
                       </td>
                     </tr>

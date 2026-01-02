@@ -836,6 +836,13 @@ const Purchases = () => {
                                     >
                                        <ArrowRight size={18} />
                                     </button>
+                                    <button
+                                       onClick={() => handlePrintPurchaseOrder(order)}
+                                       className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                       title="Imprimir Pedido"
+                                    >
+                                       <Printer size={18} />
+                                    </button>
                                     {order.status === 'Pendente' && (
                                        <button
                                           onClick={() => receivePurchaseOrder(order.id)}
@@ -923,11 +930,10 @@ const Purchases = () => {
                                     </div>
                                  </td>
                                  <td className="px-6 py-4 text-center">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
-                                       item.quantity < item.minStock
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${item.quantity < item.minStock
                                           ? 'bg-rose-100 text-rose-700 border-rose-200'
                                           : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                    }`}>
+                                       }`}>
                                        {item.quantity < item.minStock ? 'REPOSIÇÃO' : 'DISPONÍVEL'}
                                     </span>
                                  </td>

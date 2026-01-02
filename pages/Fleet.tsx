@@ -38,7 +38,8 @@ import {
     ArrowRight,
     RefreshCw,
     Info,
-    Package
+    Package,
+    Printer
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { FleetVehicle, MaintenanceRecord, FuelLog, Tire, TireHistory } from '../types';
@@ -942,6 +943,58 @@ const Fleet = () => {
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const printWindow = window.open('', '_blank');
+                                                            if (printWindow) {
+                                                                printWindow.document.write(`
+                                                                 <html>
+                                                                    <head>
+                                                                       <title>Ordem de Manutenção #${m.id}</title>
+                                                                       <style>
+                                                                          body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+                                                                          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0d9488; padding-bottom: 15px; }
+                                                                          .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+                                                                          .label { font-weight: bold; color: #555; }
+                                                                          .cost { font-size: 1.5em; font-weight: bold; color: #0d9488; text-align: center; margin: 20px 0; }
+                                                                          .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #999; }
+                                                                       </style>
+                                                                    </head>
+                                                                    <body>
+                                                                       <div class="header">
+                                                                          <h2>Ordem de Manutenção</h2>
+                                                                          <p>InfraCore Fleet Management</p>
+                                                                       </div>
+                                                                       <div class="content">
+                                                                          <div class="row"><span class="label">Data:</span> <span>${m.date}</span></div>
+                                                                          <div class="row"><span class="label">Veículo:</span> <span>${veh?.name} (${veh?.plate})</span></div>
+                                                                          <div class="row"><span class="label">KM:</span> <span>${m.km.toLocaleString()}</span></div>
+                                                                          <div class="row"><span class="label">Tipo:</span> <span>${m.type}</span></div>
+                                                                          <div class="row"><span class="label">Classificação:</span> <span>${m.ledgerCode} - ${m.ledgerName}</span></div>
+                                                                          
+                                                                          <div style="margin-top: 20px;">
+                                                                             <div class="label">Descrição do Serviço:</div>
+                                                                             <div style="padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 5px;">${m.description}</div>
+                                                                          </div>
+
+                                                                          <div class="cost">Valor Total: ${formatBRL(m.cost)}</div>
+                                                                       </div>
+                                                                       <div class="footer">
+                                                                          <p>Documento processado em ${new Date().toLocaleString('pt-BR')}</p>
+                                                                          <p>Assinatura do Responsável: __________________________</p>
+                                                                       </div>
+                                                                       <script>window.print();</script>
+                                                                    </body>
+                                                                 </html>
+                                                              `);
+                                                                printWindow.document.close();
+                                                            }
+                                                        }}
+                                                        className="text-slate-400 hover:text-teal-600 p-1"
+                                                        title="Imprimir Ordem"
+                                                    >
+                                                        <Printer size={16} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1016,6 +1069,54 @@ const Fleet = () => {
                                                     <div className="flex items-center justify-end gap-3">
                                                         {l.km.toLocaleString()}
                                                         <button onClick={() => deleteFuelLog(l.vehicleId, l.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const printWindow = window.open('', '_blank');
+                                                                if (printWindow) {
+                                                                    printWindow.document.write(`
+                                                                     <html>
+                                                                        <head>
+                                                                           <title>Registro de Abastecimento</title>
+                                                                           <style>
+                                                                              body { font-family: 'Courier New', monospace; padding: 20px; max-width: 350px; margin: 0 auto; }
+                                                                              .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+                                                                              .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+                                                                              .label { font-weight: bold; }
+                                                                              .total { font-weight: bold; font-size: 1.2em; border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; text-align: right; }
+                                                                           </style>
+                                                                        </head>
+                                                                        <body>
+                                                                           <div class="header">
+                                                                              <h3>POSTO INTERNO</h3>
+                                                                              <p>Comprovante de Abastecimento</p>
+                                                                           </div>
+                                                                           <div>
+                                                                              <div class="row"><span class="label">Data:</span> <span>${l.date}</span></div>
+                                                                              <div class="row"><span class="label">Veículo:</span> <span>${veh?.plate}</span></div>
+                                                                              <div class="row"><span class="label">Hodômetro:</span> <span>${l.km.toLocaleString()} KM</span></div>
+                                                                              <hr style="border:0; border-top:1px dashed #ccc"/>
+                                                                              <div class="row"><span class="label">Combustível:</span> <span>${newFuel.fuelType || 'Diesel'}</span></div>
+                                                                              <div class="row"><span class="label">Litros:</span> <span>${l.liters.toFixed(2)} L</span></div>
+                                                                              <div class="row"><span class="label">Preço/L:</span> <span>${formatBRL(l.cost / l.liters)}</span></div>
+                                                                              
+                                                                              <div class="total">TOTAL: ${formatBRL(l.cost)}</div>
+                                                                           </div>
+                                                                           <div style="margin-top: 30px; text-align: center; font-size: 10px;">
+                                                                              <p>__________________________</p>
+                                                                              <p>Assinatura Motorista</p>
+                                                                           </div>
+                                                                           <script>window.print();</script>
+                                                                        </body>
+                                                                     </html>
+                                                                  `);
+                                                                    printWindow.document.close();
+                                                                }
+                                                            }}
+                                                            className="text-slate-300 hover:text-teal-600"
+                                                            title="Imprimir Cupom"
+                                                        >
+                                                            <Printer size={14} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

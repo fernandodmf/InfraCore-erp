@@ -74,7 +74,7 @@ const HR = () => {
     const [advanceForm, setAdvanceForm] = useState<Partial<SalaryAdvance>>({
         status: 'Pendente',
         requestDate: new Date().toLocaleDateString('pt-BR'),
-        deductFromMonth: new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+        deductFromMonth: new Date().toISOString().slice(0, 7)
     });
 
     const filteredEmployees = employees.filter(emp =>
@@ -296,7 +296,11 @@ const HR = () => {
 
         // Validation: Check if Total Advances > Salary
         const requestedAmount = Number(advanceForm.amount) || 0;
-        const targetMonth = advanceForm.deductFromMonth || '';
+
+        // Format YYYY-MM to MM/YYYY for system consistency
+        const rawMonth = advanceForm.deductFromMonth || '';
+        const [year, month] = rawMonth.split('-');
+        const targetMonth = `${month}/${year}`;
 
         // Calculate existing advances for the same month
         const existingAdvances = salaryAdvances.filter(a =>
@@ -318,7 +322,7 @@ const HR = () => {
             amount: requestedAmount,
             requestDate: new Date().toLocaleDateString('pt-BR'),
             status: 'Pendente',
-            deductFromMonth: advanceForm.deductFromMonth!,
+            deductFromMonth: targetMonth,
             notes: advanceForm.notes
         };
         addSalaryAdvance(advance);
@@ -326,7 +330,7 @@ const HR = () => {
         setAdvanceForm({
             status: 'Pendente',
             requestDate: new Date().toLocaleDateString('pt-BR'),
-            deductFromMonth: new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+            deductFromMonth: new Date().toISOString().slice(0, 7)
         });
     };
 
@@ -637,12 +641,7 @@ const HR = () => {
                         {activeTab === 'advances' && (
                             <div className="space-y-6">
                                 <div className="flex justify-end">
-                                    <button
-                                        onClick={() => setIsAdvanceModalOpen(true)}
-                                        className="px-6 py-3 bg-cyan-600 text-white font-black text-xs rounded-xl shadow-lg shadow-cyan-600/20 uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <Plus size={18} /> Nova Antecipação
-                                    </button>
+
                                 </div>
 
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -755,7 +754,7 @@ const HR = () => {
                                                         </td>
                                                         <td className="px-6 py-5 text-right">
                                                             {p.status === 'Pendente' && (
-                                                                <span className="text-[10px] text-slate-400 font-bold italic">Aguardando Autorização (Central de Autorização)</span>
+                                                                <span className="text-[10px] text-slate-400 font-bold italic">Aguardando Autorização (Central de Compras)</span>
                                                             )
                                                             }
                                                             {p.status === 'Pago' && (
@@ -1052,8 +1051,8 @@ const HR = () => {
                                                 <input type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={advanceForm.amount || ''} onChange={e => setAdvanceForm({ ...advanceForm, amount: Number(e.target.value) })} required />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Descontar em</label>
-                                                <input type="text" placeholder="MM/YYYY" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={advanceForm.deductFromMonth || ''} onChange={e => setAdvanceForm({ ...advanceForm, deductFromMonth: e.target.value })} required />
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Descontar em (Competência)</label>
+                                                <input type="month" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 font-bold text-sm" value={advanceForm.deductFromMonth || ''} onChange={e => setAdvanceForm({ ...advanceForm, deductFromMonth: e.target.value })} required />
                                             </div>
                                         </div>
                                         <div>

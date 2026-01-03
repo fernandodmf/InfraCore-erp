@@ -57,9 +57,9 @@ import { exportToCSV, printDocument } from '../utils/exportUtils';
 const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Reports = () => {
-    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements, settings } = useApp();
+    const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements, settings, planOfAccounts } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'generator'>('generator');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'generator' | 'chart_of_accounts'>('generator');
 
     // Report Generator State
     const [selectedModule, setSelectedModule] = useState<string>('sales');
@@ -904,10 +904,22 @@ const Reports = () => {
 
                 <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border dark:border-slate-700">
                     <button
-                        onClick={() => { setActiveTab('generator'); setSelectedModule(null); }}
-                        className={`px-6 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 bg-white dark:bg-slate-700 text-cyan-600 shadow-sm`}
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-4 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-cyan-600'}`}
                     >
-                        <Printer size={16} /> BIBLIOTECA DE RELATÓRIOS
+                        <PieChartIcon size={16} /> DASHBOARD
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('chart_of_accounts')}
+                        className={`px-4 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'chart_of_accounts' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-cyan-600'}`}
+                    >
+                        <BookOpen size={16} /> PLANO DE CONTAS
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('generator'); setSelectedModule(null); }}
+                        className={`px-4 py-3 text-xs font-black rounded-xl transition-all flex items-center gap-2 ${activeTab === 'generator' ? 'bg-white dark:bg-slate-700 text-cyan-600 shadow-sm' : 'text-slate-400 hover:text-cyan-600'}`}
+                    >
+                        <Printer size={16} /> BIBLIOTECA
                     </button>
                 </div>
             </div>
@@ -1003,6 +1015,127 @@ const Reports = () => {
                                     <span className="text-xl font-black text-slate-800 dark:text-white">{formatBRL(financials.totalExpenses).split(',')[0]}</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            ) : activeTab === 'chart_of_accounts' ? (
+                /* --- CHART OF ACCOUNTS VIEW --- */
+                <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
+                    {/* Header & Filters */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                <BookOpen size={24} className="text-cyan-600" />
+                                Relatórios Contábeis
+                            </h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise detalhada baseada na estrutura do Plano de Contas.</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Início</label>
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Fim</label>
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
+                            </div>
+                            <div className="flex items-end">
+                                <button
+                                    onClick={() => printDocument('Relatório Plano de Contas', document.getElementById('poa-report-content')?.innerHTML || '')}
+                                    className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2"
+                                >
+                                    <Printer size={16} /> Imprimir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Report Content */}
+                    <div id="poa-report-content" className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 min-h-[600px]">
+                        <div className="space-y-8">
+                            {/* Recursive Tree Renderer */}
+                            {planOfAccounts.map(group => {
+                                // Calculate Totals Recursive
+                                const getGroupTotal = (node: any): number => {
+                                    const selfTotal = transactions
+                                        .filter(t => t.ledgerCode === node.code && t.status !== 'Cancelado')
+                                        .filter(t => {
+                                            const tDate = new Date(t.date);
+                                            const start = new Date(startDate);
+                                            const end = new Date(endDate);
+                                            end.setHours(23, 59, 59);
+                                            // Handle transaction date parsing dd/mm/yyyy or yyyy-mm-dd
+                                            let finalDate = tDate;
+                                            if (t.date.includes('/')) {
+                                                const [day, month, year] = t.date.split('/').map(Number);
+                                                finalDate = new Date(year, month - 1, day);
+                                            }
+                                            return finalDate >= start && finalDate <= end;
+                                        })
+                                        .reduce((acc, t) => acc + t.amount, 0);
+
+                                    const childrenTotal = (node.children || []).reduce((acc: number, c: any) => acc + getGroupTotal(c), 0);
+                                    return selfTotal + childrenTotal;
+                                };
+
+                                const groupTotal = getGroupTotal(group);
+
+                                // Specific Styles for Groups
+                                const isRevenue = group.type === 'Receita';
+                                const colorClass = isRevenue ? 'text-emerald-600' : 'text-rose-600';
+                                const bgClass = isRevenue ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-rose-50 dark:bg-rose-900/10';
+
+                                return (
+                                    <div key={group.id} className="space-y-4">
+                                        {/* Group Header */}
+                                        <div className={`flex items-center justify-between p-4 rounded-xl ${bgClass} border border-slate-100 dark:border-slate-700`}>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`font-mono font-bold text-sm ${colorClass}`}>{group.code}</span>
+                                                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase">{group.name}</h3>
+                                            </div>
+                                            <span className={`text-xl font-black ${colorClass}`}>
+                                                {formatMoney(groupTotal)}
+                                            </span>
+                                        </div>
+
+                                        {/* Children */}
+                                        <div className="pl-6 space-y-1">
+                                            {group.children?.map(sub => {
+                                                const subTotal = getGroupTotal(sub);
+                                                if (subTotal === 0) return null; // Hide empty if desired, or keep
+
+                                                return (
+                                                    <div key={sub.id} className="flex flex-col gap-1">
+                                                        <div className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors border-b border-slate-50 dark:border-slate-800">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="font-mono text-xs text-slate-400">{sub.code}</span>
+                                                                <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{sub.name}</span>
+                                                            </div>
+                                                            <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                                                                {formatMoney(subTotal)}
+                                                            </span>
+                                                        </div>
+                                                        {/* Level 3 Children */}
+                                                        {sub.children?.map(leaf => {
+                                                            const leafTotal = getGroupTotal(leaf);
+                                                            if (leafTotal === 0) return null;
+                                                            return (
+                                                                <div key={leaf.id} className="flex items-center justify-between py-1 px-2 ml-8 text-xs text-slate-500 hover:bg-slate-50 rounded">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className="font-mono opacity-50">{leaf.code}</span>
+                                                                        <span>{leaf.name}</span>
+                                                                    </div>
+                                                                    <span>{formatMoney(leafTotal)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -1432,7 +1565,3 @@ const Reports = () => {
         </div >
     );
 };
-
-export default Reports;
-
-

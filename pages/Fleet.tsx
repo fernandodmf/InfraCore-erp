@@ -1002,7 +1002,7 @@ const Fleet = () => {
                                                     <p className="font-black text-slate-900 dark:text-white uppercase text-xs">{veh?.name}</p>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] text-teal-600 font-bold">{veh?.plate}</span>
-                                                        <span className="text-[9px] text-slate-400 font-mono">[{l.ledgerCode || '2.02.01'}]</span>
+                                                        <span className="text-[9px] text-slate-400 font-mono">[{l.ledgerCode || '2.03.01'}]</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-center font-black text-slate-700 dark:text-slate-300">{l.liters} L</td>
@@ -1354,16 +1354,16 @@ const Fleet = () => {
                                         value={newMaint.ledgerCode}
                                         onChange={e => {
                                             const options: any = {
-                                                '2.02.02': 'Manutenção de Frota',
-                                                '2.02.03': 'IPVA / Taxas / Seguros',
-                                                '2.02.04': 'Pneus / Rodagem'
+                                                '2.03.04': 'Manutenção de Frota',
+                                                '2.07.03': 'IPVA / Taxas / Seguros',
+                                                '2.03.06': 'Pneus / Rodagem'
                                             };
                                             setNewMaint({ ...newMaint, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
                                         }}
                                     >
-                                        <option value="2.02.02">2.02.02 - Manutenção de Frota</option>
-                                        <option value="2.02.03">2.02.03 - IPVA / Taxas / Seguros</option>
-                                        <option value="2.02.04">2.02.04 - Pneus / Rodagem</option>
+                                        <option value="2.03.04">2.03.04 - Manutenção de Frota</option>
+                                        <option value="2.07.03">2.07.03 - IPVA / Taxas / Seguros</option>
+                                        <option value="2.03.06">2.03.06 - Pneus / Rodagem</option>
                                     </select>
                                 </div>
 
@@ -1476,14 +1476,14 @@ const Fleet = () => {
                                         value={newFuel.ledgerCode}
                                         onChange={e => {
                                             const options: any = {
-                                                '2.02.01': 'Combustível',
-                                                '2.02.05': 'Arla 32 / Aditivos'
+                                                '2.03.01': 'Combustível (Diesel)',
+                                                '2.03.04': 'Arla 32 / Aditivos'
                                             };
                                             setNewFuel({ ...newFuel, ledgerCode: e.target.value, ledgerName: options[e.target.value] });
                                         }}
                                     >
-                                        <option value="2.02.01">2.02.01 - Combustível</option>
-                                        <option value="2.02.05">2.02.05 - Arla 32 / Aditivos</option>
+                                        <option value="2.03.01">2.03.01 - Combustível (Diesel)</option>
+                                        <option value="2.03.04">2.03.04 - Arla 32 / Aditivos</option>
                                     </select>
                                 </div>
 

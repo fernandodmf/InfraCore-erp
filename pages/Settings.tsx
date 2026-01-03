@@ -202,7 +202,7 @@ const OperationalParametersSection = ({ settings, onUpdate }: { settings: import
                                 type="number"
                                 min={param.min}
                                 max={param.max}
-                                value={settings.operational?.[param.id] ?? 0}
+                                value={Number(settings.operational?.[param.id] ?? 0)}
                                 onChange={(e) => handleParamChange(param.id, e.target.value)}
                                 className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 font-bold text-sm text-center"
                             />
@@ -548,7 +548,7 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
                     <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         {[
                             { name: 'Boas-vindas Novo Cliente', status: 'Ativo', lastEdit: '15/12/2024' },
-                            { name: 'Confirmação de Ordem', status: 'Ativo', lastEdit: '10/12/2024' },
+                            { name: 'Confirmação de Pedido', status: 'Ativo', lastEdit: '10/12/2024' },
                             { name: 'Lembrete de Pagamento', status: 'Ativo', lastEdit: '08/12/2024' },
                             { name: 'Nota Fiscal Emitida', status: 'Ativo', lastEdit: '05/12/2024' },
                             { name: 'Orçamento Aprovado', status: 'Ativo', lastEdit: '01/12/2024' },
@@ -604,7 +604,7 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
                         { trigger: 'Novo Cliente Cadastrado', action: 'Enviar e-mail de boas-vindas', enabled: true },
-                        { trigger: 'Ordem Confirmada', action: 'Enviar confirmação com detalhes', enabled: true },
+                        { trigger: 'Pedido Confirmado', action: 'Enviar confirmação com detalhes', enabled: true },
                         { trigger: '3 dias antes do vencimento', action: 'Lembrete de pagamento', enabled: true },
                         { trigger: 'Pagamento Recebido', action: 'Agradecimento e recibo', enabled: true },
                         { trigger: 'Orçamento sem resposta (7 dias)', action: 'Follow-up automático', enabled: false },
@@ -937,7 +937,11 @@ const DataSecuritySection = ({ settings, onUpdate, addToast }: {
 };
 
 // 10. DOCUMENTOS & IMPRESSÃO
-const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('../types').AppSettings, onUpdate: (s: import('../types').AppSettings) => void }) => {
+const DocumentsPrintingSection = ({ settings, onUpdate, addToast }: {
+    settings: import('../types').AppSettings,
+    onUpdate: (s: import('../types').AppSettings) => void,
+    addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+}) => {
 
     const updateDocumentConfig = (key: string, value: any) => {
         onUpdate({
@@ -968,7 +972,7 @@ const DocumentsPrintingSection = ({ settings, onUpdate }: { settings: import('..
                     {[
                         { name: 'DANFE - Nota Fiscal Eletrônica', format: 'A4 Retrato', status: 'Ativo', version: 'v4.0' },
                         { name: 'Orçamento Comercial Detalhado', format: 'A4 Retrato', status: 'Ativo', version: 'v2.1' },
-                        { name: 'Pedido de Compra', format: 'A4 Paisagem', status: 'Ativo', version: 'v1.5' },
+                        { name: 'Ordem de Compra', format: 'A4 Paisagem', status: 'Ativo', version: 'v1.5' },
                         { name: 'Romaneio de Carga / Manifesto', format: 'A4 Retrato', status: 'Ativo', version: 'v1.2' },
                         { name: 'Ordem de Serviço (OS)', format: 'A4 Retrato', status: 'Ativo', version: 'v3.0' },
                         { name: 'Contrato de Prestação de Serviços', format: 'A4 Retrato', status: 'Ativo', version: 'v2.0' },
@@ -1773,7 +1777,7 @@ const Settings = () => {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => { setEditingUser({ id: '', name: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '', employeeId: '' }); setIsUserModalOpen(true); }}
+                                            onClick={() => { setEditingUser({ id: '', name: '', username: '', email: '', roleId: 'operator', status: 'Ativo', registeredAt: '', employeeId: '' }); setIsUserModalOpen(true); }}
                                             className="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl"
                                         >
                                             <UserPlus size={16} /> Novo Usuário
@@ -2220,7 +2224,7 @@ const Settings = () => {
                             <EmailCommunicationSection settings={tempSettings} onUpdate={setTempSettings} addToast={addToast} />
 
                             {/* Documents & Printing */}
-                            <DocumentsPrintingSection settings={tempSettings} onUpdate={setTempSettings} />
+                            <DocumentsPrintingSection settings={tempSettings} onUpdate={setTempSettings} addToast={addToast} />
 
                             {/* Performance & Optimization */}
                             <PerformanceOptimizationSection settings={tempSettings} onUpdate={setTempSettings} />

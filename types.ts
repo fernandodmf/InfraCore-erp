@@ -192,6 +192,7 @@ export interface PurchaseOrder {
   ledgerCode?: string;
   ledgerName?: string;
   accountId?: string;
+  competenceDate?: string;
 }
 
 export interface FuelLog {

@@ -381,29 +381,37 @@ const INITIAL_ACCOUNTS = [
 
 const INITIAL_PLAN_OF_ACCOUNTS = [
   // ==================================================================================
-  // GRUPO 1: RECEITAS (ENTRADAS)
+  // GRUPO 1: RECEITAS OPERACIONAIS (ENTRADAS)
   // ==================================================================================
   {
     id: '1', code: '1.01', name: 'Receita Operacional Bruta', type: 'Receita', children: [
-      { id: '101', code: '1.01.01', name: 'Venda de Produtos de Fabricação Própria' },
-      { id: '102', code: '1.01.02', name: 'Revenda de Mercadorias' },
-      { id: '103', code: '1.01.03', name: 'Prestação de Serviços de Engenharia/Obra' },
-      { id: '104', code: '1.01.04', name: 'Locação de Equipamentos e Maquinário' },
+      // 1.01.01 - Britagem / Agregados
+      { id: '10101', code: '1.01.01', name: 'Venda de Agregados (Brita/Areia/Pó)' },
+      { id: '10102', code: '1.01.02', name: 'Venda de Rachão/Pedra de Mão' },
+
+      // 1.01.03 - Concreto
+      { id: '10103', code: '1.01.03', name: 'Venda de Concreto Usinado' },
+      { id: '10104', code: '1.01.04', name: 'Serviço de Bombeamento de Concreto' },
+
+      // 1.01.05 - Asfalto
+      { id: '10105', code: '1.01.05', name: 'Venda de Massa Asfáltica (CBUQ)' },
+      { id: '10106', code: '1.01.06', name: 'Venda de Emulsão Asfáltica' },
+
+      // 1.01.07 - Engenharia e Obras
+      { id: '10107', code: '1.01.07', name: 'Execução de Obras de Pavimentação' },
+      { id: '10108', code: '1.01.08', name: 'Obras de Infraestrutura e Terraplenagem' },
+      { id: '10109', code: '1.01.09', name: 'Obras de Arte Especiais (Pontes/Viadutos)' },
+
+      // Outros
+      { id: '10110', code: '1.01.10', name: 'Locação de Equipamentos e Maquinário' },
+      { id: '10111', code: '1.01.11', name: 'Serviços de Laboratório/Tecnológicos' }
     ]
   },
   {
-    id: '2', code: '1.02', name: 'Outras Receitas Operacionais', type: 'Receita', children: [
-      { id: '201', code: '1.02.01', name: 'Recuperação de Despesas' },
-      { id: '202', code: '1.02.02', name: 'Venda de Ativo Imobilizado (Ganho de Capital)' },
-      { id: '203', code: '1.02.03', name: 'Reversão de Provisões' },
-    ]
-  },
-  {
-    id: '3', code: '1.03', name: 'Receitas Financeiras', type: 'Receita', children: [
-      { id: '301', code: '1.03.01', name: 'Rendimentos de Aplicações Financeiras' },
-      { id: '302', code: '1.03.02', name: 'Juros Recebidos de Clientes' },
-      { id: '303', code: '1.03.03', name: 'Descontos Obtidos de Fornecedores' },
-      { id: '304', code: '1.03.04', name: 'Variação Cambial Ativa' },
+    id: '2', code: '1.02', name: 'Outras Receitas', type: 'Receita', children: [
+      { id: '10201', code: '1.02.01', name: 'Venda de Ativo Imobilizado (Ganho Capital)' },
+      { id: '10202', code: '1.02.02', name: 'Rendimentos Financeiros' },
+      { id: '10203', code: '1.02.03', name: 'Recuperação de Despesas' },
     ]
   },
 
@@ -411,114 +419,125 @@ const INITIAL_PLAN_OF_ACCOUNTS = [
   // GRUPO 2: CUSTOS E DESPESAS (SAÍDAS)
   // ==================================================================================
 
+  // ----------------------------------------------------------------------------------
   // 2.01 - DEDUÇÕES DA RECEITA
+  // ----------------------------------------------------------------------------------
   {
-    id: '4', code: '2.01', name: 'Deduções da Receita Bruta', type: 'Despesa', children: [
-      { id: '401', code: '2.01.01', name: 'Impostos Incidentes s/ Vendas (ICMS/ISS/PIS/COFINS)' },
-      { id: '402', code: '2.01.02', name: 'Devoluções e Abatimentos de Vendas' },
-      { id: '403', code: '2.01.03', name: 'Cancelamento de Vendas' },
+    id: '4', code: '2.01', name: 'Impostos e Deduções s/ Vendas', type: 'Despesa', children: [
+      { id: '20101', code: '2.01.01', name: 'ICMS s/ Vendas' },
+      { id: '20102', code: '2.01.02', name: 'ISSQN s/ Serviços' },
+      { id: '20103', code: '2.01.03', name: 'PIS/COFINS' },
+      { id: '20104', code: '2.01.04', name: 'Simples Nacional (se aplicável)' },
+      { id: '20105', code: '2.01.05', name: 'Devoluções e Cancelamentos' },
     ]
   },
 
-  // 2.02 - CUSTOS (CPV / CSP)
+  // ----------------------------------------------------------------------------------
+  // 2.02 - CUSTOS DIRETOS DE PRODUÇÃO (CPV / CSP)
+  // ----------------------------------------------------------------------------------
   {
-    id: '5', code: '2.02', name: 'Custos Diretos (CPV / CSP)', type: 'Despesa', children: [
-      { id: '501', code: '2.02.01', name: 'Matéria-Prima e Insumos (Produção)' },
-      { id: '502', code: '2.02.02', name: 'Materiais Aplicados na Obra' },
-      { id: '503', code: '2.02.03', name: 'Mão de Obra Direta (Operacional)' },
-      { id: '504', code: '2.02.04', name: 'Encargos Sociais sobre MOD' },
-      { id: '505', code: '2.02.05', name: 'Combustíveis e Lubrificantes (Produção)' },
-      { id: '506', code: '2.02.06', name: 'Manutenção de Máquinas e Equipamentos' },
-      { id: '507', code: '2.02.07', name: 'EPIs e Uniformes (Produção)' },
-      { id: '508', code: '2.02.08', name: 'Subempreiteiros e Terceirização de Obra' },
+    id: '5', code: '2.02', name: 'Custos Diretos de Produção (Industrial/Obras)', type: 'Despesa', children: [
+      // Insumos Britagem
+      { id: '20201', code: '2.02.01', name: 'Insumos Britagem: Explosivos e Detonação' },
+      { id: '20202', code: '2.02.02', name: 'Insumos Britagem: Peças de Desgaste (Manganês/Correias)' },
+
+      // Insumos Concreto
+      { id: '20203', code: '2.02.03', name: 'Insumos Concreto: Cimento' },
+      { id: '20204', code: '2.02.04', name: 'Insumos Concreto: Aditivos Químicos' },
+      { id: '20205', code: '2.02.05', name: 'Insumos Concreto: Agregados de Terceiros' },
+
+      // Insumos Asfalto
+      { id: '20206', code: '2.02.06', name: 'Insumos Asfalto: CAP / Cimento Asfáltico' },
+      { id: '20207', code: '2.02.07', name: 'Insumos Asfalto: Emulsão e Polímeros' },
+      { id: '20208', code: '2.02.08', name: 'Insumos Asfalto: Combustível Usina (Xisto/Óleo BPF)' },
+
+      // Insumos Obras
+      { id: '20209', code: '2.02.09', name: 'Materiais de Obra: Aço e Ferragens' },
+      { id: '20210', code: '2.02.10', name: 'Materiais de Obra: Tubos e Drenagem' },
+      { id: '20211', code: '2.02.11', name: 'Materiais de Obra: Sinalização Viária' },
+      { id: '20212', code: '2.02.12', name: 'Subempreiteiros e Serviços Terceirizados' },
+
+      // Energia e Mão de Obra Fabril
+      { id: '20213', code: '2.02.13', name: 'Energia Elétrica Industrial (Usinas)' },
+      { id: '20214', code: '2.02.14', name: 'Mão de Obra Direta (Operacional Produção)' },
     ]
   },
 
-  // 2.03 - DESPESAS COM PESSOAL
+  // ----------------------------------------------------------------------------------
+  // 2.03 - MANUTENÇÃO E FROTA
+  // ----------------------------------------------------------------------------------
   {
-    id: '6', code: '2.03', name: 'Despesas com Pessoal (Administrativo)', type: 'Despesa', children: [
-      { id: '601', code: '2.03.01', name: 'Salários e Ordenados' },
-      { id: '602', code: '2.03.02', name: 'Pró-Labore Sócios' },
-      { id: '603', code: '2.03.03', name: '13º Salário' },
-      { id: '604', code: '2.03.04', name: 'Férias' },
-      { id: '605', code: '2.03.05', name: 'INSS Empresa' },
-      { id: '606', code: '2.03.06', name: 'FGTS' },
-      { id: '607', code: '2.03.07', name: 'Vale Transporte / Alimentação / Refeição' },
-      { id: '608', code: '2.03.08', name: 'Assistência Médica e Social' },
-      { id: '609', code: '2.03.09', name: 'Treinamentos e Capacitação' },
+    id: '9', code: '2.03', name: 'Manutenção e Custos de Frota', type: 'Despesa', children: [
+      { id: '20301', code: '2.03.01', name: 'Combustível Diesel (Abastecimento Interno)' },
+      { id: '20302', code: '2.03.02', name: 'Combustível Diesel (Abastecimento Externo/Rota)' },
+      { id: '20303', code: '2.03.03', name: 'Manutenção Linha Amarela (Máquinas Pesadas)' },
+      { id: '20304', code: '2.03.04', name: 'Manutenção Frota Rodoviária (Caminhões)' },
+      { id: '20305', code: '2.03.05', name: 'Manutenção Usinas e Instalações Industriais' },
+      { id: '20306', code: '2.03.06', name: 'Pneus, Câmaras e Recapagens' },
+      { id: '20307', code: '2.03.07', name: 'Locação de Equipamentos de Terceiros' },
     ]
   },
 
-  // 2.04 - DESPESAS ADMINISTRATIVAS
+  // ----------------------------------------------------------------------------------
+  // 2.04 - DESPESAS COM PESSOAL (ADMINISTRATIVO)
+  // ----------------------------------------------------------------------------------
   {
-    id: '7', code: '2.04', name: 'Despesas Administrativas e Gerais', type: 'Despesa', children: [
-      { id: '701', code: '2.04.01', name: 'Aluguel de Imóveis' },
-      { id: '702', code: '2.04.02', name: 'Energia Elétrica' },
-      { id: '703', code: '2.04.03', name: 'Água e Esgoto' },
-      { id: '704', code: '2.04.04', name: 'Telefonia e Internet' },
-      { id: '705', code: '2.04.05', name: 'Material de Expediente e Escritório' },
-      { id: '706', code: '2.04.06', name: 'Serviços Contábeis e Jurídicos' },
-      { id: '707', code: '2.04.07', name: 'Consultorias e Auditorias' },
-      { id: '708', code: '2.04.08', name: 'Seguros Gerais (Predial/Responsabilidade)' },
-      { id: '709', code: '2.04.09', name: 'Licenças de Software e TI' },
-      { id: '710', code: '2.04.10', name: 'Serviços de Limpeza e Segurança' },
-      { id: '711', code: '2.04.11', name: 'Depreciação e Amortização' },
+    id: '6', code: '2.04', name: 'Despesas com Pessoal (Administrativo)', type: 'Despesa', children: [
+      { id: '20401', code: '2.04.01', name: 'Salários Administrativos' },
+      { id: '20402', code: '2.04.02', name: 'Pró-Labore Diretores' },
+      { id: '20403', code: '2.04.03', name: 'Encargos Sociais (INSS/FGTS) - Adm' },
+      { id: '20404', code: '2.04.04', name: 'Benefícios (VA/VR/VT/Plano Saúde)' },
+      { id: '20405', code: '2.04.05', name: 'EPIs e Uniformes (Geral)' },
     ]
   },
 
-  // 2.05 - DESPESAS COMERCIAIS
+  // ----------------------------------------------------------------------------------
+  // 2.05 - DESPESAS ADMINISTRATIVAS E GERAIS
+  // ----------------------------------------------------------------------------------
   {
-    id: '8', code: '2.05', name: 'Despesas Comerciais e de Vendas', type: 'Despesa', children: [
-      { id: '801', code: '2.05.01', name: 'Comissões sobre Vendas' },
-      { id: '802', code: '2.05.02', name: 'Publicidade e Propaganda (Marketing)' },
-      { id: '803', code: '2.05.03', name: 'Brindes e Bonificações' },
-      { id: '804', code: '2.05.04', name: 'Viagens e Estadias (Comercial)' },
-      { id: '805', code: '2.05.05', name: 'Logística de Entrega (Fretes s/ Vendas)' },
+    id: '7', code: '2.05', name: 'Despesas Administrativas Gerais', type: 'Despesa', children: [
+      { id: '20501', code: '2.05.01', name: 'Aluguel e Condomínio' },
+      { id: '20502', code: '2.05.02', name: 'Energia Elétrica (Escritório)' },
+      { id: '20503', code: '2.05.03', name: 'Telefonia e Internet' },
+      { id: '20504', code: '2.05.04', name: 'Material de Escritório e Limpeza' },
+      { id: '20505', code: '2.05.05', name: 'Serviços Profissionais (Contábil/Jurídico/TI)' },
+      { id: '20506', code: '2.05.06', name: 'Seguros Gerais' },
+      { id: '20507', code: '2.05.07', name: 'Viagens e Estadias (Administrativo)' },
     ]
   },
 
-  // 2.06 - DESPESAS DE FROTA (Específico Transportadora/Construtora)
+  // ----------------------------------------------------------------------------------
+  // 2.06 - DESPESAS COMERCIAIS
+  // ----------------------------------------------------------------------------------
   {
-    id: '9', code: '2.06', name: 'Despesas com Frota e Veículos', type: 'Despesa', children: [
-      { id: '901', code: '2.06.01', name: 'Combustíveis e Lubrificantes (Frota Apoio)' },
-      { id: '902', code: '2.06.02', name: 'Peças e Manutenção (Frota Apoio)' },
-      { id: '903', code: '2.06.03', name: 'Pneus e Recapagens' },
-      { id: '904', code: '2.06.04', name: 'IPVA, Licenciamento e Seguros de Frota' },
-      { id: '905', code: '2.06.05', name: 'Multas de Trânsito' },
-      { id: '906', code: '2.06.06', name: 'Pedágios e Estacionamentos' },
+    id: '8', code: '2.06', name: 'Despesas Comerciais', type: 'Despesa', children: [
+      { id: '20601', code: '2.06.01', name: 'Comissões de Vendas' },
+      { id: '20602', code: '2.06.02', name: 'Marketing e Publicidade' },
+      { id: '20603', code: '2.06.03', name: 'Brindes e Eventos' },
     ]
   },
 
-  // 2.07 - DESPESAS FINANCEIRAS
+  // ----------------------------------------------------------------------------------
+  // 2.07 - DESPESAS FINANCEIRAS E TRIBUTÁRIAS
+  // ----------------------------------------------------------------------------------
   {
-    id: '10', code: '2.07', name: 'Despesas Financeiras', type: 'Despesa', children: [
-      { id: '1001', code: '2.07.01', name: 'Juros Pagos (Empréstimos/Financiamentos)' },
-      { id: '1002', code: '2.07.02', name: 'Juros de Mora e Multas' },
-      { id: '1003', code: '2.07.03', name: 'Tarifas e Manutenção Bancária' },
-      { id: '1004', code: '2.07.04', name: 'IOF' },
-      { id: '1005', code: '2.07.05', name: 'Variação Cambial Passiva' },
+    id: '10', code: '2.07', name: 'Despesas Financeiras e Tributárias', type: 'Despesa', children: [
+      { id: '20701', code: '2.07.01', name: 'Tarifas Bancárias' },
+      { id: '20702', code: '2.07.02', name: 'Juros Pagos' },
+      { id: '20703', code: '2.07.03', name: 'IPTU / IPVA / Taxas Diversas' },
     ]
   },
 
-  // 2.08 - DESPESAS TRIBUTÁRIAS
-  {
-    id: '11', code: '2.08', name: 'Despesas Tributárias', type: 'Despesa', children: [
-      { id: '1101', code: '2.08.01', name: 'IPTU' },
-      { id: '1102', code: '2.08.02', name: 'IPVA (Administrativo)' },
-      { id: '1103', code: '2.08.03', name: 'Taxas e Alvarás de Funcionamento' },
-      { id: '1104', code: '2.08.04', name: 'Contribuições Associativas e Sindicais' },
-    ]
-  },
-
+  // ----------------------------------------------------------------------------------
   // 2.09 - INVESTIMENTOS (CAPEX)
+  // ----------------------------------------------------------------------------------
   {
-    id: '12', code: '2.09', name: 'Investimentos (Ativo Imobilizado/Intangível)', type: 'Despesa', children: [
-      { id: '1201', code: '2.09.01', name: 'Aquisição de Imóveis e Terrenos' },
-      { id: '1202', code: '2.09.02', name: 'Construções e Benfeitorias em Imóveis' },
-      { id: '1203', code: '2.09.03', name: 'Máquinas, Equipamentos e Ferramentas' },
-      { id: '1204', code: '2.09.04', name: 'Móveis e Utensílios' },
-      { id: '1205', code: '2.09.05', name: 'Veículos' },
-      { id: '1206', code: '2.09.06', name: 'Equipamentos de Informática e Periféricos' },
+    id: '12', code: '2.09', name: 'Investimentos (CAPEX)', type: 'Despesa', children: [
+      { id: '20901', code: '2.09.01', name: 'Aquisição de Máquinas e Equipamentos' },
+      { id: '20902', code: '2.09.02', name: 'Reforma/Revitalização de Máquinas' },
+      { id: '20903', code: '2.09.03', name: 'Construção Civil (Instalações)' },
+      { id: '20904', code: '2.09.04', name: 'Veículos Leves e Utilitários' },
+      { id: '20905', code: '2.09.05', name: 'Móveis e Tecnologia' },
     ]
   },
 ];

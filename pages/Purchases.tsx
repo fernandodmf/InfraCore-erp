@@ -617,7 +617,7 @@ const Purchases = () => {
                                        onClick={() => handleApproveOrder(order)}
                                        className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform flex items-center gap-2"
                                     >
-                                       <ShieldCheck size={18} /> Autorizar Compra
+                                       <ShieldCheck size={18} /> {order.id.startsWith('OD') ? 'Autorizar Despesa' : 'Autorizar Compra'}
                                     </button>
                                  </div>
                               </div>

@@ -101,6 +101,7 @@ const Purchases = () => {
    // Search & Filter
    const [searchTerm, setSearchTerm] = useState('');
    const [statusFilter, setStatusFilter] = useState<string>('Todos');
+   const [approvalFilter, setApprovalFilter] = useState<string>('Todos'); // New status for Approval Center
 
    // OSM States (Maintenance)
    const [isOSMModalOpen, setIsOSMModalOpen] = useState(false);
@@ -212,7 +213,7 @@ const Purchases = () => {
 
       addPurchaseOrder(newOrder);
 
-      alert("Pedido enviado para a Central de Aprovações!");
+      alert("Ordem enviada para a Central de Autorização!");
 
       // Reset and redirect
       setOrderItems([]);
@@ -225,19 +226,19 @@ const Purchases = () => {
    };
 
    const handleApproveOrder = (order: PurchaseOrder) => {
-      if (confirm(`Confirmar aprovação do pedido #${order.id}?`)) {
+      if (confirm(`Confirmar aprovação da ordem #${order.id}?`)) {
          updatePurchaseOrder({ ...order, status: 'Aprovado' });
       }
    };
 
    const handleRejectOrder = (order: PurchaseOrder) => {
-      if (confirm(`Rejeitar pedido #${order.id}? Ele será cancelado.`)) {
+      if (confirm(`Rejeitar ordem #${order.id}? Ela será cancelada.`)) {
          updatePurchaseOrder({ ...order, status: 'Cancelado' });
       }
    };
 
    const handleReceiveApprovedOrder = (order: PurchaseOrder) => {
-      if (order.status !== 'Aprovado') return alert("O pedido precisa ser APROVADO antes de ser recebido.");
+      if (order.status !== 'Aprovado') return alert("A ordem precisa ser APROVADA antes de ser recebida.");
 
       // If no account, Context falls back to Default/Caixa
       receivePurchaseOrder(order.id);
@@ -290,6 +291,17 @@ const Purchases = () => {
    };
 
    const handlePrintPurchaseOrder = (order: PurchaseOrder) => {
+      let title = "ORDEM DE COMPRA";
+      let typeLabel = "COMPRA DE MATERIAIS";
+
+      if (order.id.startsWith('ODO')) {
+         title = "ORDEM DE DESPESA";
+         typeLabel = "DESPESA OPERACIONAL";
+      } else if (order.id.startsWith('ODP')) {
+         title = "ORDEM DE PAGAMENTO";
+         typeLabel = "DESPESA DE PESSOAL";
+      }
+
       const html = `
          <div class="header">
             <div class="company-info">
@@ -297,7 +309,7 @@ const Purchases = () => {
                <p>Sistemas de Gestão para Engenharia e Indústria</p>
             </div>
             <div class="doc-info">
-               <h2>PEDIDO DE COMPRA</h2>
+               <h2>${title}</h2>
                <p>Nº: <strong>${order.id}</strong></p>
                <p>DATA: ${order.date}</p>
             </div>
@@ -305,13 +317,14 @@ const Purchases = () => {
 
          <div class="details-grid">
             <div class="detail-box">
-               <h3>FORNECEDOR</h3>
+               <h3>BENEFICIÁRIO / FORNECEDOR</h3>
                <p>${order.supplierName}</p>
                <p>Emissão: ${order.date}</p>
             </div>
             <div class="detail-box">
-               <h3>STATUS DO PEDIDO</h3>
+               <h3>DADOS DA ORDEM</h3>
                <p>${order.status.toUpperCase()}</p>
+               <p>Tipo: ${typeLabel}</p>
                <p>Classificação: ${order.ledgerName || 'Geral'}</p>
             </div>
          </div>
@@ -319,7 +332,7 @@ const Purchases = () => {
          <table>
             <thead>
                <tr>
-                  <th>DESCRIÇÃO DO ITEM</th>
+                  <th>DESCRIÇÃO DO ITEM / SERVIÇO</th>
                   <th class="text-right">QTD</th>
                   <th class="text-right">UN</th>
                   <th class="text-right">VALOR UNIT.</th>
@@ -341,19 +354,26 @@ const Purchases = () => {
 
          <div class="totals">
             <div class="total-row total-final">
-               <span>VALOR TOTAL DO PEDIDO:</span>
+               <span>VALOR TOTAL DA ORDEM:</span>
                <span>${formatCurrency(order.total)}</span>
             </div>
          </div>
 
          <div style="margin-top: 50px; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">INSTRUÇÕES DE ENTREGA / COBRANÇA</h4>
-            <p style="font-size: 11px; margin: 0;">* Este pedido deve ser acompanhado da Nota Fiscal correspondente no ato da entrega.<br>
-            * A conferência qualitativa e quantitativa será realizada no recebimento.<br>
-            * Condições de pagamento conforme acordado previamente com o departamento financeiro.</p>
+            <h4 style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">AUTENTICAÇÃO / ASSINATURAS</h4>
+            <div style="display: flex; gap: 40px; margin-top: 40px;">
+               <div style="flex: 1; border-top: 1px solid #cbd5e1; padding-top: 5px; text-align: center; font-size: 10px;">
+                  RESPONSÁVEL PELA EMISSÃO
+               </div>
+               <div style="flex: 1; border-top: 1px solid #cbd5e1; padding-top: 5px; text-align: center; font-size: 10px;">
+                  AUTORIZAÇÃO / DIRETORIA
+               </div>
+            </div>
+            <p style="font-size: 10px; margin: 20px 0 0 0;">* Documento gerado eletronicamente pelo sistema INFRACORE ERP.<br>
+            * Condições de pagamento: ${order.paymentTerms || 'Não especificado'}.</p>
          </div>
       `;
-      printDocument(`Pedido_Compra_${order.id}_${order.supplierName.replace(/\s+/g, '_')}`, html);
+      printDocument(`${title.replace(/ /g, '_')}_${order.id}`, html);
    };
 
    // UI Helpers
@@ -493,7 +513,7 @@ const Purchases = () => {
                   <ShoppingBag className="text-cyan-600" />
                   Central de Custos e Despesas
                </h2>
-               <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de pedidos de compra, fornecedores e estoque de insumos.</p>
+               <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Gestão de ordens de compra, fornecedores e estoque de insumos.</p>
             </div>
             <div className="flex items-center gap-2">
 
@@ -506,7 +526,7 @@ const Purchases = () => {
          {/* Main Tabs */}
          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex space-x-8">
-               {['dashboard', 'orders', 'suppliers', 'inventory'].map((tab) => (
+               {['dashboard', 'approval', 'orders', 'suppliers', 'inventory'].map((tab) => (
                   <button
                      key={tab}
                      onClick={() => setActiveTab(tab as any)}
@@ -522,8 +542,8 @@ const Purchases = () => {
                      {tab === 'inventory' && <Warehouse size={16} />}
                      {
                         tab === 'dashboard' ? 'Painel Geral' :
-                           tab === 'approval' ? 'Central de Aprovações' :
-                              tab === 'orders' ? 'Histórico de Pedidos' :
+                           tab === 'approval' ? 'Central de Autorização' :
+                              tab === 'orders' ? 'Histórico de Ordens' :
                                  tab === 'suppliers' ? 'Fornecedores' : 'Estoque'
                      }
                   </button>
@@ -533,11 +553,9 @@ const Purchases = () => {
 
 
 
-         {/* DASHBOARD TAB */}
-         {activeTab === 'dashboard' && (
+         {/* APPROVAL TAB */}
+         {activeTab === 'approval' && (
             <div className="space-y-6">
-
-               {/* Authorization Center (Moved to Dashboard) */}
                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-white flex justify-between items-center">
                   <div className="flex flex-col gap-6 items-start">
                      <div>
@@ -545,37 +563,15 @@ const Purchases = () => {
                            <ShieldCheck className="text-emerald-400" size={32} />
                            Central de Autorização
                         </h2>
-                        <p className="text-slate-400 font-medium">Os pedidos abaixo aguardam análise para liberação de compra e estoque.</p>
+                        <p className="text-slate-400 font-medium">Gerenciamento centralizado de aprovações de ordens de compra e despesa.</p>
                      </div>
                      <div className="flex flex-col gap-3 w-full sm:w-auto">
-                        <button
-                           onClick={() => setActiveTab('new-order')}
-                           className="flex items-center gap-3 px-6 py-4 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                        >
-                           <Plus size={20} />
-                           Gerar OCP - Ordem de Compra de Produtos
-                        </button>
-                        <button
-                           onClick={() => setIsOSMModalOpen(true)}
-                           className="flex items-center gap-3 px-6 py-4 bg-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                        >
-                           <Wrench size={20} />
-                           Gerar OSM - Ordem de Serviço de Manutenção
-                        </button>
-                        <button
-                           onClick={() => setIsODOModalOpen(true)}
-                           className="flex items-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                        >
-                           <FileText size={20} />
-                           Gerar ODO - Ordem de Despesa Operacional
-                        </button>
-                        <button
-                           onClick={() => setIsODPModalOpen(true)}
-                           className="flex items-center gap-3 px-6 py-4 bg-fuchsia-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-fuchsia-600/20 hover:bg-fuchsia-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                        >
-                           <Users size={20} />
-                           Gerar ODP - Ordem de Despesa de Pessoal
-                        </button>
+                        <div className="flex gap-2">
+                           <button onClick={() => setApprovalFilter('Todos')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${approvalFilter === 'Todos' ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Todos</button>
+                           <button onClick={() => setApprovalFilter('OCP')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${approvalFilter === 'OCP' ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Compras (OCP)</button>
+                           <button onClick={() => setApprovalFilter('ODO')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${approvalFilter === 'ODO' ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Operacional (ODO)</button>
+                           <button onClick={() => setApprovalFilter('ODP')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${approvalFilter === 'ODP' ? 'bg-fuchsia-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Pessoal (ODP)</button>
+                        </div>
                      </div>
                   </div>
                   <div className="text-right bg-white/5 p-4 rounded-2xl border border-white/10">
@@ -584,62 +580,95 @@ const Purchases = () => {
                   </div>
                </div>
 
-               {/* Pending Orders List (Only if > 0) */}
-               {purchaseOrders.filter(o => o.status === 'Pendente').length > 0 && (
-                  <div className="grid grid-cols-1 gap-6">
-                     {purchaseOrders.filter(o => o.status === 'Pendente').map(order => (
+               <div className="grid grid-cols-1 gap-6">
+                  {purchaseOrders
+                     .filter(o => o.status === 'Pendente')
+                     .filter(o => {
+                        if (approvalFilter === 'Todos') return true;
+                        if (approvalFilter === 'OCP') return o.id.startsWith('PO-');
+                        if (approvalFilter === 'ODO') return o.id.startsWith('ODO');
+                        if (approvalFilter === 'ODP') return o.id.startsWith('ODP');
+                        return true;
+                     })
+                     .map(order => (
                         <div key={order.id} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all">
-                           <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
+                           <div className={`absolute top-0 left-0 w-2 h-full ${order.id.startsWith('PO') ? 'bg-cyan-500' : order.id.startsWith('ODO') ? 'bg-indigo-500' : 'bg-fuchsia-500'}`}></div>
                            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
                               <div className="flex-1">
                                  <div className="flex items-center gap-3 mb-2">
                                     <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200">Aguardando Análise</span>
                                     <span className="text-xs font-bold text-slate-400">{order.date}</span>
                                     <span className="text-xs font-mono text-slate-300">#{order.id}</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded border ${order.id.startsWith('PO') ? 'bg-cyan-50 text-cyan-600 border-cyan-100' : order.id.startsWith('ODO') ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100'}`}>
+                                       {order.id.startsWith('PO') ? 'COMPRA' : order.id.startsWith('ODO') ? 'DESPESA OP.' : 'PESSOAL'}
+                                    </span>
                                  </div>
                                  <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1">{order.supplierName}</h3>
-                                 <p className="text-sm text-slate-500">{order.items.length} itens • Condição: <span className="font-bold text-slate-700 dark:text-slate-300">{order.paymentTerms}</span></p>
+                                 <p className="text-sm text-slate-500 hidden md:block">{order.items.length} itens • Condição: <span className="font-bold text-slate-700 dark:text-slate-300">{order.paymentTerms || '?'}</span></p>
                               </div>
 
-                              <div className="flex gap-8 items-center border-l dark:border-slate-700 pl-8">
+                              <div className="flex flex-col sm:flex-row gap-8 items-start sm:items-center border-l dark:border-slate-700 pl-0 sm:pl-8 mt-4 sm:mt-0 w-full sm:w-auto">
                                  <div>
                                     <p className="text-[10px] font-black text-slate-400 uppercase">Valor Total</p>
                                     <p className="text-2xl font-black text-slate-900 dark:text-white">{formatCurrency(order.total)}</p>
                                  </div>
-                                 <div className="flex gap-3">
+                                 <div className="flex gap-3 w-full sm:w-auto">
+                                    <button
+                                       onClick={() => handlePrintPurchaseOrder(order)}
+                                       className="flex-1 sm:flex-none px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-cyan-600 hover:border-cyan-200 rounded-xl font-bold uppercase text-[10px] transition-colors"
+                                       title="Visualizar Impressão"
+                                    >
+                                       <Printer size={18} />
+                                    </button>
                                     <button
                                        onClick={() => handleRejectOrder(order)}
-                                       className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold uppercase text-[10px] transition-colors"
+                                       className="flex-1 sm:flex-none px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold uppercase text-[10px] transition-colors"
                                     >
                                        Rejeitar
                                     </button>
                                     <button
                                        onClick={() => handleApproveOrder(order)}
-                                       className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform flex items-center gap-2"
+                                       className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform flex items-center gap-2 justify-center"
                                     >
-                                       <ShieldCheck size={18} /> {order.id.startsWith('OD') ? 'Autorizar Despesa' : 'Autorizar Compra'}
+                                       <ShieldCheck size={18} /> {order.id.startsWith('PO') ? 'Aprovar Compra' : 'Autorizar'}
                                     </button>
                                  </div>
                               </div>
                            </div>
 
-                           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
-                              <div className="flex gap-4 overflow-x-auto pb-2">
-                                 {order.items.map(item => (
-                                    <div key={item.id} className="min-w-[150px] p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
-                                       <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{item.name}</p>
-                                       <div className="flex justify-between mt-1">
-                                          <span className="text-[10px] text-slate-500">{item.quantity} {item.unit}</span>
-                                          <span className="text-[10px] font-bold text-emerald-600">{formatCurrency(item.price * item.quantity)}</span>
+                           <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                              <div className="flex flex-col gap-2">
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Itens da Ordem</p>
+                                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+                                    {order.items.map(item => (
+                                       <div key={item.id} className="min-w-[180px] p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700 flex flex-col justify-between">
+                                          <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate" title={item.name}>{item.name}</p>
+                                          <div className="flex justify-between mt-2 items-end">
+                                             <span className="text-[10px] text-slate-500 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">{item.quantity} {item.unit}</span>
+                                             <span className="text-[10px] font-bold text-emerald-600">{formatCurrency(item.price * item.quantity)}</span>
+                                          </div>
                                        </div>
-                                    </div>
-                                 ))}
+                                    ))}
+                                 </div>
                               </div>
                            </div>
                         </div>
                      ))}
-                  </div>
-               )}
+                  {purchaseOrders.filter(o => o.status === 'Pendente').length === 0 && (
+                     <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border-2 border-dashed border-slate-200 dark:border-gray-700">
+                        <ShieldCheck className="mx-auto text-slate-300 mb-4" size={48} />
+                        <h3 className="text-xl font-bold text-slate-400">Tudo limpo!</h3>
+                        <p className="text-slate-400 text-sm">Nenhuma ordem pendente de autorização no momento.</p>
+                     </div>
+                  )}
+               </div>
+            </div>
+         )}
+
+
+         {/* DASHBOARD TAB */}
+         {activeTab === 'dashboard' && (
+            <div className="space-y-6">
 
                {/* Stats */}
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -654,7 +683,7 @@ const Purchases = () => {
                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                         {formatCurrency(purchaseOrders.reduce((acc, curr) => acc + curr.total, 0))}
                      </h3>
-                     <div className="mt-2 text-[10px] text-slate-400">Total acumulado de pedidos rascunhados e recebidos.</div>
+                     <div className="mt-2 text-[10px] text-slate-400">Total acumulado de ordens rascunhadas e recebidas.</div>
                   </div>
 
                   <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
@@ -664,9 +693,9 @@ const Purchases = () => {
                         </div>
                         <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-700">{purchaseOrders.filter(o => o.status === 'Pendente').length}</span>
                      </div>
-                     <p className="text-xs text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Pedidos Pendentes</p>
+                     <p className="text-xs text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Ordens Pendentes</p>
                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Aguardando</h3>
-                     <div className="mt-2 text-[10px] text-slate-400">Ordens de compra enviadas aos fornecedores.</div>
+                     <div className="mt-2 text-[10px] text-slate-400">Ordens enviadas aos fornecedores.</div>
                   </div>
 
                   <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-gray-700">
@@ -788,7 +817,7 @@ const Purchases = () => {
                      <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700">
                         <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                            <Clock className="text-blue-500" size={18} />
-                           Pedidos Recentes
+                           Ordens Recentes
                         </h3>
                      </div>
                      <div className="overflow-x-auto text-sm">

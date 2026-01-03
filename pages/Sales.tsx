@@ -529,7 +529,7 @@ const Sales = () => {
           <p style="font-size: 12px; color: #64748b; margin: 0;">Validade da Proposta: <strong>${budget.expiryDate}</strong></p>
         </div>
         <div class="detail-box" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <h3 style="font-size: 11px; color: #94a3b8; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 8px;">DETALHES DO PEDIDO</h3>
+          <h3 style="font-size: 11px; color: #94a3b8; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 8px;">DETALHES DO ORÇAMENTO</h3>
           <p style="font-size: 12px; margin: 0 0 4px 0;">Status: <span style="font-weight: bold; text-transform: uppercase; color: ${budget.status === 'Convertido' ? '#16a34a' : '#ea580c'}">${budget.status}</span></p>
           <p style="font-size: 12px; margin: 0;">Vendedor: Administrador</p>
         </div>

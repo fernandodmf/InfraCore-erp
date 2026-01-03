@@ -548,7 +548,7 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
                     <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                         {[
                             { name: 'Boas-vindas Novo Cliente', status: 'Ativo', lastEdit: '15/12/2024' },
-                            { name: 'Confirmação de Pedido', status: 'Ativo', lastEdit: '10/12/2024' },
+                            { name: 'Confirmação de Ordem', status: 'Ativo', lastEdit: '10/12/2024' },
                             { name: 'Lembrete de Pagamento', status: 'Ativo', lastEdit: '08/12/2024' },
                             { name: 'Nota Fiscal Emitida', status: 'Ativo', lastEdit: '05/12/2024' },
                             { name: 'Orçamento Aprovado', status: 'Ativo', lastEdit: '01/12/2024' },
@@ -604,7 +604,7 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
                         { trigger: 'Novo Cliente Cadastrado', action: 'Enviar e-mail de boas-vindas', enabled: true },
-                        { trigger: 'Pedido Confirmado', action: 'Enviar confirmação com detalhes', enabled: true },
+                        { trigger: 'Ordem Confirmada', action: 'Enviar confirmação com detalhes', enabled: true },
                         { trigger: '3 dias antes do vencimento', action: 'Lembrete de pagamento', enabled: true },
                         { trigger: 'Pagamento Recebido', action: 'Agradecimento e recibo', enabled: true },
                         { trigger: 'Orçamento sem resposta (7 dias)', action: 'Follow-up automático', enabled: false },

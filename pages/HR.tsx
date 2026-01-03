@@ -755,7 +755,7 @@ const HR = () => {
                                                         </td>
                                                         <td className="px-6 py-5 text-right">
                                                             {p.status === 'Pendente' && (
-                                                                <span className="text-[10px] text-slate-400 font-bold italic">Aguardando Autorização (Central de Compras)</span>
+                                                                <span className="text-[10px] text-slate-400 font-bold italic">Aguardando Autorização (Central de Autorização)</span>
                                                             )
                                                             }
                                                             {p.status === 'Pago' && (

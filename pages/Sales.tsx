@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { SalesItem, Client, Budget, Sale, AppSettings } from '../types';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { printDocument, exportToCSV } from '../utils/exportUtils';
 
 const formatMoney = (val: number | undefined | null) => {
@@ -61,6 +62,7 @@ const getPaymentMethodLabel = (method: string | undefined | null) => {
 
 const Sales = () => {
   const { sales, clients, addSale, inventory, budgets, addBudget, fleet, updateBudgetStatus, addTransaction, accounts, settings } = useApp();
+  const { addToast } = useToast();
 
   // Robust data filtering with extreme safety checks
   const validSales = useMemo(() => {
@@ -304,7 +306,7 @@ const Sales = () => {
 
   const handleReadScale = (id: string) => {
     if (!isScaleConnected) {
-      alert("Balança não conectada!");
+      addToast("Balança não conectada!", 'error');
       return;
     }
     const reading = (Math.random() * 20) + 5; // Weight in Tons
@@ -371,22 +373,22 @@ const Sales = () => {
   const handleFinalizeOrder = () => {
     if (cart.length === 0) return;
     if (!selectedClient) {
-      alert("Selecione um cliente para continuar.");
+      addToast("Selecione um cliente para continuar.", 'warning');
       return;
     }
     if (!account) {
-      alert("Selecione uma conta financeira para o recebimento.");
+      addToast("Selecione uma conta financeira para o recebimento.", 'warning');
       return;
     }
 
     // Validation: Enforce Net Weight if Scale is Connected
     if (isScaleConnected) {
       if (!requiresWeighing) {
-        alert("Atenção: A Balança está ativa! É obrigatório realizar a pesagem do veículo (Tara/Bruto) para finalizar.");
+        addToast("Atenção: A Balança está ativa! É obrigatório realizar a pesagem do veículo (Tara/Bruto) para finalizar.", 'warning');
         return;
       }
       if (grossWeight <= tareWeight) {
-        alert("Erro de Pesagem: O Peso Bruto deve ser maior que a Tara para gerar o Peso Líquido.");
+        addToast("Erro de Pesagem: O Peso Bruto deve ser maior que a Tara para gerar o Peso Líquido.", 'error');
         return;
       }
     }
@@ -483,7 +485,7 @@ const Sales = () => {
       ledgerName: 'Vendas de Mercadorias'
     });
 
-    alert("Venda realizada com sucesso!");
+    addToast("Venda realizada com sucesso!", 'success');
     clearForm();
     setActiveTab('history');
   };
@@ -660,7 +662,7 @@ const Sales = () => {
   const handleSaveBudget = () => {
     if (cart.length === 0) return;
     if (!selectedClient) {
-      alert("Selecione um cliente para criar um orçamento.");
+      addToast("Selecione um cliente para criar um orçamento.", 'warning');
       return;
     }
 
@@ -713,47 +715,50 @@ const Sales = () => {
     };
 
     addBudget(newBudget);
-    alert("Orçamento (Pré-Venda) salvo com sucesso!");
+    addToast("Orçamento (Pré-Venda) salvo com sucesso!", 'success');
     clearForm();
     setActiveTab('budgets');
   };
 
   const handleConvertBudgetToSale = (budget: Budget) => {
-    if (!confirm(`Deseja converter o orçamento #${budget.id} em uma venda definitiva?`)) return;
+    addToast(`Deseja converter o orçamento #${budget.id} em uma venda definitiva?`, 'info', 10000, {
+      label: 'CONFIRMAR',
+      onClick: () => {
+        const paymentMethod = budget.paymentMethod || 'credit';
+        const isPaid = ['money', 'pix', 'debit', 'transfer'].includes(paymentMethod);
+        const status = isPaid ? 'Conciliado' : 'Pendente';
 
-    const paymentMethod = budget.paymentMethod || 'credit';
-    const isPaid = ['money', 'pix', 'debit', 'transfer'].includes(paymentMethod);
-    const status = isPaid ? 'Conciliado' : 'Pendente';
+        // Calculate Due Date for converted budgets (Assumes Single Installment/Term)
+        let conversionDueDate: string | undefined = undefined;
+        if (!isPaid) {
+          const term = Number(settings?.operational?.defaultPaymentTerm) || 30;
+          const d = new Date();
+          d.setDate(d.getDate() + term);
+          conversionDueDate = d.toLocaleDateString('pt-BR');
+        }
 
-    // Calculate Due Date for converted budgets (Assumes Single Installment/Term)
-    let conversionDueDate: string | undefined = undefined;
-    if (!isPaid) {
-      const term = Number(settings?.operational?.defaultPaymentTerm) || 30;
-      const d = new Date();
-      d.setDate(d.getDate() + term);
-      conversionDueDate = d.toLocaleDateString('pt-BR');
-    }
+        addSale({
+          id: `S-${Date.now()}`,
+          date: new Date().toLocaleDateString('pt-BR'),
+          dueDate: conversionDueDate,
+          description: `Conversão de Orçamento #${budget.id}`,
+          category: 'Vendas',
+          accountId: financialAccounts[0]?.id || 'acc-1',
+          account: financialAccounts[0]?.name || 'Banco do Brasil',
+          amount: budget.total,
+          status: status,
+          type: 'Receita',
+          clientId: budget.clientId,
+          clientName: budget.clientName,
+          items: budget.items,
+          paymentMethod: paymentMethod
+        });
 
-    addSale({
-      id: `S-${Date.now()}`,
-      date: new Date().toLocaleDateString('pt-BR'),
-      dueDate: conversionDueDate,
-      description: `Conversão de Orçamento #${budget.id}`,
-      category: 'Vendas',
-      accountId: financialAccounts[0]?.id || 'acc-1',
-      account: financialAccounts[0]?.name || 'Banco do Brasil',
-      amount: budget.total,
-      status: status,
-      type: 'Receita',
-      clientId: budget.clientId,
-      clientName: budget.clientName,
-      items: budget.items,
-      paymentMethod: paymentMethod
+        updateBudgetStatus(budget.id, 'Convertido');
+        addToast("Orçamento convertido em venda com sucesso! Estoque e financeiro atualizados.", 'success');
+        setActiveTab('history');
+      }
     });
-
-    updateBudgetStatus(budget.id, 'Convertido');
-    alert("Orçamento convertido em venda com sucesso! Estoque e financeiro atualizados.");
-    setActiveTab('history');
   };
 
   const handlePrintSale = (sale: Sale) => {

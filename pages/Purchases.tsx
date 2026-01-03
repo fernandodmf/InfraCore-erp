@@ -37,10 +37,12 @@ import {
    Edit2,
    ClipboardCheck,
    ShieldCheck,
-   Settings
+   Settings,
+   Loader
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, Cell } from 'recharts';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { PurchaseOrder, PurchaseItem, Supplier, InventoryItem, MaintenanceRecord, Employee } from '../types';
 import { printDocument } from '../utils/exportUtils';
 
@@ -67,6 +69,8 @@ const Purchases = () => {
       currentUser,
       addMaintenanceRecord,
    } = useApp();
+
+   const { addToast } = useToast();
 
    const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'new-order' | 'suppliers' | 'inventory' | 'approval'>('dashboard');
    const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
@@ -229,15 +233,18 @@ const Purchases = () => {
    const orderSubtotal = orderItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
    const orderTotal = orderSubtotal + shippingCost; // With shipping
 
-   const handleCreateOrder = () => {
+   const handleCreateOrder = async () => {
       if (isSubmitting) return;
 
       if (!selectedSupplier || orderItems.length === 0) {
-         alert("Selecione um fornecedor e adicione itens à ordem.");
+         addToast("Selecione um fornecedor e adicione itens à ordem.", 'warning');
          return;
       }
 
       setIsSubmitting(true);
+
+      // Simulate network request
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       const supplier = suppliers.find(s => s.id === selectedSupplier);
       const newOrder: PurchaseOrder = {
@@ -257,7 +264,7 @@ const Purchases = () => {
 
       addPurchaseOrder(newOrder);
 
-      alert("Ordem enviada para a Central de Aprovações!");
+      addToast("Ordem enviada para a Central de Aprovações!", 'success');
 
       // Reset and redirect
       setOrderItems([]);
@@ -270,23 +277,28 @@ const Purchases = () => {
    };
 
    const handleApproveOrder = (order: PurchaseOrder) => {
-      if (confirm(`Confirmar aprovação da ordem #${order.id}?`)) {
-         updatePurchaseOrder({ ...order, status: 'Aprovado' });
-      }
+      addToast(`Confirmar aprovação da ordem #${order.id}?`, 'info', 10000, {
+         label: 'APROVAR',
+         onClick: () => updatePurchaseOrder({ ...order, status: 'Aprovado' })
+      });
    };
 
    const handleRejectOrder = (order: PurchaseOrder) => {
-      if (confirm(`Rejeitar ordem #${order.id}? Ela será cancelada.`)) {
-         updatePurchaseOrder({ ...order, status: 'Cancelado' });
-      }
+      addToast(`Rejeitar ordem #${order.id}? Ela será cancelada.`, 'warning', 10000, {
+         label: 'REJEITAR',
+         onClick: () => updatePurchaseOrder({ ...order, status: 'Cancelado' })
+      });
    };
 
    const handleReceiveApprovedOrder = (order: PurchaseOrder) => {
-      if (order.status !== 'Aprovado') return alert("A ordem precisa ser APROVADA antes de ser recebida.");
+      if (order.status !== 'Aprovado') {
+         addToast("A ordem precisa ser APROVADA antes de ser recebida.", 'warning');
+         return;
+      }
 
       // If no account, Context falls back to Default/Caixa
       receivePurchaseOrder(order.id);
-      alert(`Recebimento confirmado! Estoque e Financeiro atualizados.${!order.targetAccountId ? ' (Conta Padrão utilizada)' : ''}`);
+      addToast(`Recebimento confirmado! Estoque e Financeiro atualizados.${!order.targetAccountId ? ' (Conta Padrão utilizada)' : ''}`, 'success');
    };
 
    const handleSaveStock = (e: React.FormEvent) => {
@@ -412,212 +424,268 @@ const Purchases = () => {
       }
    };
 
-   const handleSaveOSM = (e: React.FormEvent) => {
+   const handleSaveOSM = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedVehicleId) return;
+      if (isSubmitting) return;
 
-      const record: MaintenanceRecord = {
-         id: `M-${Date.now()}`,
-         vehicleId: selectedVehicleId,
-         date: osmForm.date || '',
-         type: osmForm.type as any || 'Preventiva',
-         description: osmForm.description || '',
-         cost: Number(osmForm.cost) || 0,
-         km: Number(osmForm.km) || 0,
-         mechanic: osmForm.mechanic,
-         attachments: osmForm.attachments,
-         productId: osmForm.productId,
-         productQuantity: osmForm.productQuantity,
-         debitAccountId: osmForm.debitAccountId,
-         ledgerCode: osmForm.ledgerCode,
-         ledgerName: osmForm.ledgerName
-      };
+      try {
+         setIsSubmitting(true);
+         await new Promise(resolve => setTimeout(resolve, 1500));
 
-      addMaintenanceRecord(selectedVehicleId, record);
-      setIsOSMModalOpen(false);
-      setOsmForm({
-         type: 'Preventiva',
-         date: new Date().toISOString().split('T')[0],
-         cost: 0,
-         km: 0,
-         attachments: []
-      });
-      alert("OSM gerada com sucesso!");
+         const record: MaintenanceRecord = {
+            id: `M-${Date.now()}`,
+            vehicleId: selectedVehicleId,
+            date: osmForm.date || '',
+            type: osmForm.type as any || 'Preventiva',
+            description: osmForm.description || '',
+            cost: Number(osmForm.cost) || 0,
+            km: Number(osmForm.km) || 0,
+            mechanic: osmForm.mechanic,
+            attachments: osmForm.attachments,
+            productId: osmForm.productId,
+            productQuantity: osmForm.productQuantity,
+            debitAccountId: osmForm.debitAccountId,
+            ledgerCode: osmForm.ledgerCode,
+            ledgerName: osmForm.ledgerName
+         };
+
+         addMaintenanceRecord(selectedVehicleId, record);
+
+         addToast("OSM gerada com sucesso!", 'success');
+
+         setIsOSMModalOpen(false);
+         setOsmForm({
+            type: 'Preventiva',
+            date: new Date().toISOString().split('T')[0],
+            cost: 0,
+            km: 0,
+            attachments: []
+         });
+      } catch (error) {
+         console.error(error);
+         addToast("Erro ao processar OSM.", 'error');
+      } finally {
+         setIsSubmitting(false);
+      }
    };
 
-   const handleSaveODO = (e: React.FormEvent) => {
+   const handleSaveODO = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (isSubmitting) return;
 
-      const selectedSup = suppliers.find(s => s.id === odoForm.supplierId);
-      const finalSupplierName = selectedSup ? selectedSup.name : odoForm.supplierName;
+      try {
+         setIsSubmitting(true);
+         await new Promise(resolve => setTimeout(resolve, 1500));
 
-      const newOrder: PurchaseOrder = {
-         id: `ODO-${Date.now()}`,
-         supplierId: odoForm.supplierId || 'DVERSO',
-         supplierName: finalSupplierName,
-         date: new Date(odoForm.date).toLocaleDateString('pt-BR'),
-         items: [{
-            id: `SERV-${Date.now()}`,
-            name: odoForm.description,
-            quantity: 1,
-            unit: 'SV',
-            price: odoForm.value
-         }],
-         subtotal: odoForm.value,
-         total: odoForm.value,
-         status: 'Pendente',
-         attachments: odoForm.attachments,
-         paymentTerms: odoForm.paymentMethod,
-         shippingCost: 0,
-         ledgerName: odoForm.category,
-         targetAccountId: odoForm.account,
-         ledgerCode: odoForm.ledgerCode,
-         competenceDate: odoForm.competenceDate
-      };
+         const selectedSup = suppliers.find(s => s.id === odoForm.supplierId);
+         const finalSupplierName = selectedSup ? selectedSup.name : odoForm.supplierName;
 
-      addPurchaseOrder(newOrder);
-      setIsODOModalOpen(false);
-      setOdoForm({
-         description: '',
-         date: new Date().toISOString().split('T')[0],
-         value: 0,
-         category: 'Despesas Administrativas',
-         ledgerCode: '2.05.04',
-         supplierId: '',
-         supplierName: 'Fornecedor Diverso',
-         paymentMethod: 'Boleto',
-         installments: 1,
-         account: '',
-         competenceDate: new Date().toISOString().slice(0, 7),
-         attachments: []
-      });
-      alert("ODO gerada e enviada para aprovação!");
+         const newOrder: PurchaseOrder = {
+            id: `ODO-${Date.now()}`,
+            supplierId: odoForm.supplierId || 'DVERSO',
+            supplierName: finalSupplierName,
+            date: new Date(odoForm.date).toLocaleDateString('pt-BR'),
+            items: [{
+               id: `SERV-${Date.now()}`,
+               name: odoForm.description,
+               quantity: 1,
+               unit: 'SV',
+               price: odoForm.value
+            }],
+            subtotal: odoForm.value,
+            total: odoForm.value,
+            status: 'Pendente',
+            attachments: odoForm.attachments,
+            paymentTerms: odoForm.paymentMethod,
+            shippingCost: 0,
+            ledgerName: odoForm.category,
+            targetAccountId: odoForm.account,
+            ledgerCode: odoForm.ledgerCode,
+            competenceDate: odoForm.competenceDate
+         };
+
+         addPurchaseOrder(newOrder);
+
+         addToast("ODO gerada e enviada para aprovação!", 'success');
+
+         setIsODOModalOpen(false);
+         setOdoForm({
+            description: '',
+            date: new Date().toISOString().split('T')[0],
+            value: 0,
+            category: 'Despesas Administrativas',
+            ledgerCode: '2.05.04',
+            supplierId: '',
+            supplierName: 'Fornecedor Diverso',
+            paymentMethod: 'Boleto',
+            installments: 1,
+            account: '',
+            competenceDate: new Date().toISOString().slice(0, 7),
+            attachments: []
+         });
+      } catch (error) {
+         console.error(error);
+         addToast("Erro ao processar ODO.", 'error');
+      } finally {
+         setIsSubmitting(false);
+      }
    };
 
-   const handleSaveODP = (e: React.FormEvent) => {
+   const handleSaveODP = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (isSubmitting) return;
 
-      const employee = employees.find(emp => emp.id === odpForm.employeeId);
-      if (!employee) return;
+      try {
+         setIsSubmitting(true);
+         await new Promise(resolve => setTimeout(resolve, 1500));
 
-      const newOrder: PurchaseOrder = {
-         id: `ODP-${Date.now()}`,
-         supplierId: employee.id,
-         supplierName: employee.name,
-         date: new Date(odpForm.date).toLocaleDateString('pt-BR'),
-         items: [{
-            id: `SERV-${Date.now()}`,
-            name: `${odpForm.type}: ${odpForm.description}`,
-            quantity: 1,
-            unit: 'UN',
-            price: odpForm.value
-         }],
-         subtotal: odpForm.value,
-         total: odpForm.value,
-         status: 'Pendente',
-         attachments: [],
-         paymentTerms: odpForm.paymentMethod,
-         shippingCost: 0,
-         ledgerName: odpForm.type,
-         targetAccountId: odpForm.account,
-         ledgerCode: odpForm.ledgerCode,
-         competenceDate: odpForm.competenceDate
-      };
+         const employee = employees.find(emp => emp.id === odpForm.employeeId);
+         if (!employee) {
+            addToast("Funcionário não encontrado.", 'error');
+            return;
+         }
 
-      addPurchaseOrder(newOrder);
-      setIsODPModalOpen(false);
-      setOdpForm({
-         employeeId: '',
-         type: 'Salários e Ordenados',
-         ledgerCode: '2.04.01',
-         value: 0,
-         date: new Date().toISOString().split('T')[0],
-         competenceDate: new Date().toISOString().slice(0, 7),
-         description: '',
-         paymentMethod: 'Transferência Bancária',
-         account: ''
-      });
-      alert("ODP gerada com sucesso!");
+         const newOrder: PurchaseOrder = {
+            id: `ODP-${Date.now()}`,
+            supplierId: employee.id,
+            supplierName: employee.name,
+            date: new Date(odpForm.date).toLocaleDateString('pt-BR'),
+            items: [{
+               id: `SERV-${Date.now()}`,
+               name: `${odpForm.type}: ${odpForm.description}`,
+               quantity: 1,
+               unit: 'UN',
+               price: odpForm.value
+            }],
+            subtotal: odpForm.value,
+            total: odpForm.value,
+            status: 'Pendente',
+            attachments: [],
+            paymentTerms: odpForm.paymentMethod,
+            shippingCost: 0,
+            ledgerName: odpForm.type,
+            targetAccountId: odpForm.account,
+            ledgerCode: odpForm.ledgerCode,
+            competenceDate: odpForm.competenceDate
+         };
+
+         addPurchaseOrder(newOrder);
+
+         addToast("ODP gerada com sucesso!", 'success');
+
+         setIsODPModalOpen(false);
+         setOdpForm({
+            employeeId: '',
+            type: 'Salários e Ordenados',
+            ledgerCode: '2.04.01',
+            value: 0,
+            date: new Date().toISOString().split('T')[0],
+            competenceDate: new Date().toISOString().slice(0, 7),
+            description: '',
+            paymentMethod: 'Transferência Bancária',
+            account: ''
+         });
+      } catch (error) {
+         console.error(error);
+         addToast("Erro ao processar ODP.", 'error');
+      } finally {
+         setIsSubmitting(false);
+      }
    };
 
-   const handleSaveODA = (e: React.FormEvent) => {
+   const handleSaveODA = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (isSubmitting) return;
 
       if (!odaForm.vehicleId || !odaForm.stationId) {
-         alert("Selecione o veículo e o posto de abastecimento.");
+         addToast("Selecione o veículo e o posto de abastecimento.", 'warning');
          return;
       }
 
-      const vehicle = fleet.find(v => v.id === odaForm.vehicleId);
-      const station = suppliers.find(s => s.id === odaForm.stationId);
-      const driver = employees.find(e => e.id === odaForm.driverId);
+      try {
+         setIsSubmitting(true);
+         await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (!vehicle || !station) return;
+         const vehicle = fleet.find(v => v.id === odaForm.vehicleId);
+         const station = suppliers.find(s => s.id === odaForm.stationId);
+         const driver = employees.find(e => e.id === odaForm.driverId);
 
-      // 1. Create Purchase Order (Financial)
-      const newOrder: PurchaseOrder = {
-         id: `ODA-${Date.now()}`,
-         supplierId: station.id,
-         supplierName: station.name,
-         date: new Date(odaForm.date).toLocaleDateString('pt-BR'),
-         items: [{
-            id: `FUEL-${Date.now()}`,
-            name: `${odaForm.fuelType} - ${vehicle.plate} (${vehicle.name})`,
-            quantity: odaForm.liters,
-            unit: 'L',
-            price: odaForm.pricePerLiter
-         }],
-         subtotal: odaForm.totalValue,
-         total: odaForm.totalValue,
-         status: 'Pendente',
-         attachments: [],
-         paymentTerms: odaForm.paymentMethod,
-         shippingCost: 0,
-         ledgerName: 'Combustíveis e Lubrificantes',
-         targetAccountId: odaForm.account,
-         ledgerCode: '2.03.02', // Frota - Combustível Externo
-         competenceDate: odaForm.competenceDate
-      };
+         if (!vehicle || !station) {
+            return;
+         }
 
-      addPurchaseOrder(newOrder);
+         // 1. Create Purchase Order (Financial)
+         const newOrder: PurchaseOrder = {
+            id: `ODA-${Date.now()}`,
+            supplierId: station.id,
+            supplierName: station.name,
+            date: new Date(odaForm.date).toLocaleDateString('pt-BR'),
+            items: [{
+               id: `FUEL-${Date.now()}`,
+               name: `${odaForm.fuelType} - ${vehicle.plate} (${vehicle.name})`,
+               quantity: odaForm.liters,
+               unit: 'L',
+               price: odaForm.pricePerLiter
+            }],
+            subtotal: odaForm.totalValue,
+            total: odaForm.totalValue,
+            status: 'Pendente',
+            attachments: [],
+            paymentTerms: odaForm.paymentMethod,
+            shippingCost: 0,
+            ledgerName: 'Combustíveis e Lubrificantes',
+            targetAccountId: odaForm.account,
+            ledgerCode: '2.03.02', // Frota - Combustível Externo
+            competenceDate: odaForm.competenceDate
+         };
 
-      // 2. Create Fuel Log (Fleet Module)
-      const fuelLog: any = { // Using any to avoid strict type checks if type definitions vary, but typically it's FuelLog
-         id: `LOG-ODA-${Date.now()}`,
-         vehicleId: vehicle.id,
-         date: odaForm.date,
-         liters: odaForm.liters,
-         cost: odaForm.totalValue,
-         km: odaForm.km,
-         fuelType: odaForm.fuelType,
-         ledgerCode: '2.03.02',
-         ledgerName: 'Combustíveis e Lubrificantes',
-         pricePerLiter: odaForm.pricePerLiter,
-         isPaid: false, // Will be paid when PO is approved/paid
-         attachments: [],
-         driverName: driver ? driver.name : 'Motorista não informado'
-      };
+         addPurchaseOrder(newOrder);
 
-      addFuelLog(vehicle.id, fuelLog);
+         // 2. Create Fuel Log (Fleet Module)
+         const fuelLog: any = { // Using any to avoid strict type checks if type definitions vary, but typically it's FuelLog
+            id: `LOG-ODA-${Date.now()}`,
+            vehicleId: vehicle.id,
+            date: odaForm.date,
+            liters: odaForm.liters,
+            cost: odaForm.totalValue,
+            km: odaForm.km,
+            fuelType: odaForm.fuelType,
+            ledgerCode: '2.03.02',
+            ledgerName: 'Combustíveis e Lubrificantes',
+            pricePerLiter: odaForm.pricePerLiter,
+            isPaid: false, // Will be paid when PO is approved/paid
+            attachments: [],
+            driverName: driver ? driver.name : 'Motorista não informado'
+         };
 
-      setIsODAModalOpen(false);
-      setOdaForm({
-         vehicleId: '',
-         driverId: '',
-         stationId: '',
-         stationName: '',
-         fuelType: 'Diesel S-10',
-         liters: 0,
-         pricePerLiter: 0,
-         totalValue: 0,
-         km: 0,
-         date: new Date().toISOString().split('T')[0],
-         competenceDate: new Date().toISOString().slice(0, 7),
-         paymentMethod: 'Cartão de Crédito Corp.',
-         account: '',
-         description: ''
-      });
-      alert("ODA gerada com sucesso e ticket registrado na frota!");
+         addFuelLog(vehicle.id, fuelLog);
+
+         addToast("ODA gerada com sucesso e ticket registrado na frota!", 'success');
+
+         setIsODAModalOpen(false);
+         setOdaForm({
+            vehicleId: '',
+            driverId: '',
+            stationId: '',
+            stationName: '',
+            fuelType: 'Diesel S-10',
+            liters: 0,
+            pricePerLiter: 0,
+            totalValue: 0,
+            km: 0,
+            date: new Date().toISOString().split('T')[0],
+            competenceDate: new Date().toISOString().slice(0, 7),
+            paymentMethod: 'Cartão de Crédito Corp.',
+            account: '',
+            description: ''
+         });
+      } catch (error) {
+         console.error(error);
+         addToast("Erro ao processar ODA.", 'error');
+      } finally {
+         setIsSubmitting(false);
+      }
    };
 
    // End of Handlers
@@ -676,6 +744,94 @@ const Purchases = () => {
             activeTab === 'dashboard' && (
                <div className="space-y-6">
 
+                  {/* Quick Actions Panel */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                     <button
+                        onClick={() => setActiveTab('new-order')}
+                        className="bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl p-5 shadow-lg shadow-cyan-600/20 active:scale-95 hover:scale-[1.02] transition-all group flex flex-col justify-between h-40 relative overflow-hidden text-left"
+                     >
+                        <div className="absolute right-[-10px] top-[-10px] opacity-20 rotate-12 group-hover:rotate-0 transition-all duration-500">
+                           <Plus size={80} />
+                        </div>
+                        <div className="p-2 bg-white/20 w-fit rounded-lg backdrop-blur-sm mb-2">
+                           <Plus size={24} />
+                        </div>
+                        <div>
+                           <span className="block text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Nova Ordem</span>
+                           <span className="block text-xl font-black leading-none mb-1">OCP</span>
+                           <span className="text-xs opacity-90 font-medium leading-tight block">Compra de Produtos</span>
+                        </div>
+                     </button>
+
+                     <button
+                        onClick={() => setIsOSMModalOpen(true)}
+                        className="bg-teal-600 hover:bg-teal-500 text-white rounded-2xl p-5 shadow-lg shadow-teal-600/20 active:scale-95 hover:scale-[1.02] transition-all group flex flex-col justify-between h-40 relative overflow-hidden text-left"
+                     >
+                        <div className="absolute right-[-10px] top-[-10px] opacity-20 rotate-12 group-hover:rotate-0 transition-all duration-500">
+                           <Wrench size={80} />
+                        </div>
+                        <div className="p-2 bg-white/20 w-fit rounded-lg backdrop-blur-sm mb-2">
+                           <Wrench size={24} />
+                        </div>
+                        <div>
+                           <span className="block text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Nova Ordem</span>
+                           <span className="block text-xl font-black leading-none mb-1">OSM</span>
+                           <span className="text-xs opacity-90 font-medium leading-tight block">Serviço de Manutenção</span>
+                        </div>
+                     </button>
+
+                     <button
+                        onClick={() => setIsODOModalOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl p-5 shadow-lg shadow-indigo-600/20 active:scale-95 hover:scale-[1.02] transition-all group flex flex-col justify-between h-40 relative overflow-hidden text-left"
+                     >
+                        <div className="absolute right-[-10px] top-[-10px] opacity-20 rotate-12 group-hover:rotate-0 transition-all duration-500">
+                           <FileText size={80} />
+                        </div>
+                        <div className="p-2 bg-white/20 w-fit rounded-lg backdrop-blur-sm mb-2">
+                           <FileText size={24} />
+                        </div>
+                        <div>
+                           <span className="block text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Nova Ordem</span>
+                           <span className="block text-xl font-black leading-none mb-1">ODO</span>
+                           <span className="text-xs opacity-90 font-medium leading-tight block">Despesa Operacional</span>
+                        </div>
+                     </button>
+
+                     <button
+                        onClick={() => setIsODPModalOpen(true)}
+                        className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-2xl p-5 shadow-lg shadow-fuchsia-600/20 active:scale-95 hover:scale-[1.02] transition-all group flex flex-col justify-between h-40 relative overflow-hidden text-left"
+                     >
+                        <div className="absolute right-[-10px] top-[-10px] opacity-20 rotate-12 group-hover:rotate-0 transition-all duration-500">
+                           <Users size={80} />
+                        </div>
+                        <div className="p-2 bg-white/20 w-fit rounded-lg backdrop-blur-sm mb-2">
+                           <Users size={24} />
+                        </div>
+                        <div>
+                           <span className="block text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Nova Ordem</span>
+                           <span className="block text-xl font-black leading-none mb-1">ODP</span>
+                           <span className="text-xs opacity-90 font-medium leading-tight block">Despesa de Pessoal</span>
+                        </div>
+                     </button>
+
+                     <button
+                        onClick={() => setIsODAModalOpen(true)}
+                        className="bg-orange-600 hover:bg-orange-500 text-white rounded-2xl p-5 shadow-lg shadow-orange-600/20 active:scale-95 hover:scale-[1.02] transition-all group flex flex-col justify-between h-40 relative overflow-hidden text-left"
+                     >
+                        <div className="absolute right-[-10px] top-[-10px] opacity-20 rotate-12 group-hover:rotate-0 transition-all duration-500">
+                           <Fuel size={80} />
+                        </div>
+                        <div className="p-2 bg-white/20 w-fit rounded-lg backdrop-blur-sm mb-2">
+                           <Fuel size={24} />
+                        </div>
+                        <div>
+                           <span className="block text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Nova Ordem</span>
+                           <span className="block text-xl font-black leading-none mb-1">ODA</span>
+                           <span className="text-xs opacity-90 font-medium leading-tight block">Despesa de Abastecimento</span>
+                        </div>
+                     </button>
+                  </div>
+
                   {/* Authorization Center (Moved to Dashboard) */}
                   <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-white flex justify-between items-center">
                      <div className="flex flex-col gap-6 items-start">
@@ -686,44 +842,7 @@ const Purchases = () => {
                            </h2>
                            <p className="text-slate-400 font-medium">As ordens abaixo aguardam análise para liberação de compra e estoque.</p>
                         </div>
-                        <div className="flex flex-col gap-3 w-full sm:w-auto">
-                           <button
-                              onClick={() => setActiveTab('new-order')}
-                              className="flex items-center gap-3 px-6 py-4 bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-cyan-600/20 hover:bg-cyan-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                           >
-                              <Plus size={20} />
-                              Gerar OCP - Ordem de Compra de Produtos
-                           </button>
-                           <button
-                              onClick={() => setIsOSMModalOpen(true)}
-                              className="flex items-center gap-3 px-6 py-4 bg-teal-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                           >
-                              <Wrench size={20} />
-                              Gerar OSM - Ordem de Serviço de Manutenção
-                           </button>
-                           <button
-                              onClick={() => setIsODOModalOpen(true)}
-                              className="flex items-center gap-3 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                           >
-                              <FileText size={20} />
-                              Gerar ODO - Ordem de Despesa Operacional
-                           </button>
-                           <button
-                              onClick={() => setIsODPModalOpen(true)}
-                              className="flex items-center gap-3 px-6 py-4 bg-fuchsia-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-fuchsia-600/20 hover:bg-fuchsia-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                           >
-                              <Users size={20} />
-                              Gerar ODP - Ordem de Despesa de Pessoal
-                           </button>
-                           <button
-                              onClick={() => setIsODAModalOpen(true)}
-                              className="flex items-center gap-3 px-6 py-4 bg-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-600/20 hover:bg-orange-500 transition-all uppercase tracking-wide hover:scale-105 active:scale-95 text-left w-full"
-                           >
-                              <Fuel size={20} />
-                              Gerar ODA - Ordem de Despesa de Abastecimento
-                           </button>
 
-                        </div>
                      </div>
                      <div className="text-right bg-white/5 p-4 rounded-2xl border border-white/10">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Pendente</p>
@@ -1403,7 +1522,10 @@ const Purchases = () => {
                                                    <Edit2 size={18} />
                                                 </button>
                                                 <button
-                                                   onClick={() => { if (confirm('Remover este item do catálogo?')) deleteStockItem(item.id); }}
+                                                   onClick={() => addToast('Remover este item do catálogo?', 'warning', 5000, {
+                                                      label: 'EXCLUIR',
+                                                      onClick: () => deleteStockItem(item.id)
+                                                   })}
                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                                                    title="Excluir"
                                                 >
@@ -1771,9 +1893,11 @@ const Purchases = () => {
                            </button>
                            <button
                               type="submit"
-                              className="flex-[2] py-4 bg-teal-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-teal-600/30 hover:bg-teal-500 transition-all flex items-center justify-center gap-3"
+                              disabled={isSubmitting}
+                              className={`flex-[2] py-4 bg-teal-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-teal-600/30 hover:bg-teal-500 transition-all flex items-center justify-center gap-3 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              <Save size={18} /> Confirmar OSM
+                              {isSubmitting ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                              {isSubmitting ? 'Processando...' : 'Confirmar OSM'}
                            </button>
                         </div>
                      </form>
@@ -1953,9 +2077,11 @@ const Purchases = () => {
                            </button>
                            <button
                               type="submit"
-                              className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-indigo-600/30 hover:bg-indigo-500 transition-all flex items-center justify-center gap-2"
+                              disabled={isSubmitting}
+                              className={`flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-indigo-600/30 hover:bg-indigo-500 transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              <Save size={18} /> Lançar Despesa
+                              {isSubmitting ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                              {isSubmitting ? 'Processando...' : 'Lançar Despesa'}
                            </button>
                         </div>
                      </form>
@@ -2081,9 +2207,11 @@ const Purchases = () => {
                            </button>
                            <button
                               type="submit"
-                              className="flex-[2] py-4 bg-fuchsia-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-fuchsia-600/30 hover:bg-fuchsia-500 transition-all flex items-center justify-center gap-2"
+                              disabled={isSubmitting}
+                              className={`flex-[2] py-4 bg-fuchsia-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-fuchsia-600/30 hover:bg-fuchsia-500 transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              <Save size={18} /> Lançar ODP
+                              {isSubmitting ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                              {isSubmitting ? 'Processando...' : 'Lançar ODP'}
                            </button>
                         </div>
                      </form>
@@ -2265,9 +2393,11 @@ const Purchases = () => {
                            </button>
                            <button
                               type="submit"
-                              className="flex-[2] py-4 bg-orange-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-orange-600/30 hover:bg-orange-500 transition-all flex items-center justify-center gap-2"
+                              disabled={isSubmitting}
+                              className={`flex-[2] py-4 bg-orange-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-orange-600/30 hover:bg-orange-500 transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                            >
-                              <Save size={18} /> Lançar ODA
+                              {isSubmitting ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                              {isSubmitting ? 'Processando...' : 'Lançar ODA'}
                            </button>
                         </div>
                      </form>

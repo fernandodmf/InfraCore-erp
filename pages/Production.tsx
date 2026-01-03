@@ -31,6 +31,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { ProductionOrder, InventoryItem, ProductionFormula, QualityTest, ProductionUnit } from '../types';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 
 const Production = () => {
     const {
@@ -40,6 +41,7 @@ const Production = () => {
         addProductionUnit, updateProductionUnit, deleteProductionUnit,
         addFormula, updateFormula, deleteFormula
     } = useApp();
+    const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState<'monitor' | 'orders' | 'formulas' | 'lab'>('monitor');
 
     const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
@@ -386,7 +388,7 @@ const Production = () => {
                                 </div>
                             </div>
                             <button
-                                onClick={() => alert("Otimização aplicada! Parâmetros da planta ajustados para máxima performance.")}
+                                onClick={() => addToast("Otimização aplicada! Parâmetros da planta ajustados para máxima performance.", 'success')}
                                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl shadow-xl transition-all uppercase tracking-widest text-[10px] border border-indigo-400/50"
                             >
                                 Aplicar Otimização
@@ -996,7 +998,12 @@ const Production = () => {
                                 </select>
                             </div>
                             <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => { if (confirm("Remover unidade?")) { deleteProductionUnit(editingUnit.id); setIsUnitModalOpen(false); } }} className="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl uppercase tracking-widest text-xs">Excluir</button>
+                                <button type="button" onClick={() => {
+                                    addToast("Deseja realmente remover esta unidade?", 'warning', 5000, {
+                                        label: 'CONFIRMAR EXCLUSÃO',
+                                        onClick: () => { deleteProductionUnit(editingUnit.id); setIsUnitModalOpen(false); }
+                                    });
+                                }} className="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl uppercase tracking-widest text-xs">Excluir</button>
                                 <button type="submit" className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs">Salvar Alterações</button>
                             </div>
                         </form>
@@ -1186,7 +1193,12 @@ const Production = () => {
 
                             <div className="flex gap-3 pt-6">
                                 {editingFormula && (
-                                    <button type="button" onClick={() => { if (confirm("Remover fórmula?")) { deleteFormula(editingFormula.id); setIsFormulaModalOpen(false); } }} className="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl uppercase tracking-widest text-xs">Excluir</button>
+                                    <button type="button" onClick={() => {
+                                        addToast("Deseja realmente remover esta fórmula?", 'warning', 5000, {
+                                            label: 'CONFIRMAR EXCLUSÃO',
+                                            onClick: () => { deleteFormula(editingFormula.id); setIsFormulaModalOpen(false); }
+                                        });
+                                    }} className="flex-1 py-4 bg-rose-50 text-rose-600 font-black rounded-2xl uppercase tracking-widest text-xs">Excluir</button>
                                 )}
                                 <button type="submit" className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs">Salvar Processo</button>
                             </div>

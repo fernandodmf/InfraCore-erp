@@ -42,6 +42,7 @@ import {
     Printer
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { FleetVehicle, MaintenanceRecord, FuelLog, Tire, TireHistory } from '../types';
 import { exportToCSV } from '../utils/exportUtils';
 
@@ -53,6 +54,7 @@ const Fleet = () => {
         addTire, updateTire, deleteTire, addTireHistory, deleteTireHistory, accounts: financialAccounts,
         updateStock, purchaseOrders, addPurchaseOrder
     } = useApp();
+    const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState<'overview' | 'vehicles' | 'maintenance' | 'fuel' | 'tires' | 'almoxarifado'>('overview');
 
     // Search/Filters
@@ -84,12 +86,31 @@ const Fleet = () => {
 
         // Check availability
         if (newTire.currentVehicleId && newTire.currentVehicleId !== vehicleId) {
-            if (!confirm(`Este pneu está montado no veículo com ID ${newTire.currentVehicleId}. Deseja movê-lo?`)) return;
-            // Unmount from old
-            // Logic handled by updateTire overwriting? No, I should ideally clear the old position explicitly if needed, but updateTire updates the tire.
-            // If another tire was in that position on the OLD vehicle, it remains? No, the tire moves. 
-            // What if I mount tire A to Pos X. Tire A was at Pos Y. Pos Y becomes empty. Correct.
+            addToast(`Este pneu está montado no veículo com ID ${newTire.currentVehicleId}. Deseja movê-lo?`, 'warning', 10000, {
+                label: 'MOVER',
+                onClick: () => {
+                    // Proceed with logic in a safe way if needed or just inform user
+                    // Original code logic was just to return if not confirmed. 
+                    // If confirmed, it continues. 
+                    // Since this is inside a function called by UI, I need to wrap the rest of the logic.
+                    // But wait, the rest of the logic is below.
+                    // I cannot easily wrap the rest of the function if it's synchronous.
+                    // I need to refactor handleTireChange to stop if moving, and resume in callback.
+
+                    // Logic for moving:
+                    const currentOccupant = tires.find(t => t.currentVehicleId === vehicleId && t.position === position);
+                    if (currentOccupant) {
+                        updateTire({ ...currentOccupant, currentVehicleId: undefined, position: undefined, status: 'Estoque' });
+                    }
+                    updateTire({ ...newTire, currentVehicleId: vehicleId, position, status: 'Em uso' });
+                }
+            });
+            return;
         }
+        // Logic handled by updateTire overwriting? No, I should ideally clear the old position explicitly if needed, but updateTire updates the tire.
+        // If another tire was in that position on the OLD vehicle, it remains? No, the tire moves. 
+        // What if I mount tire A to Pos X. Tire A was at Pos Y. Pos Y becomes empty. Correct.
+
 
         // Check if target position is occupied
         const currentOccupant = tires.find(t => t.currentVehicleId === vehicleId && t.position === position);
@@ -232,7 +253,7 @@ const Fleet = () => {
             km: 0,
             attachments: []
         });
-        alert("Manutenção registrada e custo lançado no financeiro!");
+        addToast("Manutenção registrada e custo lançado no financeiro!", 'success');
     };
 
     const handleSaveVehicle = (e: React.FormEvent) => {
@@ -255,7 +276,7 @@ const Fleet = () => {
         setIsVehicleModalOpen(false);
         setEditingVehicleId(null);
         setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
-        alert(editingVehicleId ? "Veículo atualizado!" : "Novo veículo cadastrado!");
+        addToast(editingVehicleId ? "Veículo atualizado!" : "Novo veículo cadastrado!", 'success');
     };
 
     const handleEditVehicle = (vehicle: FleetVehicle) => {
@@ -265,9 +286,10 @@ const Fleet = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (confirm("Tem certeza que deseja remover este veículo? Esta ação não pode ser desfeita.")) {
-            deleteVehicle(id);
-        }
+        addToast("Tem certeza que deseja remover este veículo? Esta ação não pode ser desfeita.", 'warning', 10000, {
+            label: 'EXCLUIR',
+            onClick: () => deleteVehicle(id)
+        });
     };
 
     const handleSaveFuel = (e: React.FormEvent) => {
@@ -299,7 +321,7 @@ const Fleet = () => {
             fuelType: 'Diesel',
             attachments: []
         });
-        alert("Abastecimento registrado com sucesso!");
+        addToast("Abastecimento registrado com sucesso!", 'success');
     };
 
     const handleSaveTire = (e: React.FormEvent) => {
@@ -329,7 +351,7 @@ const Fleet = () => {
         setIsTireModalOpen(false);
         setSelectedTireId(null);
         setTireForm({ status: 'Novo', brand: '', model: '', size: '295/80 R22.5', recapCount: 0, currentKm: 0, maxKm: 100000 });
-        alert(selectedTireId ? "Pneu atualizado!" : "Pneu cadastrado com sucesso!");
+        addToast(selectedTireId ? "Pneu atualizado!" : "Pneu cadastrado com sucesso!", 'success');
     };
 
     const [historyEntry, setHistoryEntry] = useState<Partial<TireHistory>>({
@@ -355,7 +377,7 @@ const Fleet = () => {
         addTireHistory(selectedTireId, entry);
         setIsTireHistoryModalOpen(false);
         setHistoryEntry({ type: 'Rodízio', date: new Date().toISOString().split('T')[0], km: 0 });
-        alert("Histórico registrado e status do pneu atualizado!");
+        addToast("Histórico registrado e status do pneu atualizado!", 'success');
     };
 
     return (
@@ -372,16 +394,7 @@ const Fleet = () => {
                 </div>
 
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0">
-                    <button
-                        onClick={() => {
-                            setEditingVehicleId(null);
-                            setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
-                            setIsVehicleModalOpen(true);
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:bg-teal-500 transition-all uppercase tracking-wide text-[10px] whitespace-nowrap"
-                    >
-                        <Plus size={16} /> Novo Veículo
-                    </button>
+
                     <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border dark:border-slate-700 whitespace-nowrap">
                         {['overview', 'vehicles', 'maintenance', 'fuel', 'tires', 'almoxarifado'].map((tab) => (
                             <button
@@ -592,16 +605,7 @@ const Fleet = () => {
                                 <Download size={18} />
                             </button>
                             <button className="p-2.5 bg-white dark:bg-gray-700 rounded-xl shadow-sm border dark:border-gray-600 text-slate-400 hover:text-teal-600"><Filter size={18} /></button>
-                            <button
-                                onClick={() => {
-                                    setEditingVehicleId(null);
-                                    setVehicleForm({ status: 'Operacional', type: 'Toco', km: 0 });
-                                    setIsVehicleModalOpen(true);
-                                }}
-                                className="px-4 py-2.5 bg-teal-600 text-white font-black rounded-xl text-xs uppercase shadow-lg shadow-teal-600/20 flex items-center gap-2 hover:bg-teal-700 transition-all"
-                            >
-                                <Plus size={18} /> Novo Ativo
-                            </button>
+
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6 animate-in slide-in-from-bottom-4 duration-500">

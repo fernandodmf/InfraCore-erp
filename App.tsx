@@ -1,6 +1,8 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { ToastProvider } from './context/ToastContext';
+import { ToastContainer } from './components/ToastContainer';
 import Layout from './components/Layout';
 import Placeholder from './components/Placeholder';
 import Dashboard from './pages/Dashboard';
@@ -29,27 +31,30 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 const App = () => {
   return (
     <AppProvider>
-      <HashRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Dashboard />} />
-            <Route path="sales" element={<Sales />} />
-            <Route path="purchases" element={<Purchases />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="production" element={<Production />} />
-            <Route path="finance" element={<Finance />} />
-            <Route path="hr" element={<HR />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="fleet" element={<Fleet />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </HashRouter>
+      <ToastProvider>
+        <HashRouter>
+          <ToastContainer />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="sales" element={<Sales />} />
+              <Route path="purchases" element={<Purchases />} />
+              <Route path="clients" element={<Clients />} />
+              <Route path="production" element={<Production />} />
+              <Route path="finance" element={<Finance />} />
+              <Route path="hr" element={<HR />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="fleet" element={<Fleet />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </HashRouter>
+      </ToastProvider>
     </AppProvider>
   );
 };

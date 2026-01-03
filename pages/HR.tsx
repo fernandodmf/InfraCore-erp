@@ -5,6 +5,7 @@ import {
     Plane, TrendingUp, AlertCircle, Filter, ChevronDown, FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Employee, PayrollRecord, TimeLog, Vacation, SalaryAdvance, PurchaseOrder } from '../types';
 import { exportToCSV } from '../utils/exportUtils';
 
@@ -18,6 +19,7 @@ const HR = () => {
         users
     } = useApp();
     const { addTransaction, accounts, hasPermission, currentUser, transactions, addPurchaseOrder } = useApp();
+    const { addToast } = useToast();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'payroll' | 'vacations' | 'advances' | 'time'>('employees');
     const [searchTerm, setSearchTerm] = useState('');
@@ -112,13 +114,30 @@ const HR = () => {
 
     const handleGeneratePayroll = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!selectedAccount) {
+            addToast("Por favor, selecione uma conta de pagamento para a provisão.", 'warning');
+            return;
+        }
+
         const month = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
 
         // Check if payroll already exists for this month to avoid duplicates
         const alreadyGenerated = payroll.some(p => p.month === month);
-        if (alreadyGenerated && !confirm(`Já existem registros de folha para ${month}. Deseja gerar novamente (duplicar)?`)) {
+        if (alreadyGenerated) {
+            addToast(`Já existem registros de folha para ${month}. Deseja gerar novamente (duplicar)?`, 'info', 10000, {
+                label: 'GERAR',
+                onClick: () => {
+                    generatePayrollLogic(month);
+                }
+            });
             return;
         }
+
+        generatePayrollLogic(month);
+    };
+
+    const generatePayrollLogic = (month: string) => {
 
         let count = 0;
         employees.filter(emp => emp.status === 'Ativo').forEach(emp => {
@@ -168,14 +187,14 @@ const HR = () => {
                 paymentTerms: 'Transferência Bancária',
                 shippingCost: 0,
                 ledgerName: 'Salários e Ordenados',
-                targetAccountId: '', // To be selected in Authorization
+                targetAccountId: selectedAccount, // Selected by user
                 ledgerCode: '2.03.01'
             };
             addPurchaseOrder(odp);
 
             count++;
         });
-        alert(`Folha de ${month} gerada com sucesso para ${count} colaboradores!`);
+        addToast(`Folha de ${month} gerada com sucesso para ${count} colaboradores!`, 'success');
         setIsPayrollModalOpen(false);
     };
 
@@ -311,7 +330,7 @@ const HR = () => {
         const totalUsed = existingAdvances.reduce((sum, a) => sum + a.amount, 0);
 
         if ((totalUsed + requestedAmount) > emp.salary) {
-            alert(`LIMITE EXCEDIDO!\n\nO valor solicitado (${formatCurrency(requestedAmount)}) somado às antecipações já registradas (${formatCurrency(totalUsed)}) ultrapassa o salário mensal do colaborador (${formatCurrency(emp.salary)}).`);
+            addToast(`LIMITE EXCEDIDO: O valor solicitado (${formatCurrency(requestedAmount)}) ultrapassa o salário mensal.`, 'error');
             return;
         }
 
@@ -335,33 +354,36 @@ const HR = () => {
     };
 
     const handlePayAdvance = (adv: SalaryAdvance) => {
-        if (!confirm(`Confirmar pagamento de antecipação: ${formatCurrency(adv.amount)} para ${adv.employeeName}?`)) return;
+        addToast(`Confirmar pagamento de antecipação: ${formatCurrency(adv.amount)} para ${adv.employeeName}?`, 'info', 10000, {
+            label: 'CONFIRMAR',
+            onClick: () => {
+                // 1. Check if transaction already exists
+                const txId = `tx-adv-${adv.id}`;
+                if (transactions.some(t => t.id === txId)) {
+                    addToast("Este adiantamento já foi processado no financeiro.", 'error');
+                    return;
+                }
 
-        // 1. Check if transaction already exists
-        const txId = `tx-adv-${adv.id}`;
-        if (transactions.some(t => t.id === txId)) {
-            alert("Este adiantamento já foi processado no financeiro.");
-            return;
-        }
+                // 2. Create Financial Transaction
+                addTransaction({
+                    id: txId,
+                    date: new Date().toLocaleDateString('pt-BR'),
+                    description: `Adiantamento Salarial - ${adv.employeeName}`,
+                    category: 'Adiantamentos',
+                    type: 'Despesa',
+                    amount: adv.amount,
+                    status: 'Conciliado',
+                    account: accounts[0]?.name || 'Caixa',
+                    accountId: accounts[0]?.id || 'acc-1',
+                    ledgerCode: '2.03.01',
+                    ledgerName: 'Salários e Ordenados'
+                });
 
-        // 2. Create Financial Transaction
-        addTransaction({
-            id: txId,
-            date: new Date().toLocaleDateString('pt-BR'),
-            description: `Adiantamento Salarial - ${adv.employeeName}`,
-            category: 'Adiantamentos',
-            type: 'Despesa',
-            amount: adv.amount,
-            status: 'Conciliado',
-            account: accounts[0]?.name || 'Caixa',
-            accountId: accounts[0]?.id || 'acc-1',
-            ledgerCode: '2.03.01',
-            ledgerName: 'Salários e Ordenados'
+                // 2. Update Status
+                paySalaryAdvance(adv.id);
+                addToast("Antecipação paga e registrada no financeiro.", 'success');
+            }
         });
-
-        // 2. Update Status
-        paySalaryAdvance(adv.id);
-        alert("Antecipação paga e registrada no financeiro.");
     };
 
     const handleTimeClock = (type: 'In' | 'Out') => {
@@ -375,7 +397,7 @@ const HR = () => {
             status: 'Presente'
         };
         addTimeLog(log);
-        alert(`Ponto de ${type === 'In' ? 'Entrada' : 'Saída'} registrado às ${now.toLocaleTimeString()}`);
+        addToast(`Ponto de ${type === 'In' ? 'Entrada' : 'Saída'} registrado às ${now.toLocaleTimeString()}`, 'success');
     };
 
     // --- Clock Kiosk Logic ---
@@ -385,7 +407,10 @@ const HR = () => {
     const [isBioScanning, setIsBioScanning] = useState(false);
 
     const handlePinClock = (type: 'In' | 'Out') => {
-        if (!clockEmpId) return alert("Selecione um colaborador.");
+        if (!clockEmpId) {
+            addToast("Selecione um colaborador.", 'warning');
+            return;
+        }
         const emp = employees.find(e => e.id === clockEmpId);
         if (!emp) return;
 
@@ -394,10 +419,15 @@ const HR = () => {
 
         // Fallback for verification
         if (!user) {
-            if (clockPass !== '1234') return alert("Colaborador sem usuário vinculado. Use senha padrão (1234).");
+            if (clockPass !== '1234') {
+                addToast("Senha padrão incorreta (1234).", 'error');
+                return;
+            }
         } else {
-            if (user.password && user.password !== clockPass) return alert("Senha incorreta.");
-            if (!user.password && clockPass !== '') return alert("Senha incorreta.");
+            if ((user.password && user.password !== clockPass) || (!user.password && clockPass !== '')) {
+                addToast("Senha incorreta.", 'error');
+                return;
+            }
         }
 
         const now = new Date();
@@ -409,7 +439,7 @@ const HR = () => {
             checkOut: type === 'Out' ? now.toLocaleTimeString() : undefined,
             status: type === 'In' ? 'Presente' : 'Saída'
         });
-        alert(`Ponto Registrado com Sucesso!\n${emp.name} - ${type === 'In' ? 'ENTRADA' : 'SAÍDA'} às ${now.toLocaleTimeString()}`);
+        addToast(`Ponto Registrado: ${emp.name} - ${type === 'In' ? 'ENTRADA' : 'SAÍDA'} às ${now.toLocaleTimeString()}`, 'success');
         setClockPass('');
         setClockEmpId('');
     };
@@ -430,7 +460,7 @@ const HR = () => {
                 checkIn: now.toLocaleTimeString(),
                 status: 'Presente'
             });
-            alert(`BIOMETRIA RECONHECIDA\n${emp.name}\nEntrada registrada às ${now.toLocaleTimeString()}`);
+            addToast(`BIOMETRIA RECONHECIDA: ${emp.name} - Entrada às ${now.toLocaleTimeString()}`, 'success');
         }, 2000);
     };
 
@@ -568,7 +598,12 @@ const HR = () => {
                                                             {hasPermission('employees.manage') && (
                                                                 <>
                                                                     <button onClick={() => { setSelectedEmployee(emp); setEmpForm(emp); setIsEmployeeModalOpen(true); }} className="p-2 text-slate-400 hover:text-cyan-600 transition-colors"><Edit2 size={18} /></button>
-                                                                    <button onClick={() => { if (confirm('Excluir colaborador?')) deleteEmployee(emp.id); }} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={18} /></button>
+                                                                    <button onClick={() => {
+                                                                        addToast('Excluir colaborador?', 'warning', 5000, {
+                                                                            label: 'EXCLUIR',
+                                                                            onClick: () => deleteEmployee(emp.id)
+                                                                        });
+                                                                    }} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={18} /></button>
                                                                 </>
                                                             )}
                                                         </div>
@@ -1079,7 +1114,22 @@ const HR = () => {
                                             <p className="text-3xl font-black text-emerald-600">{new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</p>
                                         </div>
                                         <p className="text-slate-500 text-sm font-medium">Ao confirmar, o sistema gerará os lançamentos de folha para todos os <strong>{employees.filter(e => e.status === 'Ativo').length}</strong> colaboradores ativos.</p>
-                                        <button onClick={handleGeneratePayroll} className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs">Confirmar Geração</button>
+
+                                        <div className="text-left bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Conta de Pagamento (Previsão)</label>
+                                            <select
+                                                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl py-3 px-3 font-bold text-sm outline-none focus:border-cyan-500 transition-colors"
+                                                value={selectedAccount}
+                                                onChange={(e) => setSelectedAccount(e.target.value)}
+                                            >
+                                                <option value="">Selecione uma conta...</option>
+                                                {accounts.map(acc => (
+                                                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.bank})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <button onClick={handleGeneratePayroll} className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-xs hover:bg-emerald-500 transition-all">Confirmar Geração</button>
                                     </div>
                                 </div>
                             </div>

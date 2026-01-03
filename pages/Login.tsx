@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Construction, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Login = () => {
@@ -10,6 +11,7 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useApp();
+    const { addToast } = useToast();
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -36,10 +38,13 @@ const Login = () => {
     };
 
     const handleReset = () => {
-        if (confirm('Isso limpará todos os dados locais e tentará baixar do banco novamente. Confirmar?')) {
-            localStorage.clear();
-            window.location.reload();
-        }
+        addToast('Isso limpará todos os dados locais e tentará baixar do banco novamente. Confirmar?', 'warning', 10000, {
+            label: 'SIM, RESETAR',
+            onClick: () => {
+                localStorage.clear();
+                window.location.reload();
+            }
+        });
     };
 
     return (

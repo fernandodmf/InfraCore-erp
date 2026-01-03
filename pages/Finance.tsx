@@ -26,10 +26,11 @@ import {
    Search,
    PieChart,
    ChevronRight,
-   Printer
+   Printer,
+   Loader
 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, AreaChart, Area } from 'recharts';
-import { CHART_DATA_CASHFLOW } from '../constants';
 import { useApp } from '../context/AppContext';
 import { Transaction } from '../types';
 
@@ -39,9 +40,11 @@ const Finance = () => {
       accounts, addAccount, deleteAccount,
       planOfAccounts, addPlanAccount, deletePlanAccount, updatePlanAccount, hasPermission, currentUser
    } = useApp();
+   const { addToast } = useToast();
 
    const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'receivables' | 'payables' | 'accounts' | 'planning'>('overview');
    const [isModalOpen, setIsModalOpen] = useState(false);
+   const [isSubmitting, setIsSubmitting] = useState(false);
    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
@@ -109,10 +112,43 @@ const Finance = () => {
    const receivables = transactions.filter(tx => tx.type === 'Receita' && tx.status !== 'Conciliado');
    const payables = transactions.filter(tx => tx.type === 'Despesa' && tx.status !== 'Conciliado');
 
+   // Chart Data Calculation
+   const chartData = React.useMemo(() => {
+      const last6Months = Array.from({ length: 6 }, (_, i) => {
+         const d = new Date();
+         d.setMonth(d.getMonth() - (5 - i));
+         return {
+            month: d.getMonth(),
+            year: d.getFullYear(),
+            name: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+         };
+      });
+
+      return last6Months.map(period => {
+         const periodTrans = transactions.filter(t => {
+            if (!t.date) return false;
+            const [d, m, y] = t.date.split('/').map(Number);
+            return m - 1 === period.month && y === period.year;
+         });
+
+         const income = periodTrans.filter(t => t.type === 'Receita').reduce((sum, t) => sum + t.amount, 0);
+         const expense = periodTrans.filter(t => t.type === 'Despesa').reduce((sum, t) => sum + t.amount, 0);
+
+         return {
+            name: period.name,
+            income,
+            expense
+         };
+      });
+   }, [transactions]);
+
+
    // Handlers
-   const handleSaveTransaction = (e: React.FormEvent) => {
+   const handleSaveTransaction = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!formData.description || !formData.amount) return;
+
+      setIsSubmitting(true);
 
       const selectedAccount = planOfAccounts.flatMap(g => g.children || []).find(c => c.id === formData.ledgerCode) ||
          planOfAccounts.find(g => g.id === formData.ledgerCode);
@@ -132,8 +168,12 @@ const Finance = () => {
          ledgerName: selectedAccount?.name || ''
       } as Transaction;
 
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       if (selectedTransaction) {
          updateTransaction(newTx);
+         addToast("Transação atualizada com sucesso!", 'success');
       } else {
          // Balance Validation Logic
          if (newTx.type === 'Despesa' && newTx.status === 'Conciliado') {
@@ -143,17 +183,27 @@ const Finance = () => {
                const limit = 0; // Assuming 0 for now as Account interface usually lacks explicit overdraft limit
                if (currentBalance - newTx.amount < -limit) {
                   if (currentUser?.username === 'admin') {
-                     if (!confirm(`⚠️ ALERTA DE SALDO:\n\nA conta "${txAccount.name}" ficará com saldo negativo (Saldo Atual: ${formatMoney(currentBalance)} - Valor: ${formatMoney(newTx.amount)} = ${formatMoney(currentBalance - newTx.amount)}).\n\nComo Administrador, você pode prosseguir. Desejaautorizar esta operação?`)) {
-                        return;
-                     }
+                     addToast(`⚠️ ALERTA DE SALDO:
+ A conta "${txAccount.name}" ficará com saldo negativo (Saldo Atual: ${formatMoney(currentBalance)} - Valor: ${formatMoney(newTx.amount)} = ${formatMoney(currentBalance - newTx.amount)}).
+ Deseja autorizar esta operação?`, 'warning', 10000, {
+                        label: 'AUTORIZAR',
+                        onClick: () => {
+                           addTransaction(newTx);
+                           setIsModalOpen(false);
+                        }
+                     });
+                     setIsSubmitting(false);
+                     return;
                   } else {
-                     alert(`🚫 OPERAÇÃO BLOQUEADA\n\nSaldo insuficiente na conta "${txAccount.name}".\nSaldo Atual: ${formatMoney(currentBalance)}\nValor da Saída: ${formatMoney(newTx.amount)}\n\nEsta operação deixaria a conta negativa, o que não é permitido para seu perfil.`);
+                     addToast(`🚫 OPERAÇÃO BLOQUEADA: Saldo insuficiente na conta "${txAccount.name}".`, 'error');
+                     setIsSubmitting(false);
                      return;
                   }
                }
             }
          }
          addTransaction(newTx);
+         addToast("Lançamento registrado com sucesso!", 'success');
       }
       setIsModalOpen(false);
       setSelectedTransaction(null);
@@ -169,6 +219,93 @@ const Finance = () => {
          notes: '',
          paymentMethod: 'Boleto'
       });
+      setIsSubmitting(false);
+   };
+
+   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+         try {
+            const csvData = event.target?.result as string;
+            if (!csvData) return;
+
+            const lines = csvData.split('\n');
+            let importedCount = 0;
+            const newTransactions: Transaction[] = [];
+
+            // Detect format or assume standard: Date;Description;Value;Type;Category
+            // Skipping header if present
+            const startIndex = lines[0].toLowerCase().includes('data') ? 1 : 0;
+
+            for (let i = startIndex; i < lines.length; i++) {
+               const line = lines[i].trim();
+               if (!line) continue;
+
+               // Support common separators
+               const cols = line.split(/[;,]/).map(c => c.trim().replace(/^"|"$/g, ''));
+
+               if (cols.length >= 3) {
+                  const date = cols[0];
+                  const description = cols[1];
+                  // Handle value formats like "1.000,00" or "1000.00"
+                  let amountStr = cols[2];
+                  if (amountStr.includes('.') && amountStr.includes(',')) {
+                     amountStr = amountStr.replace(/\./g, '').replace(',', '.');
+                  } else if (amountStr.includes(',')) {
+                     amountStr = amountStr.replace(',', '.');
+                  }
+                  const amount = Math.abs(parseFloat(amountStr));
+
+                  let type: 'Receita' | 'Despesa' = 'Despesa';
+                  if (cols[3]) {
+                     const t = cols[3].toLowerCase();
+                     if (t.includes('receita') || t.includes('crédito') || t.includes('entrada')) type = 'Receita';
+                  } else {
+                     // Try to infer from signed value if present
+                     if (cols[2].includes('-')) type = 'Despesa';
+                     else type = 'Receita';
+                  }
+
+                  const category = cols[4] || 'Importado';
+
+                  if (description && !isNaN(amount)) {
+                     newTransactions.push({
+                        id: `IMP-${Date.now()}-${i}`,
+                        date: date,
+                        description: description,
+                        amount: amount,
+                        type: type,
+                        category: category,
+                        status: 'Conciliado', // Imports are usually realized
+                        account: accounts[0]?.name || 'Conta Padrão',
+                        accountId: accounts[0]?.id || '',
+                        ledgerCode: '',
+                        ledgerName: category
+                     });
+                     importedCount++;
+                  }
+               }
+            }
+
+            if (importedCount > 0) {
+               // Batch add would be better, but loop is fine for now
+               newTransactions.forEach(tx => addTransaction(tx));
+               addToast(`Importação concluída! ${importedCount} transações adicionadas.`, 'success');
+            } else {
+               addToast("Nenhuma transação válida encontrada no arquivo.", 'warning');
+            }
+
+         } catch (error) {
+            console.error("Import Error:", error);
+            addToast("Erro ao processar arquivo.", 'error');
+         }
+      };
+
+      reader.readAsText(file);
+      e.target.value = ''; // Reset input
    };
 
    // UI Components
@@ -249,8 +386,8 @@ const Finance = () => {
 
          {/* Transactions Modal */}
          {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+               <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in duration-300 overflow-hidden text-left">
                   <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <CreditCard className="text-cyan-600" />
@@ -434,15 +571,22 @@ const Finance = () => {
                         <button
                            type="button"
                            onClick={() => setIsModalOpen(false)}
-                           className="flex-1 py-3 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
                         >
                            Cancelar
                         </button>
                         <button
                            type="submit"
-                           className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20"
+                           disabled={isSubmitting}
+                           className="flex-[2] py-4 bg-cyan-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-cyan-600/30 hover:bg-cyan-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                           Confirmar
+                           {isSubmitting ? (
+                              <>
+                                 <Loader className="animate-spin" size={18} /> Processando
+                              </>
+                           ) : (
+                              'Confirmar'
+                           )}
                         </button>
                      </div>
                   </form>
@@ -452,8 +596,8 @@ const Finance = () => {
 
          {/* New Account Modal */}
          {isAccountModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+               <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in duration-300 overflow-hidden text-left max-h-[90vh] overflow-y-auto custom-scrollbar">
                   <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50 sticky top-0 z-10">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <Landmark className="text-cyan-600" />
@@ -699,13 +843,13 @@ const Finance = () => {
                         <button
                            type="button"
                            onClick={() => setIsAccountModalOpen(false)}
-                           className="flex-1 py-3 text-slate-600 dark:text-gray-300 font-bold hover:bg-slate-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
                         >
                            Cancelar
                         </button>
                         <button
                            type="submit"
-                           className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-2"
+                           className="flex-[2] py-4 bg-cyan-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-cyan-600/30 hover:bg-cyan-500 transition-all flex items-center justify-center gap-2"
                         >
                            <Plus size={18} />
                            Criar Conta
@@ -718,8 +862,8 @@ const Finance = () => {
 
          {/* Plan of Accounts Modal */}
          {isPlanModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-               <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in duration-200 overflow-hidden text-left">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+               <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in duration-300 overflow-hidden text-left">
                   <div className="flex items-center justify-between p-6 border-b dark:border-gray-700 bg-slate-50/50 dark:bg-gray-700/50">
                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <FolderOpen className="text-cyan-600" />
@@ -780,12 +924,21 @@ const Finance = () => {
                         </div>
                      )}
 
-                     <button
-                        type="submit"
-                        className="w-full py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 transition-all shadow-lg shadow-cyan-600/20 mt-4"
-                     >
-                        Confirmar
-                     </button>
+                     <div className="flex gap-3 mt-4">
+                        <button
+                           type="button"
+                           onClick={() => setIsPlanModalOpen(false)}
+                           className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                        >
+                           Cancelar
+                        </button>
+                        <button
+                           type="submit"
+                           className="flex-[2] py-4 bg-cyan-600 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-2xl shadow-cyan-600/30 hover:bg-cyan-500 transition-all"
+                        >
+                           Confirmar
+                        </button>
+                     </div>
                   </form>
                </div>
             </div>
@@ -845,15 +998,15 @@ const Finance = () => {
                      </div>
                      <div className="h-80">
                         <ResponsiveContainer width="100%" height="100%">
-                           <BarChart data={CHART_DATA_CASHFLOW} barGap={8}>
+                           <BarChart data={chartData} barGap={8}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={10} />
                               <Tooltip
                                  cursor={{ fill: '#f8fafc' }}
                                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                               />
-                              <Bar dataKey="income" fill="#2dd4bf" radius={[4, 4, 0, 0]} barSize={32} />
-                              <Bar dataKey="expense" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={32} />
+                              <Bar dataKey="income" fill="#2dd4bf" radius={[4, 4, 0, 0]} barSize={32} name="Entradas" />
+                              <Bar dataKey="expense" fill="#f472b6" radius={[4, 4, 0, 0]} barSize={32} name="Saídas" />
                            </BarChart>
                         </ResponsiveContainer>
                      </div>
@@ -909,9 +1062,13 @@ const Finance = () => {
                            className="pl-10 pr-4 py-2 bg-slate-50 dark:bg-gray-700 border-none rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 w-48"
                         />
                      </div>
-                     <button className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg">
+                     <button className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg" title="Filtros Avançados">
                         <Filter size={18} />
                      </button>
+                     <label className="p-2 text-slate-400 hover:text-cyan-600 bg-slate-50 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors" title="Importar OFX/CSV">
+                        <Upload size={18} />
+                        <input type="file" className="hidden" onChange={handleImport} accept=".csv,.ofx,.xlsx" />
+                     </label>
                      <button className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg">
                         <Download size={18} />
                      </button>
@@ -998,7 +1155,12 @@ const Finance = () => {
 
                                     {hasPermission('finance.delete') && (
                                        <button
-                                          onClick={() => { if (confirm("Excluir?")) deleteTransaction(tx.id); }}
+                                          onClick={() => {
+                                             addToast("Deseja excluir esta transação?", 'warning', 5000, {
+                                                label: 'EXCLUIR',
+                                                onClick: () => deleteTransaction(tx.id)
+                                             });
+                                          }}
                                           className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg table-row-action"
                                        >
                                           <Trash2 size={16} />
@@ -1153,7 +1315,12 @@ const Finance = () => {
                                     <div className="flex justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
                                        <button onClick={() => openPlanModal(group, null)} className="p-1.5 text-slate-400 hover:text-cyan-600"><Edit2 size={16} /></button>
                                        {hasPermission('finance.delete') && (
-                                          <button onClick={() => { if (confirm("Excluir Grupo e todas subcategorias?")) deletePlanAccount(group.id, null); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                          <button onClick={() => {
+                                             addToast("Excluir Grupo e todas subcategorias?", 'warning', 5000, {
+                                                label: 'EXCLUIR',
+                                                onClick: () => deletePlanAccount(group.id, null)
+                                             });
+                                          }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                        )}
                                     </div>
                                  </td>
@@ -1169,7 +1336,12 @@ const Finance = () => {
                                        <div className="flex justify-end gap-1 opacity-10 group-hover:opacity-100 transition-opacity">
                                           <button onClick={() => openPlanModal(child, group.id)} className="p-1.5 text-slate-400 hover:text-cyan-600"><Edit2 size={14} /></button>
                                           {hasPermission('finance.delete') && (
-                                             <button onClick={() => { if (confirm("Excluir Categoria?")) deletePlanAccount(child.id, group.id); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                             <button onClick={() => {
+                                                addToast("Excluir Categoria?", 'warning', 5000, {
+                                                   label: 'EXCLUIR',
+                                                   onClick: () => deletePlanAccount(child.id, group.id)
+                                                });
+                                             }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
                                           )}
                                        </div>
                                     </td>

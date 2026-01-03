@@ -23,6 +23,7 @@ import {
   Copy
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Client, Supplier, Employee, InventoryItem, FleetVehicle } from '../types';
 import { exportToCSV } from '../utils/exportUtils';
 
@@ -35,6 +36,7 @@ const Clients = () => {
     fleet, addVehicle, updateVehicle, deleteVehicle,
     hasPermission
   } = useApp();
+  const { addToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -113,12 +115,16 @@ const Clients = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm('Tem certeza?')) return;
-    if (activeTab === 'clients') deleteClient(id);
-    else if (activeTab === 'suppliers') deleteSupplier(id);
-    else if (activeTab === 'employees') deleteEmployee(id);
-    else if (activeTab === 'products') deleteStockItem(id);
-    else if (activeTab === 'vehicles') deleteVehicle(id);
+    addToast('Tem certeza que deseja excluir este registro?', 'warning', 5000, {
+      label: 'EXCLUIR',
+      onClick: () => {
+        if (activeTab === 'clients') deleteClient(id);
+        else if (activeTab === 'suppliers') deleteSupplier(id);
+        else if (activeTab === 'employees') deleteEmployee(id);
+        else if (activeTab === 'products') deleteStockItem(id);
+        else if (activeTab === 'vehicles') deleteVehicle(id);
+      }
+    });
   };
 
   const handleDuplicate = (item: any) => {

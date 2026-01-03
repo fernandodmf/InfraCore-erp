@@ -64,32 +64,13 @@ import {
     Landmark
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { User, AppRole, AppSettings, AuditLog } from '../types';
 import { APP_PERMISSIONS } from '../permission_constants';
 import { generateCameloData } from '../src/utils/seeder';
 
 // Internal Toast Component
-const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void }) => {
-    useEffect(() => {
-        const timer = setTimeout(onClose, 3000);
-        return () => clearTimeout(timer);
-    }, [onClose]);
-
-    const bgColors = {
-        success: 'bg-emerald-500',
-        error: 'bg-rose-500',
-        info: 'bg-indigo-500'
-    };
-
-    return (
-        <div className={`${bgColors[type]} text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
-            {type === 'success' && <CheckCircle size={18} />}
-            {type === 'error' && <AlertTriangle size={18} />}
-            {type === 'info' && <Info size={18} />}
-            <span className="font-bold text-xs uppercase tracking-wide">{message}</span>
-        </div>
-    );
-};
+// Local Toast component removed in favor of global context
 
 // ============================================================================
 // EXTENDED COMPONENTS START
@@ -402,7 +383,7 @@ const IntegrationsSection = ({ settings, onUpdate }: { settings: import('../type
 const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
     settings: import('../types').AppSettings,
     onUpdate: (s: import('../types').AppSettings) => void,
-    addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+    addToast?: any
 }) => {
 
     const [showPassword, setShowPassword] = useState(false);
@@ -664,7 +645,7 @@ const EmailCommunicationSection = ({ settings, onUpdate, addToast }: {
 const DataSecuritySection = ({ settings, onUpdate, addToast }: {
     settings: import('../types').AppSettings,
     onUpdate: (s: import('../types').AppSettings) => void,
-    addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+    addToast?: any
 }) => {
 
     const [runningBackup, setRunningBackup] = useState(false);
@@ -1387,14 +1368,8 @@ const Settings = () => {
     // Local State for floating save bar detection
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Toasts
-    const [toasts, setToasts] = useState<Array<{ id: number, message: string, type: 'success' | 'error' | 'info' }>>([]);
-    const addToast = (message: string, type: 'success' | 'error' | 'info') => {
-        setToasts(prev => [...prev, { id: Date.now(), message, type }]);
-    };
-    const removeToast = (id: number) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    };
+    // Global Toast
+    const { addToast } = useToast();
 
     // Modals
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -1539,12 +1514,6 @@ const Settings = () => {
 
     return (
         <div className="flex flex-col h-full relative">
-            {/* Toast Container */}
-            <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[110]">
-                {toasts.map(t => (
-                    <Toast key={t.id} message={t.message} type={t.type} onClose={() => removeToast(t.id)} />
-                ))}
-            </div>
 
             {/* Top Navigation Bar */}
             <div className="shrink-0 pb-6">
@@ -1805,7 +1774,12 @@ const Settings = () => {
 
                                                 <div className="flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-6 right-6 lg:static justify-end mt-4">
                                                     <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-900 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                                    <button onClick={() => { if (confirm('Remover usuário?')) deleteUser(user.id); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 dark:bg-slate-900 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                    <button onClick={() => {
+                                                        addToast('Remover usuário?', 'warning', 5000, {
+                                                            label: 'EXCLUIR',
+                                                            onClick: () => deleteUser(user.id)
+                                                        });
+                                                    }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 dark:bg-slate-900 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
                                         ))}
@@ -2253,10 +2227,13 @@ const Settings = () => {
                                     <div className="flex flex-col gap-3">
                                         <button
                                             onClick={() => {
-                                                if (confirm("⚠️ ATENÇÃO: Isso apagará TODOS os dados do sistema.\n\nEsta ação é IRREVERSÍVEL e não pode ser desfeita.\n\nTodos os clientes, vendas, estoque e configurações serão perdidos permanentemente.\n\nDeseja realmente continuar?")) {
-                                                    clearAllData();
-                                                    addToast('Sistema resetado. Recarregando...', 'info');
-                                                }
+                                                addToast("⚠️ ATENÇÃO: Isso apagará TODOS os dados. Deseja continuar?", 'warning', 10000, {
+                                                    label: 'RESETAR TOTALMENTE',
+                                                    onClick: () => {
+                                                        clearAllData();
+                                                        addToast('Sistema resetado. Recarregando...', 'info');
+                                                    }
+                                                });
                                             }}
                                             className="px-8 py-4 bg-white hover:bg-rose-600 text-rose-600 hover:text-white border-2 border-rose-300 hover:border-rose-600 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-rose-500/30 hover:scale-105 active:scale-95"
                                         >
@@ -2265,11 +2242,14 @@ const Settings = () => {
 
                                         <button
                                             onClick={() => {
-                                                if (confirm("🚜 Carga de Dados: Camelo Mineração & Pavimentação\n\nIsso irá carregar um cenário industrial completo:\n- Pedreira (Britagem)\n- Usina de Asfalto\n- Central de Concreto\n- 3 Anos de Histórico Operacional\n\nDeseja continuar? (Dados atuais serão perdidos)")) {
-                                                    const data = generateCameloData();
-                                                    seedDatabase(data);
-                                                    addToast('Ambiente Industrial carregado com sucesso!', 'success');
-                                                }
+                                                addToast("Carregar Planta Industrial e sobrescrever dados atuais?", 'info', 10000, {
+                                                    label: 'CARREGAR',
+                                                    onClick: () => {
+                                                        const data = generateCameloData();
+                                                        seedDatabase(data);
+                                                        addToast('Ambiente Industrial carregado com sucesso!', 'success');
+                                                    }
+                                                });
                                             }}
                                             className="px-8 py-4 bg-white hover:bg-emerald-600 text-emerald-600 hover:text-white border-2 border-emerald-300 hover:border-emerald-600 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-500/30 hover:scale-105 active:scale-95 flex flex-col items-center gap-2"
                                         >

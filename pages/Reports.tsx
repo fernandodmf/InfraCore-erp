@@ -49,18 +49,47 @@ import {
     UserPlus,
     Search,
     X,
-    Settings
+    Settings,
+    Plus,
+    Minus,
+    Maximize2,
+    Minimize2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { exportToCSV, printDocument } from '../utils/exportUtils';
 
 const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const Reports = () => {
     const { financials, transactions, sales, inventory, purchaseOrders, clients, fleet, employees, stockMovements, settings, planOfAccounts } = useApp();
+    const { addToast } = useToast();
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'generator' | 'chart_of_accounts'>('generator');
 
+    // Chart of Accounts State
+    const [poaSearchTerm, setPoaSearchTerm] = useState('');
+    const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+
+    const toggleNode = (id: string) => {
+        setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const expandAll = () => {
+        const allIds: Record<string, boolean> = {};
+        const traverse = (nodes: any[]) => {
+            nodes.forEach(n => {
+                allIds[n.id] = true;
+                if (n.children) traverse(n.children);
+            });
+        };
+        traverse(planOfAccounts);
+        setExpandedNodes(allIds);
+    };
+
+    const collapseAll = () => {
+        setExpandedNodes({});
+    };
     // Report Generator State
     const [selectedModule, setSelectedModule] = useState<string>('sales');
     const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -449,7 +478,7 @@ const Reports = () => {
                 const prodRevenue = inventory.map(i => {
                     const revenue = sales.reduce((acc, s) => acc + (s.items?.filter(item => item.id === i.id).reduce((a, item) => a + item.price * item.quantity, 0) || 0), 0);
                     return { name: i.name, revenue };
-                }).sort((a, b) => b.revenue - a.revenue);
+                }).sort((a, b) => b.revenue - a[1].revenue);
                 let accum = 0;
                 const totalRev = prodRevenue.reduce((a, p) => a + p.revenue, 0);
                 data = prodRevenue.map(p => {
@@ -734,7 +763,7 @@ const Reports = () => {
         const title = `Relatório de ${modules.find(m => m.id === selectedModule)?.name}`;
 
         if (reportData.length === 0) {
-            alert("Sem dados para imprimir.");
+            addToast("Sem dados para imprimir.", 'warning');
             return;
         }
 
@@ -878,7 +907,7 @@ const Reports = () => {
     const handleDashboardExport = (action: 'download' | 'share' | 'excel') => {
         if (action === 'share') {
             navigator.clipboard.writeText(window.location.href);
-            alert("Link copiado!");
+            addToast("Link copiado!", 'success');
         } else if (action === 'excel') {
             exportToCSV(transactions, 'Relatorio_Financeiro_Geral');
         } else {
@@ -1022,24 +1051,24 @@ const Reports = () => {
                 /* --- CHART OF ACCOUNTS VIEW --- */
                 <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
                     {/* Header & Filters */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                                <BookOpen size={24} className="text-cyan-600" />
-                                Relatórios Contábeis
-                            </h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise detalhada baseada na estrutura do Plano de Contas.</p>
-                        </div>
-                        <div className="flex gap-4">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div>
-                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Início</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
+                                <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                    <BookOpen size={24} className="text-cyan-600" />
+                                    Relatórios Contábeis
+                                </h2>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise detalhada baseada na estrutura do Plano de Contas.</p>
                             </div>
-                            <div>
-                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Fim</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
-                            </div>
-                            <div className="flex items-end">
+                            <div className="flex gap-4 items-end">
+                                <div>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Início</label>
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Fim</label>
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-xs font-bold px-3 py-2" />
+                                </div>
                                 <button
                                     onClick={() => printDocument('Relatório Plano de Contas', document.getElementById('poa-report-content')?.innerHTML || '')}
                                     className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2"
@@ -1047,6 +1076,26 @@ const Reports = () => {
                                     <Printer size={16} /> Imprimir
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Search and Expand/Collapse Controls */}
+                        <div className="flex gap-4">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Filtrar contas..."
+                                    value={poaSearchTerm}
+                                    onChange={e => setPoaSearchTerm(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold"
+                                />
+                            </div>
+                            <button onClick={expandAll} className="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition-colors" title="Expandir Tudo">
+                                <Maximize2 size={16} />
+                            </button>
+                            <button onClick={collapseAll} className="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition-colors" title="Recolher Tudo">
+                                <Minimize2 size={16} />
+                            </button>
                         </div>
                     </div>
 
@@ -1080,16 +1129,31 @@ const Reports = () => {
 
                                 const groupTotal = getGroupTotal(group);
 
+                                // Search Filter Logic
+                                const matchesSearch = (node: any): boolean => {
+                                    if (!poaSearchTerm) return true;
+                                    const nameMatch = node.name.toLowerCase().includes(poaSearchTerm.toLowerCase());
+                                    const codeMatch = node.code.toLowerCase().includes(poaSearchTerm.toLowerCase());
+                                    const childrenMatch = (node.children || []).some((c: any) => matchesSearch(c));
+                                    return nameMatch || codeMatch || childrenMatch;
+                                };
+
+                                if (!matchesSearch(group)) return null;
+
                                 // Specific Styles for Groups
                                 const isRevenue = group.type === 'Receita';
                                 const colorClass = isRevenue ? 'text-emerald-600' : 'text-rose-600';
                                 const bgClass = isRevenue ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-rose-50 dark:bg-rose-900/10';
+                                const isExpanded = expandedNodes[group.id];
 
                                 return (
                                     <div key={group.id} className="space-y-4">
                                         {/* Group Header */}
-                                        <div className={`flex items-center justify-between p-4 rounded-xl ${bgClass} border border-slate-100 dark:border-slate-700`}>
+                                        <div className={`flex items-center justify-between p-4 rounded-xl ${bgClass} border border-slate-100 dark:border-slate-700 transition-all hover:shadow-md cursor-pointer`} onClick={() => toggleNode(group.id)}>
                                             <div className="flex items-center gap-3">
+                                                <button className={`p-1 rounded-lg hover:bg-black/5 transition-colors ${colorClass}`}>
+                                                    {isExpanded ? <Minus size={16} /> : <Plus size={16} />}
+                                                </button>
                                                 <span className={`font-mono font-bold text-sm ${colorClass}`}>{group.code}</span>
                                                 <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase">{group.name}</h3>
                                             </div>
@@ -1099,40 +1163,56 @@ const Reports = () => {
                                         </div>
 
                                         {/* Children */}
-                                        <div className="pl-6 space-y-1">
-                                            {group.children?.map(sub => {
-                                                const subTotal = getGroupTotal(sub);
-                                                if (subTotal === 0) return null; // Hide empty if desired, or keep
+                                        {isExpanded && (
+                                            <div className="pl-6 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                                                {group.children?.map((sub: any) => {
+                                                    if (!matchesSearch(sub)) return null;
+                                                    const subTotal = getGroupTotal(sub);
+                                                    const isSubExpanded = expandedNodes[sub.id];
 
-                                                return (
-                                                    <div key={sub.id} className="flex flex-col gap-1">
-                                                        <div className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors border-b border-slate-50 dark:border-slate-800">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="font-mono text-xs text-slate-400">{sub.code}</span>
-                                                                <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{sub.name}</span>
-                                                            </div>
-                                                            <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                                                                {formatMoney(subTotal)}
-                                                            </span>
-                                                        </div>
-                                                        {/* Level 3 Children */}
-                                                        {sub.children?.map(leaf => {
-                                                            const leafTotal = getGroupTotal(leaf);
-                                                            if (leafTotal === 0) return null;
-                                                            return (
-                                                                <div key={leaf.id} className="flex items-center justify-between py-1 px-2 ml-8 text-xs text-slate-500 hover:bg-slate-50 rounded">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="font-mono opacity-50">{leaf.code}</span>
-                                                                        <span>{leaf.name}</span>
-                                                                    </div>
-                                                                    <span>{formatMoney(leafTotal)}</span>
+                                                    // Only show if it has value or matches search strictly
+                                                    if (subTotal === 0 && !poaSearchTerm) return null;
+
+                                                    return (
+                                                        <div key={sub.id} className="flex flex-col gap-1">
+                                                            <div
+                                                                className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors border-b border-slate-50 dark:border-slate-800 cursor-pointer"
+                                                                onClick={(e) => { e.stopPropagation(); toggleNode(sub.id); }}
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    {sub.children && sub.children.length > 0 ? (
+                                                                        <button className="p-0.5 text-slate-400 hover:text-cyan-600">
+                                                                            {isSubExpanded ? <Minus size={12} /> : <Plus size={12} />}
+                                                                        </button>
+                                                                    ) : <div className="w-3" />}
+                                                                    <span className="font-mono text-xs text-slate-400">{sub.code}</span>
+                                                                    <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{sub.name}</span>
                                                                 </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                                                <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                                                                    {formatMoney(subTotal)}
+                                                                </span>
+                                                            </div>
+                                                            {/* Level 3 Children */}
+                                                            {isSubExpanded && sub.children?.map((leaf: any) => {
+                                                                const leafTotal = getGroupTotal(leaf);
+                                                                if (leafTotal === 0 && !poaSearchTerm) return null;
+                                                                if (!matchesSearch(leaf)) return null;
+
+                                                                return (
+                                                                    <div key={leaf.id} className="flex items-center justify-between py-1 px-2 ml-8 text-xs text-slate-500 hover:bg-slate-50 rounded animate-in fade-in duration-300">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="font-mono opacity-50">{leaf.code}</span>
+                                                                            <span>{leaf.name}</span>
+                                                                        </div>
+                                                                        <span>{formatMoney(leafTotal)}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

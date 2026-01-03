@@ -201,12 +201,12 @@ const Clients = () => {
                     {/* Nome / Descrição */}
                     <div className="md:col-span-8">
                       <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                        {activeTab === 'products' ? 'Descrição do Produto' : activeTab === 'vehicles' ? 'Modelo do Veículo' : 'Nome Completo / Razão Social'}
+                        {activeTab === 'products' ? 'Descrição do Produto' : activeTab === 'vehicles' ? 'Modelo / Nome do Veículo' : 'Nome Completo / Razão Social'}
                       </label>
                       <input
                         type="text" required
                         className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-4 font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 transition-all"
-                        placeholder={activeTab === 'clients' ? 'Ex: Construtora Exemplo Ltda' : ''}
+                        placeholder={activeTab === 'clients' ? 'Ex: Construtora Exemplo Ltda' : activeTab === 'vehicles' ? 'Ex: Volvo FH 540' : ''}
                         value={formData.name || ''}
                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                       />
@@ -311,9 +311,45 @@ const Clients = () => {
                     {activeTab === 'vehicles' && (
                       <>
                         <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Veículo</label>
+                          <select
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.type || 'Carro'}
+                            onChange={e => setFormData({ ...formData, type: e.target.value })}
+                          >
+                            <option value="Carro">Carro de Passeio</option>
+                            <option value="Utilitário">Utilitário (Picape/Furgão)</option>
+                            <option value="Caminhão">Caminhão</option>
+                            <option value="Toco">Caminhão Toco</option>
+                            <option value="Truck">Caminhão Truck</option>
+                            <option value="Carreta LS">Carreta LS</option>
+                            <option value="Máquina">Máquina Pesada</option>
+                            <option value="Motocicleta">Motocicleta</option>
+                            <option value="Van">Van</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Marca / Fabricante</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            placeholder="Ex: Volvo, Scania, Fiat"
+                            value={formData.brand || ''} onChange={e => setFormData({ ...formData, brand: e.target.value })} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Ano Fabricação</label>
+                          <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            placeholder="Ex: 2023"
+                            value={formData.year || ''} onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })} />
+                        </div>
+
+                        <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Placa</label>
                           <input type="text" className="w-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-100 dark:border-emerald-700/50 rounded-xl p-3 text-lg font-black text-center uppercase tracking-widest text-emerald-700 dark:text-emerald-400"
                             value={formData.plate || ''} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} placeholder="ABC-1234" maxLength={8} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Renavam</label>
+                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.renavam || ''} onChange={e => setFormData({ ...formData, renavam: e.target.value })} />
                         </div>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cor</label>
@@ -323,9 +359,9 @@ const Clients = () => {
                           </div>
                         </div>
                         <div className="md:col-span-4">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Renavam</label>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Chassi (Opcional)</label>
                           <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.renavam || ''} onChange={e => setFormData({ ...formData, renavam: e.target.value })} />
+                            value={formData.chassis || ''} onChange={e => setFormData({ ...formData, chassis: e.target.value })} />
                         </div>
                       </>
                     )}
@@ -474,18 +510,18 @@ const Clients = () => {
                       </>
                     )}
 
-                    {/* ADICIONAIS: Veículos */}
+                    {/* ADICIONAIS: Veículos (Detalhes Operacionais) */}
                     {activeTab === 'vehicles' && (
                       <>
                         <div className="md:col-span-4">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Chassi</label>
-                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.chassis || ''} onChange={e => setFormData({ ...formData, chassis: e.target.value })} />
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kilometragem Atual (Km)</label>
+                          <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.km || ''} onChange={e => setFormData({ ...formData, km: parseFloat(e.target.value) })} />
                         </div>
                         <div className="md:col-span-4">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kilometragem Atual</label>
-                          <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.mileage || ''} onChange={e => setFormData({ ...formData, mileage: parseFloat(e.target.value) })} />
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Próx. Manutenção (Km)</label>
+                          <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium text-amber-600"
+                            value={formData.nextMaintenanceKm || ''} onChange={e => setFormData({ ...formData, nextMaintenanceKm: parseFloat(e.target.value) })} />
                         </div>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Combustível</label>
@@ -496,7 +532,32 @@ const Clients = () => {
                             <option value="Etanol">Etanol</option>
                             <option value="Flex">Flex</option>
                             <option value="Hibrido">Híbrido</option>
+                            <option value="Elétrico">Elétrico</option>
                           </select>
+                        </div>
+
+                        <div className="md:col-span-6">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Motorista Responsável</label>
+                          <select
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.driverId || ''}
+                            onChange={e => setFormData({ ...formData, driverId: e.target.value })}
+                          >
+                            <option value="">Selecione...</option>
+                            {employees.map(emp => (
+                              <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-6">
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Vencimento do Seguro</label>
+                          <input
+                            type="date"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
+                            value={formData.insuranceExpiry ? new Date(formData.insuranceExpiry.split('/').reverse().join('-')).toISOString().split('T')[0] : ''}
+                            onChange={e => setFormData({ ...formData, insuranceExpiry: new Date(e.target.value).toLocaleDateString('pt-BR') })}
+                          />
                         </div>
                       </>
                     )}

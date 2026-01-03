@@ -104,7 +104,8 @@ const Finance = () => {
    // Filtering Logic
    const filteredTransactions = transactions.filter(tx => {
       const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         tx.category.toLowerCase().includes(searchTerm.toLowerCase());
+         tx.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (tx.account && tx.account.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = categoryFilter === 'Todas' || tx.type === categoryFilter;
       return matchesSearch && matchesCategory;
    });
@@ -1264,7 +1265,13 @@ const Finance = () => {
                                  <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Saldo Atual</p>
                                  <p className="text-lg font-black text-slate-800 dark:text-white">{formatMoney(acc.balance)}</p>
                               </div>
-                              <button className="text-xs font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1">
+                              <button
+                                 onClick={() => {
+                                    setSearchTerm(acc.name);
+                                    setActiveTab('ledger');
+                                 }}
+                                 className="text-xs font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                              >
                                  Ver Extrato <ChevronRight size={14} />
                               </button>
                            </div>

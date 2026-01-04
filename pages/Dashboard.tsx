@@ -135,6 +135,40 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* --- Quick Access Toolbar --- */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-2">
+        {/* Main Action: Nova Venda */}
+        <NavLink to="/sales" className="lg:min-w-[240px] flex items-center justify-between p-6 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/20 group hover:scale-[1.02] active:scale-[0.98] transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 bg-white/5 rounded-full -mr-4 -mt-4 opacity-50"></div>
+          <div className="relative z-10">
+            <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider mb-1">Ação Rápida</p>
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Nova Venda</h3>
+          </div>
+          <div className="relative z-10 p-3 bg-white/20 rounded-2xl text-white group-hover:bg-white group-hover:text-indigo-600 transition-colors shadow-lg">
+            <ShoppingCart size={24} />
+          </div>
+        </NavLink>
+
+        {/* Module Shortcuts */}
+        <div className="flex-1 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          {[
+            { label: 'Vendas', path: '/sales', icon: ShoppingCart },
+            { label: 'Compras', path: '/purchases', icon: Package },
+            { label: 'Cadastros', path: '/clients', icon: Users },
+            { label: 'Produção', path: '/production', icon: Layers },
+            { label: 'Financeiro', path: '/finance', icon: DollarSign },
+            { label: 'RH', path: '/hr', icon: Users },
+            { label: 'Relatórios', path: '/reports', icon: PieChart },
+            { label: 'Frota', path: '/fleet', icon: Truck },
+          ].map((mod, i) => (
+            <NavLink key={i} to={mod.path} className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm hover:border-indigo-500/30 hover:shadow-lg hover:-translate-y-1 transition-all group">
+              <mod.icon size={22} className="mb-2 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              <span className="text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{mod.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </div>
+
       {/* --- Financial KPI Cards --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
@@ -361,76 +395,75 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* --- Action & Alerts Grid --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Alerts Panel */}
+      {/* --- Alerts Section --- */}
+      <div className="w-full">
         <div className="bg-slate-900 text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-10 opacity-10">
             <AlertCircle size={150} />
           </div>
 
-          <h3 className="text-xl font-black uppercase tracking-tight mb-8 relative z-10 flex items-center gap-3">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            Atenção Necessária
-          </h3>
-
-          <div className="space-y-4 relative z-10">
-            {lowStockCount > 0 && (
-              <NavLink to="/inventory" className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
-                <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl">
-                  <Package size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-orange-400 uppercase">Estoque Crítico</p>
-                  <p className="text-sm font-bold">{lowStockCount} itens abaixo do mínimo</p>
-                </div>
-                <ArrowRight size={16} className="ml-auto text-white/30" />
-              </NavLink>
-            )}
-
-            {pendingPayrollCount > 0 && (
-              <NavLink to="/hr" className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
-                <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-emerald-400 uppercase">Folha de Pagamento</p>
-                  <p className="text-sm font-bold">{pendingPayrollCount} pagamentos pendentes</p>
-                </div>
-                <ArrowRight size={16} className="ml-auto text-white/30" />
-              </NavLink>
-            )}
-
-            {lowStockCount === 0 && pendingPayrollCount === 0 && (
-              <div className="p-8 text-center text-slate-500 italic">
-                Nenhum alerta crítico no momento.
-              </div>
-            )}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight mb-2 flex items-center gap-3">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                Central de Notificações
+              </h3>
+              <p className="text-slate-400 text-sm">Resumo de pendências críticas e alertas do sistema.</p>
+            </div>
           </div>
-        </div>
 
-        {/* Quick Modules Grid */}
-        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {[
-            { label: 'Nova Venda', icon: <ShoppingCart />, path: '/sales', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Novo Cliente', icon: <Users />, path: '/clients', color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-            { label: 'Estoque', icon: <Package />, path: '/inventory', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-            { label: 'Frota', icon: <Truck />, path: '/fleet', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-            { label: 'Financeiro', icon: <DollarSign />, path: '/finance', color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-            { label: 'Produção', icon: <BarChart3 />, path: '/production', color: 'text-slate-600', bg: 'bg-slate-100 dark:bg-slate-800' },
-          ].map((mod, i) => (
-            <NavLink
-              key={i}
-              to={mod.path}
-              className="group flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-            >
-              <div className={`p-4 rounded-2xl mb-3 transition-transform duration-300 group-hover:scale-110 ${mod.bg} ${mod.color}`}>
-                {React.cloneElement(mod.icon as any, { size: 28 })}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8 relative z-10">
+            {/* Low Stock Alert */}
+            {lowStockCount > 0 ? (
+              <NavLink to="/clients" className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
+                <div className="p-3 bg-orange-500/20 text-orange-400 rounded-xl">
+                  <Package size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-wider">Estoque Crítico</p>
+                  <p className="text-lg font-bold">{lowStockCount} itens</p>
+                </div>
+                <ArrowRight size={16} className="ml-auto text-white/30" />
+              </NavLink>
+            ) : (
+              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 opacity-50">
+                <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl"><Package size={24} /></div>
+                <div><p className="text-[10px] font-bold text-emerald-400 uppercase">Estoque</p><p className="text-sm">Tudo certo</p></div>
               </div>
-              <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">{mod.label}</span>
+            )}
+
+            {/* Payroll Alert */}
+            {pendingPayrollCount > 0 ? (
+              <NavLink to="/hr" className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
+                <div className="p-3 bg-rose-500/20 text-rose-400 rounded-xl">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-rose-400 uppercase tracking-wider">Folha de Pagamento</p>
+                  <p className="text-lg font-bold">{pendingPayrollCount} pendentes</p>
+                </div>
+                <ArrowRight size={16} className="ml-auto text-white/30" />
+              </NavLink>
+            ) : (
+              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 opacity-50">
+                <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl"><Users size={24} /></div>
+                <div><p className="text-[10px] font-bold text-emerald-400 uppercase">RH</p><p className="text-sm">Em dia</p></div>
+              </div>
+            )}
+
+            {/* Fleet Alert (Example) */}
+            <NavLink to="/fleet" className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
+              <div className="p-3 bg-indigo-500/20 text-indigo-400 rounded-xl">
+                <Truck size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Frota Operacional</p>
+                <p className="text-lg font-bold">{fleetAvailability}%</p>
+              </div>
+              <ArrowRight size={16} className="ml-auto text-white/30" />
             </NavLink>
-          ))}
+
+          </div>
         </div>
       </div>
 

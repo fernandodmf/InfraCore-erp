@@ -1413,11 +1413,20 @@ const Settings = () => {
         if (editingUser) {
             try {
                 if (users.some(u => u.id === editingUser.id)) {
-                    updateUser(editingUser);
+                    // Update User - Handle Password Logic
+                    let userToUpdate = { ...editingUser };
+                    if (!userToUpdate.password) {
+                        // Keep old password if not changed
+                        const originalUser = users.find(u => u.id === editingUser.id);
+                        if (originalUser) {
+                            userToUpdate.password = originalUser.password;
+                        }
+                    }
+                    updateUser(userToUpdate);
                     addToast('Usuário atualizado!', 'success');
                 } else {
-                    // Simple validation
-                    if (!editingUser.password) editingUser.password = '123456'; // Default password for demo
+                    // Create User
+                    if (!editingUser.password) editingUser.password = '123456';
                     addUser({ ...editingUser, id: Date.now().toString(), registeredAt: new Date().toLocaleDateString('pt-BR') });
                     addToast('Novo usuário criado!', 'success');
                 }
@@ -1765,6 +1774,7 @@ const Settings = () => {
                                                     </span>
                                                 </div>
                                                 <h4 className="font-bold text-slate-900 dark:text-white truncate">{user.name}</h4>
+                                                <p className="text-[10px] font-bold text-indigo-500 mb-1">@{user.username}</p>
                                                 <p className="text-xs text-slate-500 truncate mb-4">{user.email}</p>
 
                                                 <div className="flex items-center gap-2 mb-6">
@@ -2507,11 +2517,28 @@ const Settings = () => {
                             <div className="space-y-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
+                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} required />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome de Usuário (Login)</label>
+                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" value={editingUser.username} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} required placeholder="Ex: joao.silva" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
-                                    <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
+                                    <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} required />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                                    <div className="relative">
+                                        <input
+                                            type="password"
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-3 px-4 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                            value={editingUser.password || ''}
+                                            onChange={e => setEditingUser({ ...editingUser, password: e.target.value })}
+                                            placeholder={editingUser.id ? "Deixe em branco para não alterar" : "Defina uma senha"}
+                                            required={!editingUser.id}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
@@ -2541,107 +2568,109 @@ const Settings = () => {
                             </button>
                         </form>
                     </div>
-                </div>
+                </div >
             )}
 
             {/* Role Modal */}
-            {isRoleModalOpen && editingRole && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-2xl w-full max-w-5xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden h-[85vh] flex flex-col">
-                        <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
-                            <div>
-                                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Editar Perfil de Acesso</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Permissões granulares para {editingRole.name}.</p>
-                            </div>
-                            <button onClick={() => setIsRoleModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-all"><X size={20} /></button>
-                        </div>
-
-                        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                            {/* Role Details - Left Panel */}
-                            <div className="w-full md:w-80 p-8 border-r border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto shrink-0 space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Cargo</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} required />
+            {
+                isRoleModalOpen && editingRole && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-2xl w-full max-w-5xl border dark:border-slate-700 animate-in zoom-in duration-200 overflow-hidden h-[85vh] flex flex-col">
+                            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 shrink-0">
+                                <div>
+                                    <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter italic">Editar Perfil de Acesso</h3>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Permissões granulares para {editingRole.name}.</p>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
-                                    <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm h-32 resize-none" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} required />
-                                </div>
-                                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-                                    <h4 className="flex items-center gap-2 font-bold text-indigo-700 dark:text-indigo-300 text-xs mb-2"><ShieldCheck size={14} /> Resumo</h4>
-                                    <p className="text-[10px] text-indigo-600/70 dark:text-indigo-300/70">Este perfil possui acesso a <strong className="text-indigo-800 dark:text-indigo-200">{editingRole.permissions.length}</strong> funcionalidades do sistema.</p>
-                                </div>
+                                <button onClick={() => setIsRoleModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-all"><X size={20} /></button>
                             </div>
 
-                            {/* Permissions Matrix - Right Panel */}
-                            <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 p-8 overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {APP_PERMISSIONS.map(category => (
-                                        <div key={category.category} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h4 className="font-black text-xs uppercase tracking-widest text-slate-800 dark:text-white">{category.category}</h4>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const catIds = category.permissions.map(p => p.id);
-                                                        const allSelected = catIds.every(id => editingRole.permissions.includes(id));
-                                                        if (allSelected) {
-                                                            setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => !catIds.includes(p)) });
-                                                        } else {
-                                                            setEditingRole({ ...editingRole, permissions: [...new Set([...editingRole.permissions, ...catIds])] });
-                                                        }
-                                                    }}
-                                                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg transition-colors"
-                                                >
-                                                    Inverter Seleção
-                                                </button>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {category.permissions.map(perm => {
-                                                    const isSelected = editingRole.permissions.includes(perm.id);
-                                                    return (
-                                                        <div
-                                                            key={perm.id}
-                                                            onClick={() => {
-                                                                if (isSelected) {
-                                                                    setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => p !== perm.id) });
-                                                                } else {
-                                                                    setEditingRole({ ...editingRole, permissions: [...editingRole.permissions, perm.id] });
-                                                                }
-                                                            }}
-                                                            className={`cursor-pointer flex items-start gap-3 p-2 rounded-xl transition-all border ${isSelected
-                                                                ? 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30'
-                                                                : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                                                }`}
-                                                        >
-                                                            <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-slate-300'
-                                                                }`}>
-                                                                {isSelected && <Check size={10} strokeWidth={4} />}
+                            <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                                {/* Role Details - Left Panel */}
+                                <div className="w-full md:w-80 p-8 border-r border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto shrink-0 space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Cargo</label>
+                                        <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm" value={editingRole.name} onChange={e => setEditingRole({ ...editingRole, name: e.target.value })} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
+                                        <textarea className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl py-3 px-4 font-bold text-sm h-32 resize-none" value={editingRole.description} onChange={e => setEditingRole({ ...editingRole, description: e.target.value })} required />
+                                    </div>
+                                    <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                                        <h4 className="flex items-center gap-2 font-bold text-indigo-700 dark:text-indigo-300 text-xs mb-2"><ShieldCheck size={14} /> Resumo</h4>
+                                        <p className="text-[10px] text-indigo-600/70 dark:text-indigo-300/70">Este perfil possui acesso a <strong className="text-indigo-800 dark:text-indigo-200">{editingRole.permissions.length}</strong> funcionalidades do sistema.</p>
+                                    </div>
+                                </div>
+
+                                {/* Permissions Matrix - Right Panel */}
+                                <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 p-8 overflow-y-auto custom-scrollbar">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {APP_PERMISSIONS.map(category => (
+                                            <div key={category.category} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h4 className="font-black text-xs uppercase tracking-widest text-slate-800 dark:text-white">{category.category}</h4>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const catIds = category.permissions.map(p => p.id);
+                                                            const allSelected = catIds.every(id => editingRole.permissions.includes(id));
+                                                            if (allSelected) {
+                                                                setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => !catIds.includes(p)) });
+                                                            } else {
+                                                                setEditingRole({ ...editingRole, permissions: [...new Set([...editingRole.permissions, ...catIds])] });
+                                                            }
+                                                        }}
+                                                        className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg transition-colors"
+                                                    >
+                                                        Inverter Seleção
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {category.permissions.map(perm => {
+                                                        const isSelected = editingRole.permissions.includes(perm.id);
+                                                        return (
+                                                            <div
+                                                                key={perm.id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setEditingRole({ ...editingRole, permissions: editingRole.permissions.filter(p => p !== perm.id) });
+                                                                    } else {
+                                                                        setEditingRole({ ...editingRole, permissions: [...editingRole.permissions, perm.id] });
+                                                                    }
+                                                                }}
+                                                                className={`cursor-pointer flex items-start gap-3 p-2 rounded-xl transition-all border ${isSelected
+                                                                    ? 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30'
+                                                                    : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                                                    }`}
+                                                            >
+                                                                <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-slate-300'
+                                                                    }`}>
+                                                                    {isSelected && <Check size={10} strokeWidth={4} />}
+                                                                </div>
+                                                                <div>
+                                                                    <p className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{perm.name}</p>
+                                                                    <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{perm.description}</p>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>{perm.name}</p>
-                                                                <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{perm.description}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="p-6 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold text-xs uppercase hover:text-slate-800 transition-colors">Cancelar</button>
-                            <button onClick={handleSaveRole} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all">
-                                Salvar Definições
-                            </button>
+                            <div className="p-6 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold text-xs uppercase hover:text-slate-800 transition-colors">Cancelar</button>
+                                <button onClick={handleSaveRole} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all">
+                                    Salvar Definições
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

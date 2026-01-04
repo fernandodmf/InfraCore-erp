@@ -36,8 +36,18 @@ const formatMoney = (value: number) => {
 const Dashboard = () => {
   const {
     financials, fleet, transactions, sales, budgets,
-    employees, inventory, payroll
+    employees, inventory, payroll, hasPermission
   } = useApp();
+
+  if (!hasPermission('dashboard.view')) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+        <AlertCircle size={48} className="mb-4 text-slate-300" />
+        <h2 className="text-xl font-bold text-slate-700 dark:text-slate-300">Acesso Restrito</h2>
+        <p className="text-sm">Seu perfil não possui permissão para visualizar o Dashboard.</p>
+      </div>
+    );
+  }
 
   // --- Real-time Calculations ---
 

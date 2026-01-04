@@ -93,5 +93,13 @@ export const APP_PERMISSIONS = [
             { id: 'roles.manage', name: 'Gerir Perfis (Roles)', description: 'Criar e editar níveis de permissão' },
             { id: 'audit.view', name: 'Ver Auditoria', description: 'Acesso aos logs de segurança' },
         ]
+    },
+    {
+        category: 'Dashboard & BI',
+        permissions: [
+            { id: 'dashboard.view', name: 'Visualizar Dashboard', description: 'Acesso à tela inicial e indicadores gerais' },
+            { id: 'reports.view_basic', name: 'Relatórios Básicos', description: 'Listagens simples de sistema' },
+            { id: 'reports.view_advanced', name: 'Relatórios Avançados (BI)', description: 'Análises complexas e gráficos' },
+        ]
     }
 ];

@@ -37,6 +37,7 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Gerente Comercial',
     description: 'Gestão completa de vendas, clientes e equipe comercial.',
     permissions: [
+      'dashboard.view',
       'sales.view', 'sales.create', 'sales.edit', 'sales.approve', 'sales.cancel',
       'clients.view', 'clients.create', 'clients.edit', 'clients.delete', 'clients.financial'
     ]
@@ -54,6 +55,7 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Gestor de Estoque',
     description: 'Controle total de inventário e compras.',
     permissions: [
+      'dashboard.view',
       'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.adjust', 'inventory.history',
       'purchases.view', 'purchases.create', 'purchases.approve', 'purchases.receive',
       'suppliers.view', 'suppliers.manage'
@@ -72,6 +74,7 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Analista Financeiro',
     description: 'Contas a pagar/receber e fluxo de caixa.',
     permissions: [
+      'dashboard.view',
       'finance.dashboard', 'finance.view_transactions', 'finance.add_revenue', 'finance.add_expense',
       'finance.edit_transaction', 'finance.approve', 'finance.manage_accounts', 'finance.manage_plan', 'finance.reports'
     ]

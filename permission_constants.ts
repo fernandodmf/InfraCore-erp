@@ -1,107 +1,97 @@
 
 export const APP_PERMISSIONS = [
     {
-        category: 'Sistema & Administração',
+        category: 'Vendas & CRM', // Sales
         permissions: [
-            { id: 'all', name: 'Super Admin', description: 'Acesso total e irrestrito (Cuidado!)' },
-            { id: 'settings.view', name: 'Ver Configurações', description: 'Visualizar painel de controle' },
-            { id: 'settings.edit', name: 'Editar Parâmetros', description: 'Alterar configurações globais' },
-            { id: 'users.view', name: 'Ver Usuários', description: 'Listar usuários do sistema' },
-            { id: 'users.manage', name: 'Gerir Usuários', description: 'Criar, editar e remover usuários' },
-            { id: 'roles.view', name: 'Ver Perfis', description: 'Visualizar cargos e permissões' },
-            { id: 'roles.manage', name: 'Gerir Permissões', description: 'Editar níveis de acesso' },
-            { id: 'audit.view', name: 'Ver Auditoria', description: 'Consultar logs de sistema' },
-            { id: 'audit.export', name: 'Exportar Logs', description: 'Baixar histórico de atividades' },
-            { id: 'backup.manage', name: 'Gerir Backups', description: 'Realizar e restaurar backups' },
-            { id: 'notifications.broadcast', name: 'Enviar Alertas', description: 'Notificar todos os usuários' },
+            { id: 'sales.view', name: 'Visualizar Vendas', description: 'Ver lista de pedidos e orçamentos' },
+            { id: 'sales.create', name: 'Criar Venda/Orçamento', description: 'Lançar novos orçamentos ou vendas' },
+            { id: 'sales.edit', name: 'Editar Registros', description: 'Alterar pedidos ou orçamentos em aberto' },
+            { id: 'sales.approve', name: 'Aprovar Orçamentos', description: 'Converter orçamentos em vendas efetivas' },
+            { id: 'sales.cancel', name: 'Cancelar/Excluir', description: 'Cancelar ou remover vendas do sistema' },
+            { id: 'clients.view', name: 'Visualizar Clientes', description: 'Acesso à base de clientes' },
+            { id: 'clients.create', name: 'Cadastrar Clientes', description: 'Adicionar novos clientes' },
+            { id: 'clients.edit', name: 'Editar Clientes', description: 'Alterar dados cadastrais de clientes' },
+            { id: 'clients.delete', name: 'Excluir Clientes', description: 'Remover clientes da base' },
+            { id: 'clients.financial', name: 'Dados Financeiros (Cliente)', description: 'Ver/Editar crédito e prazos' },
         ]
     },
     {
-        category: 'Comercial & CRM',
+        category: 'Financeiro', // Finance
         permissions: [
-            { id: 'sales.view', name: 'Ver Vendas', description: 'Listar pedidos e orçamentos' },
-            { id: 'sales.view_all', name: 'Ver Todas Vendas', description: 'Ver vendas de outros vendedores' },
-            { id: 'sales.create', name: 'Criar Pedidos', description: 'Lançar novas vendas' },
-            { id: 'sales.edit', name: 'Editar Pedidos', description: 'Alterar pedidos em aberto' },
-            { id: 'sales.cancel', name: 'Cancelar Vendas', description: 'Cancelar pedidos já confirmados' },
-            { id: 'sales.approve', name: 'Aprovar Comercial', description: 'Liberar pedidos bloqueados' },
-            { id: 'sales.discount', name: 'Desconto Livre', description: 'Aplicar descontos acima do padrão' },
-            { id: 'sales.price_edit', name: 'Editar Preços', description: 'Alterar preço unitário na venda' },
-            { id: 'clients.view', name: 'Ver Clientes', description: 'Consultar base de clientes' },
-            { id: 'clients.manage', name: 'Gerir Clientes', description: 'Cadastrar e editar clientes' },
-            { id: 'clients.credit', name: 'Definir Limite', description: 'Alterar limite de crédito' },
-            { id: 'crm.leads', name: 'Gerir Leads', description: 'Acesso ao funil de oportunidades' },
+            { id: 'finance.dashboard', name: 'Visualizar Dashboard', description: 'Ver indicadores financeiros gerais' },
+            { id: 'finance.view_transactions', name: 'Ver Transações', description: 'Listar receitas e despesas' },
+            { id: 'finance.add_revenue', name: 'Lançar Receitas', description: 'Adicionar novas entradas manuais' },
+            { id: 'finance.add_expense', name: 'Lançar Despesas', description: 'Registrar contas a pagar/saídas' },
+            { id: 'finance.edit_transaction', name: 'Editar Transações', description: 'Alterar lançamentos existentes' },
+            { id: 'finance.approve', name: 'Conciliar/Baixar', description: 'Confirmar pagamentos e recebimentos' },
+            { id: 'finance.manage_accounts', name: 'Gerir Contas Bancárias', description: 'Cadastrar bancos e caixas' },
+            { id: 'finance.manage_plan', name: 'Gerir Plano de Contas', description: 'Criar/Editar categorias financeiras' },
+            { id: 'finance.reports', name: 'Relatórios Financeiros', description: 'DRE, Fluxo de Caixa e Extratos' },
         ]
     },
     {
-        category: 'Compras & Suprimentos',
+        category: 'Compras & Suprimentos', // Purchases
         permissions: [
-            { id: 'purchases.view', name: 'Ver Pedidos', description: 'Consultar compras realizadas' },
-            { id: 'purchases.create', name: 'Requisitar Compra', description: 'Solicitar materiais' },
-            { id: 'purchases.approve_level1', name: 'Aprovar (Nível 1)', description: 'Aprovar compras até R$ 5k' },
-            { id: 'purchases.approve_level2', name: 'Aprovar (Nível 2)', description: 'Aprovar compras ilimitadas' },
-            { id: 'purchases.cancel', name: 'Cancelar Compras', description: 'Cancelar pedidos a fornecedores' },
-            { id: 'suppliers.view', name: 'Ver Fornecedores', description: 'Listar base de fornecedores' },
-            { id: 'suppliers.manage', name: 'Gerir Fornecedores', description: 'Cadastrar/Editar fornecedores' },
-            { id: 'suppliers.bank_data', name: 'Dados Bancários', description: 'Ver dados de pagamento sensíveis' },
+            { id: 'purchases.view', name: 'Visualizar Pedidos', description: 'Ver histórico de compras' },
+            { id: 'purchases.create', name: 'Criar Pedido Compra', description: 'Lançar novas ordens de compra' },
+            { id: 'purchases.edit', name: 'Editar Pedidos', description: 'Alterar pedidos pendentes' },
+            { id: 'purchases.approve', name: 'Aprovar Compras', description: 'Autorizar pedidos de compra' },
+            { id: 'purchases.receive', name: 'Receber Mercadoria', description: 'Processar entrada de nota fiscal' },
+            { id: 'suppliers.view', name: 'Visualizar Fornecedores', description: 'Ver lista de fornecedores' },
+            { id: 'suppliers.manage', name: 'Gerir Fornecedores', description: 'Cadastrar, editar e excluir fornecedores' },
         ]
     },
     {
-        category: 'Financeiro',
+        category: 'Estoque de Materiais', // Inventory
         permissions: [
-            { id: 'finance.dashboard', name: 'Ver Dashboard', description: 'Visão geral de caixa' },
-            { id: 'finance.payables', name: 'Contas a Pagar', description: 'Gerir obrigações financeiras' },
-            { id: 'finance.receivables', name: 'Contas a Receber', description: 'Gerir entradas previstas' },
-            { id: 'finance.transact', name: 'Lançar Movimento', description: 'Inserir receitas/despesas manuais' },
-            { id: 'finance.approve', name: 'Autorizar Pagto', description: 'Aprovar baixas bancárias' },
-            { id: 'finance.reconcile', name: 'Conciliação', description: 'Conferência bancária' },
-            { id: 'finance.accounts', name: 'Gerir Contas', description: 'Cadastrar bancos e caixas' },
-            { id: 'finance.dre', name: 'Ver DRE', description: 'Relatório de Resultados (Sensível)' },
-            { id: 'finance.reports', name: 'Relatórios Fin.', description: 'Exportar dados financeiros' },
+            { id: 'inventory.view', name: 'Visualizar Estoque', description: 'Consultar saldos e itens' },
+            { id: 'inventory.create', name: 'Cadastrar Produtos', description: 'Adicionar novos itens ao cadastro' },
+            { id: 'inventory.edit', name: 'Editar Produtos', description: 'Alterar dados de itens existentes' },
+            { id: 'inventory.adjust', name: 'Ajuste Manual', description: 'Lançar perdas, sobras ou correções' },
+            { id: 'inventory.history', name: 'Ver Histórico', description: 'Auditar movimentações de estoque' },
         ]
     },
     {
-        category: 'Estoque & Produção',
+        category: 'Produção Industrial', // Production
         permissions: [
-            { id: 'inventory.view', name: 'Ver Estoque', description: 'Consultar saldos atuais' },
-            { id: 'inventory.move', name: 'Movimentar', description: 'Entrada/Saída manual' },
-            { id: 'inventory.adjust', name: 'Ajuste de Saldo', description: 'Correção de inventário (Perda/Sobra)' },
-            { id: 'inventory.cost_view', name: 'Ver Custos', description: 'Visualizar preço de custo' },
-            { id: 'production.plan', name: 'Planejar PCP', description: 'Criar ordens de produção' },
-            { id: 'production.execute', name: 'Apontar Produção', description: 'Registrar execução no chão de fábrica' },
-            { id: 'formulas.read', name: 'Ver Fórmulas', description: 'Consultar fichas técnicas' },
-            { id: 'formulas.write', name: 'Editar Eng.', description: 'Alterar composição de produtos' },
+            { id: 'production.view', name: 'Visualizar Produção', description: 'Ver ordens de produção (OPs)' },
+            { id: 'production.create', name: 'Criar O.P.', description: 'Planejar nova produção' },
+            { id: 'production.execute', name: 'Executar/Apontar', description: 'Iniciar, pausar e finalizar OPs' },
+            { id: 'production.formulas', name: 'Gerir Fórmulas/Traços', description: 'Criar composições de produtos' },
+            { id: 'production.units', name: 'Gerir Usinas', description: 'Configurar unidades fabris' },
+            { id: 'quality.manage', name: 'Controle de Qualidade', description: 'Lançar e gerir testes de laboratório' },
         ]
     },
     {
-        category: 'Logística & Frota',
+        category: 'Frota & Logística', // Fleet
         permissions: [
-            { id: 'fleet.view', name: 'Ver Frota', description: 'Consultar veículos' },
-            { id: 'fleet.manage', name: 'Gerir Veículos', description: 'Cadastrar/Editar frota' },
-            { id: 'fuel.log', name: 'Lançar Abast.', description: 'Registrar abastecimentos' },
-            { id: 'maintenance.create', name: 'Abrir OS', description: 'Solicitar manutenção' },
-            { id: 'maintenance.approve', name: 'Aprovar OS', description: 'Autorizar custos de manutenção' },
-            { id: 'tires.manage', name: 'Gestão de Pneus', description: 'Controle de vida útil e rodízio' },
-            { id: 'drivers.manage', name: 'Gerir Motoristas', description: 'Cadastro de condutores' },
+            { id: 'fleet.view', name: 'Visualizar Frota', description: 'Ver lista de veículos e ativos' },
+            { id: 'fleet.manage', name: 'Gerir Veículos', description: 'Cadastrar/Editar caminhões e máquinas' },
+            { id: 'fleet.maintenance', name: 'Gerir Manutenções', description: 'Lançar ordens de serviço e custos' },
+            { id: 'fleet.fuel', name: 'Controle de Combustível', description: 'Lançar e gerir abastecimentos' },
+            { id: 'fleet.tires', name: 'Gestão de Pneus', description: 'Controle de vidas, rodízios e descartes' },
         ]
     },
     {
-        category: 'Recursos Humanos',
+        category: 'Recursos Humanos (RH)', // HR
         permissions: [
-            { id: 'employees.view', name: 'Ver Lista', description: 'Diretório de colaboradores' },
-            { id: 'employees.manage', name: 'Admissão/Demissão', description: 'Gestão contratual completa' },
-            { id: 'salary.view', name: 'Ver Salários', description: 'Acesso a dados salariais (Restrito)' },
-            { id: 'payroll.process', name: 'Processar Folha', description: 'Cálculo de pagamentos' },
-            { id: 'vacation.manage', name: 'Controle Férias', description: 'Gerir cronograma de férias' },
-            { id: 'point.manage', name: 'Espelho de Ponto', description: 'Ajuste de jornada e horas' },
+            { id: 'hr.view', name: 'Visualizar Colaboradores', description: 'Acesso ao diretório de funcionários' },
+            { id: 'hr.manage', name: 'Gerir Cadastros', description: 'Admissão, edição e documentação' },
+            { id: 'hr.payroll', name: 'Folha de Pagamento', description: 'Calcular e fechar pagamentos' },
+            { id: 'hr.time', name: 'Controle de Ponto', description: 'Gerir registros de jornada' },
+            { id: 'hr.vacations', name: 'Gestão de Férias', description: 'Agendar e aprovar férias' },
+            { id: 'hr.advances', name: 'Vales & Adiantamentos', description: 'Gerir solicitações financeiras' },
         ]
     },
     {
-        category: 'Inteligência (BI)',
+        category: 'Sistema & Segurança', // Settings
         permissions: [
-            { id: 'reports.basic', name: 'Relatórios Básicos', description: 'Listagens simples' },
-            { id: 'reports.advanced', name: 'Relatórios BI', description: 'Análise de dados complexa' },
-            { id: 'dashboard.custom', name: 'Editar Dashboard', description: 'Personalizar visão geral' },
+            { id: 'settings.view', name: 'Acessar Configurações', description: 'Entrar no módulo de ajustes' },
+            { id: 'settings.company', name: 'Dados da Empresa', description: 'Alterar cadastro da organização' },
+            { id: 'settings.system', name: 'Parâmetros de Sistema', description: 'Configurar fiscal, backup e performance' },
+            { id: 'users.manage', name: 'Gerir Usuários', description: 'Criar e editar logins de acesso' },
+            { id: 'roles.manage', name: 'Gerir Perfis (Roles)', description: 'Criar e editar níveis de permissão' },
+            { id: 'audit.view', name: 'Ver Auditoria', description: 'Acesso aos logs de segurança' },
         ]
     }
 ];

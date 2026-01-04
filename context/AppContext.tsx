@@ -37,9 +37,8 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Gerente Comercial',
     description: 'Gestão completa de vendas, clientes e equipe comercial.',
     permissions: [
-      'sales.view', 'sales.view_all', 'sales.create', 'sales.edit', 'sales.cancel', 'sales.approve', 'sales.discount',
-      'clients.view', 'clients.manage', 'clients.credit',
-      'crm.leads', 'reports.basic', 'reports.advanced'
+      'sales.view', 'sales.create', 'sales.edit', 'sales.approve', 'sales.cancel',
+      'clients.view', 'clients.create', 'clients.edit', 'clients.delete', 'clients.financial'
     ]
   },
   {
@@ -47,7 +46,7 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Vendedor',
     description: 'Acesso padrão para força de vendas.',
     permissions: [
-      'sales.view', 'sales.create', 'clients.view', 'crm.leads'
+      'sales.view', 'sales.create', 'clients.view', 'clients.create', 'clients.edit'
     ]
   },
   {
@@ -55,8 +54,8 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Gestor de Estoque',
     description: 'Controle total de inventário e compras.',
     permissions: [
-      'inventory.view', 'inventory.move', 'inventory.adjust', 'inventory.cost_view',
-      'purchases.view', 'purchases.create', 'purchases.approve_level1',
+      'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.adjust', 'inventory.history',
+      'purchases.view', 'purchases.create', 'purchases.approve', 'purchases.receive',
       'suppliers.view', 'suppliers.manage'
     ]
   },
@@ -65,7 +64,7 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Operador de Campo',
     description: 'Focado em execução de ordens e manutenção.',
     permissions: [
-      'production.execute', 'maintenance.create', 'fuel.log', 'fleet.view'
+      'production.execute', 'fleet.view', 'fleet.maintenance', 'fleet.fuel'
     ]
   },
   {
@@ -73,8 +72,8 @@ const INITIAL_ROLES: AppRole[] = [
     name: 'Analista Financeiro',
     description: 'Contas a pagar/receber e fluxo de caixa.',
     permissions: [
-      'finance.dashboard', 'finance.payables', 'finance.receivables', 'finance.transact', 'finance.reconcile',
-      'reports.basic', 'reports.advanced', 'finance.reports'
+      'finance.dashboard', 'finance.view_transactions', 'finance.add_revenue', 'finance.add_expense',
+      'finance.edit_transaction', 'finance.approve', 'finance.manage_accounts', 'finance.manage_plan', 'finance.reports'
     ]
   }
 ];

@@ -27,6 +27,103 @@ import { useToast } from '../context/ToastContext';
 import { Client, Supplier, Employee, InventoryItem, FleetVehicle } from '../types';
 import { exportToCSV } from '../utils/exportUtils';
 
+// ============================================================
+// FUNÇÕES DE MÁSCARA E VALIDAÇÃO
+// ============================================================
+
+/** Aplica máscara de CPF: 000.000.000-00 */
+const maskCPF = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+};
+
+/** Aplica máscara de CNPJ: 00.000.000/0000-00 */
+const maskCNPJ = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+};
+
+/** Detecta automaticamente se é CPF (11 dígitos) ou CNPJ (14 dígitos) e aplica a máscara */
+const maskDocument = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 11) return maskCPF(digits);
+  return maskCNPJ(digits);
+};
+
+/** Aplica máscara de telefone: (00) 00000-0000 ou (00) 0000-0000 */
+const maskPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{4})(\d{1,4})$/, '$1-$2');
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
+};
+
+/** Aplica máscara de CEP: 00000-000 */
+const maskCEP = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 8)
+    .replace(/(\d{5})(\d{1,3})$/, '$1-$2');
+};
+
+/** Valida CPF */
+const isValidCPF = (cpf: string) => {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(digits[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  return remainder === parseInt(digits[10]);
+};
+
+/** Valida CNPJ */
+const isValidCNPJ = (cnpj: string) => {
+  const digits = cnpj.replace(/\D/g, '');
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+  const calcDigit = (d: string, len: number) => {
+    let sum = 0, pos = len - 7;
+    for (let i = len; i >= 1; i--) {
+      sum += parseInt(d[len - i]) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    return sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  };
+  return (
+    calcDigit(digits, 12) === parseInt(digits[12]) &&
+    calcDigit(digits, 13) === parseInt(digits[13])
+  );
+};
+
+/** Valida documento (CPF ou CNPJ) */
+const isValidDocument = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 11) return isValidCPF(value);
+  if (digits.length === 14) return isValidCNPJ(value);
+  return false;
+};
+
+// ============================================================
+
 const Clients = () => {
   const {
     clients, addClient, updateClient, deleteClient,
@@ -43,6 +140,7 @@ const Clients = () => {
   const [formData, setFormData] = useState<any>({});
   const [activeTab, setActiveTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
+  const [documentError, setDocumentError] = useState('');
 
   const canManage = (type: string) => {
     switch (type) {
@@ -68,6 +166,7 @@ const Clients = () => {
 
   const handleOpenModal = (item?: any, type: string = activeTab) => {
     setActiveTab(type);
+    setDocumentError('');
     if (item) {
       setEditingId(item.id);
       setFormData(type === 'vehicles' ? { ...item, name: item.model } : item);
@@ -82,10 +181,43 @@ const Clients = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setFormData({});
+    setDocumentError('');
+  };
+
+  // Handler para campo CPF/CNPJ com máscara e validação
+  const handleDocumentChange = (value: string) => {
+    const masked = maskDocument(value);
+    setFormData({ ...formData, document: masked });
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) {
+      setDocumentError('');
+    } else if (digits.length < 11) {
+      setDocumentError('');
+    } else if (digits.length === 11) {
+      setDocumentError(isValidCPF(masked) ? '' : 'CPF inválido');
+    } else if (digits.length >= 14) {
+      setDocumentError(isValidCNPJ(masked) ? '' : 'CNPJ inválido');
+    } else {
+      setDocumentError('');
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validação do documento antes de salvar
+    if (
+      (activeTab === 'clients' || activeTab === 'suppliers' || activeTab === 'employees') &&
+      formData.document
+    ) {
+      const digits = formData.document.replace(/\D/g, '');
+      if (digits.length > 0 && !isValidDocument(formData.document)) {
+        setDocumentError(digits.length <= 11 ? 'CPF inválido' : 'CNPJ inválido');
+        addToast('CPF/CNPJ inválido. Verifique o documento informado.', 'error', 4000);
+        return;
+      }
+    }
+
     const id = editingId || Date.now().toString();
 
     if (activeTab === 'clients') {
@@ -129,12 +261,13 @@ const Clients = () => {
 
   const handleDuplicate = (item: any) => {
     const duplicatedItem = { ...item };
-    delete duplicatedItem.id; // Ensure new ID generation
-    duplicatedItem.name = `${duplicatedItem.name} (Cópia)`; // Alter reference (Name)
-    if (duplicatedItem.barcode) duplicatedItem.barcode = ''; // Clear unique identifier if exists
+    delete duplicatedItem.id;
+    duplicatedItem.name = `${duplicatedItem.name} (Cópia)`;
+    if (duplicatedItem.barcode) duplicatedItem.barcode = '';
 
     setEditingId(null);
     setFormData(duplicatedItem);
+    setDocumentError('');
     setIsModalOpen(true);
   };
 
@@ -228,7 +361,7 @@ const Clients = () => {
                       </select>
                       {/* Campo Adicional: Nome Fantasia (Fornecedor) */}
                       {activeTab === 'suppliers' && (
-                        <div className="md:col-span-12">
+                        <div className="md:col-span-12 mt-3">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Nome Fantasia</label>
                           <input
                             type="text"
@@ -245,21 +378,60 @@ const Clients = () => {
                     {/* -> CLIENTES & FORNECEDORES & COLABORADORES */}
                     {(activeTab === 'clients' || activeTab === 'suppliers' || activeTab === 'employees') && (
                       <>
+                        {/* CPF / CNPJ com máscara e validação */}
                         <div className="md:col-span-4">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">CPF / CNPJ</label>
-                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
-                            value={formData.document || ''} onChange={e => setFormData({ ...formData, document: e.target.value })}
-                            placeholder="00.000.000/0000-00" />
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                            {activeTab === 'employees' ? 'CPF' : 'CPF / CNPJ'}
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className={`w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 transition-all ${
+                              documentError
+                                ? 'ring-2 ring-rose-400 bg-rose-50 dark:bg-rose-900/10'
+                                : 'focus:ring-cyan-500'
+                            }`}
+                            value={formData.document || ''}
+                            onChange={e => handleDocumentChange(e.target.value)}
+                            placeholder={activeTab === 'employees' ? '000.000.000-00' : '000.000.000-00 ou 00.000.000/0000-00'}
+                            maxLength={18}
+                          />
+                          {documentError && (
+                            <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                              <span>⚠</span> {documentError}
+                            </p>
+                          )}
+                          {!documentError && formData.document && formData.document.replace(/\D/g, '').length >= 11 && (
+                            <p className="mt-1 text-[10px] font-bold text-emerald-500 flex items-center gap-1">
+                              <span>✓</span> {formData.document.replace(/\D/g, '').length === 11 ? 'CPF válido' : 'CNPJ válido'}
+                            </p>
+                          )}
                         </div>
+
+                        {/* Email */}
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Email Principal</label>
-                          <input type="email" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
-                            value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                          <input
+                            type="email"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
+                            value={formData.email || ''}
+                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                            placeholder="exemplo@email.com"
+                          />
                         </div>
+
+                        {/* Telefone com máscara */}
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Telefone / WhatsApp</label>
-                          <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
-                            value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500"
+                            value={formData.phone || ''}
+                            onChange={e => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                          />
                         </div>
                       </>
                     )}
@@ -338,6 +510,7 @@ const Clients = () => {
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Ano Fabricação</label>
                           <input type="number" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
                             placeholder="Ex: 2023"
+                            min={1950} max={new Date().getFullYear() + 1}
                             value={formData.year || ''} onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) })} />
                         </div>
 
@@ -349,7 +522,7 @@ const Clients = () => {
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Renavam</label>
                           <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.renavam || ''} onChange={e => setFormData({ ...formData, renavam: e.target.value })} />
+                            value={formData.renavam || ''} onChange={e => setFormData({ ...formData, renavam: e.target.value })} maxLength={11} />
                         </div>
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cor</label>
@@ -361,7 +534,7 @@ const Clients = () => {
                         <div className="md:col-span-4">
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Chassi (Opcional)</label>
                           <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl p-3 text-sm font-medium"
-                            value={formData.chassis || ''} onChange={e => setFormData({ ...formData, chassis: e.target.value })} />
+                            value={formData.chassis || ''} onChange={e => setFormData({ ...formData, chassis: e.target.value })} maxLength={17} />
                         </div>
                       </>
                     )}
@@ -571,8 +744,15 @@ const Clients = () => {
                         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                           <div className="col-span-2">
                             <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">CEP</label>
-                            <input type="text" className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
-                              value={formData.address?.zipCode || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, zipCode: e.target.value } })} />
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700"
+                              value={formData.address?.zipCode || ''}
+                              onChange={e => setFormData({ ...formData, address: { ...formData.address, zipCode: maskCEP(e.target.value) } })}
+                              placeholder="00000-000"
+                              maxLength={9}
+                            />
                           </div>
                           <div className="col-span-4 md:col-span-4">
                             <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Logradouro (Rua/Av)</label>
@@ -597,7 +777,7 @@ const Clients = () => {
                           <div className="col-span-1">
                             <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">UF</label>
                             <input type="text" maxLength={2} className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-xs border border-slate-200 dark:border-slate-700 uppercase"
-                              value={formData.address?.state || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })} />
+                              value={formData.address?.state || ''} onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value.toUpperCase() } })} />
                           </div>
                         </div>
                       </div>
@@ -749,7 +929,7 @@ const Clients = () => {
           </tbody>
         </table>
       </div>
-    </div >
+    </div>
   );
 };
 
